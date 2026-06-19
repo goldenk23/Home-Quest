@@ -1,0 +1,1877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Home Quest — Architecture Diagrams</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #0a0a1a;
+      --bg-secondary: #111128;
+      --bg-card: #161638;
+      --bg-card-hover: #1e1e4a;
+      --border-subtle: rgba(99, 102, 241, 0.15);
+      --border-active: rgba(99, 102, 241, 0.5);
+      --text-primary: #e8e8f0;
+      --text-secondary: #9696b8;
+      --text-muted: #6a6a8e;
+      --accent-indigo: #6366f1;
+      --accent-cyan: #22d3ee;
+      --accent-green: #34d399;
+      --accent-amber: #fbbf24;
+      --accent-rose: #fb7185;
+      --accent-violet: #a78bfa;
+      --accent-orange: #fb923c;
+      --glow-indigo: rgba(99, 102, 241, 0.3);
+      --glow-cyan: rgba(34, 211, 238, 0.3);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Animated gradient background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.04) 0%, transparent 50%),
+                  radial-gradient(ellipse at 80% 20%, rgba(34, 211, 238, 0.03) 0%, transparent 50%),
+                  radial-gradient(ellipse at 40% 80%, rgba(167, 139, 250, 0.03) 0%, transparent 50%);
+      animation: bgPulse 20s ease-in-out infinite alternate;
+      z-index: 0;
+      pointer-events: none;
+    }
+    @keyframes bgPulse {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(-5%, 3%) scale(1.1); }
+    }
+
+    .page-wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 40px 32px 80px;
+    }
+
+    /* ── Header ── */
+    .hero {
+      text-align: center;
+      padding: 48px 0 56px;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(34, 211, 238, 0.1));
+      border: 1px solid var(--border-subtle);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent-cyan);
+      letter-spacing: 0.5px;
+      margin-bottom: 20px;
+    }
+    .hero-badge::before {
+      content: '◆';
+      font-size: 8px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+    .hero h1 {
+      font-size: clamp(32px, 5vw, 56px);
+      font-weight: 900;
+      background: linear-gradient(135deg, #e8e8f0 30%, var(--accent-indigo) 60%, var(--accent-cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.15;
+      margin-bottom: 16px;
+    }
+    .hero p {
+      font-size: 17px;
+      color: var(--text-secondary);
+      max-width: 700px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    /* ── Tab Navigation ── */
+    .tab-nav {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 48px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 12px 24px;
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .tab-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 0;
+    }
+    .tab-btn span { position: relative; z-index: 1; }
+    .tab-btn:hover {
+      border-color: var(--border-active);
+      color: var(--text-primary);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+    }
+    .tab-btn.active {
+      border-color: transparent;
+      color: white;
+    }
+    .tab-btn.active::before { opacity: 1; }
+
+    .tab-content { display: none; animation: fadeSlideIn 0.5s ease; }
+    .tab-content.active { display: block; }
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Section titles ── */
+    .section-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-title .icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .section-subtitle {
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 1.7;
+      margin-bottom: 40px;
+      max-width: 800px;
+    }
+
+    /* ════════════════════════════════════════════════
+       DIAGRAM 1: SYSTEM ARCHITECTURE
+    ════════════════════════════════════════════════ */
+
+    .arch-diagram {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+    }
+
+    .arch-layer {
+      border-radius: var(--radius);
+      border: 1px solid var(--border-subtle);
+      padding: 24px;
+      position: relative;
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+    .arch-layer::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0.04;
+      pointer-events: none;
+    }
+    .arch-layer:hover {
+      border-color: var(--border-active);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(99, 102, 241, 0.1);
+    }
+
+    .arch-layer-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .arch-layer-label .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+
+    .arch-modules {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .arch-module {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .arch-module:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-3px);
+    }
+    .arch-module .module-icon {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .arch-module .module-name {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .arch-module .module-tech {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .arch-module .module-desc {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Color themes for layers */
+    .layer-user { background: linear-gradient(135deg, rgba(251, 191, 36, 0.06), rgba(251, 146, 60, 0.03)); }
+    .layer-user .arch-layer-label { color: var(--accent-amber); }
+    .layer-user .dot { background: var(--accent-amber); }
+
+    .layer-ui { background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(167, 139, 250, 0.03)); }
+    .layer-ui .arch-layer-label { color: var(--accent-indigo); }
+    .layer-ui .dot { background: var(--accent-indigo); }
+
+    .layer-state { background: linear-gradient(135deg, rgba(34, 211, 238, 0.06), rgba(52, 211, 153, 0.03)); }
+    .layer-state .arch-layer-label { color: var(--accent-cyan); }
+    .layer-state .dot { background: var(--accent-cyan); }
+
+    .layer-logic { background: linear-gradient(135deg, rgba(52, 211, 153, 0.06), rgba(34, 197, 94, 0.03)); }
+    .layer-logic .arch-layer-label { color: var(--accent-green); }
+    .layer-logic .dot { background: var(--accent-green); }
+
+    .layer-asset { background: linear-gradient(135deg, rgba(251, 113, 133, 0.06), rgba(244, 63, 94, 0.03)); }
+    .layer-asset .arch-layer-label { color: var(--accent-rose); }
+    .layer-asset .dot { background: var(--accent-rose); }
+
+    .layer-infra { background: linear-gradient(135deg, rgba(167, 139, 250, 0.06), rgba(139, 92, 246, 0.03)); }
+    .layer-infra .arch-layer-label { color: var(--accent-violet); }
+    .layer-infra .dot { background: var(--accent-violet); }
+
+    /* ── Flow arrows between layers ── */
+    .flow-arrow {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 32px;
+      position: relative;
+    }
+    .flow-arrow::before {
+      content: '';
+      width: 2px;
+      height: 100%;
+      background: linear-gradient(to bottom, var(--accent-indigo), var(--accent-cyan));
+      opacity: 0.3;
+    }
+    .flow-arrow::after {
+      content: '▼';
+      position: absolute;
+      bottom: -2px;
+      font-size: 10px;
+      color: var(--accent-cyan);
+      opacity: 0.5;
+    }
+
+    /* ── Detail panel (popup) ── */
+    .detail-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      animation: overlayIn 0.3s ease;
+    }
+    .detail-overlay.show { display: flex; }
+    @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .detail-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-active);
+      border-radius: var(--radius);
+      padding: 32px;
+      max-width: 560px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      animation: panelSlideIn 0.3s ease;
+    }
+    @keyframes panelSlideIn {
+      from { opacity: 0; transform: scale(0.95) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .detail-panel .close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05);
+      color: var(--text-secondary);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .detail-panel .close-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+    .detail-panel h3 {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .detail-panel .detail-tech {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent-cyan);
+      margin-bottom: 16px;
+    }
+    .detail-panel .detail-body {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.8;
+    }
+    .detail-panel .detail-body ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 12px;
+    }
+    .detail-panel .detail-body li {
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .detail-panel .detail-body li::before {
+      content: '▸';
+      color: var(--accent-indigo);
+      font-size: 14px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .file-list {
+      margin-top: 12px;
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.3);
+      border-radius: var(--radius-sm);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 2;
+    }
+    .file-list span { color: var(--accent-green); }
+
+    /* ════════════════════════════════════════════════
+       DIAGRAM 2: DATA FLOW
+    ════════════════════════════════════════════════ */
+
+    .flow-diagram {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      padding: 24px 0;
+    }
+
+    .flow-node {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius);
+      padding: 20px 28px;
+      text-align: center;
+      max-width: 520px;
+      width: 100%;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+    }
+    .flow-node:hover {
+      border-color: var(--border-active);
+      transform: scale(1.02);
+      box-shadow: 0 12px 40px rgba(99, 102, 241, 0.12);
+    }
+    .flow-node .node-emoji { font-size: 28px; margin-bottom: 8px; }
+    .flow-node .node-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .flow-node .node-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+    .flow-node .node-examples {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+    }
+    .flow-node .node-examples .tag {
+      padding: 3px 10px;
+      border-radius: 6px;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.15);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--accent-violet);
+    }
+
+    .flow-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 48px;
+      position: relative;
+    }
+    .flow-connector .line {
+      width: 2px;
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    .flow-connector .line::before {
+      content: '';
+      position: absolute;
+      width: 2px;
+      height: 100%;
+      background: linear-gradient(to bottom, var(--accent-indigo), var(--accent-cyan));
+      opacity: 0.3;
+    }
+    .flow-connector .line::after {
+      content: '';
+      position: absolute;
+      width: 2px;
+      height: 16px;
+      background: linear-gradient(to bottom, var(--accent-cyan), transparent);
+      animation: flowPulse 2s ease-in-out infinite;
+    }
+    @keyframes flowPulse {
+      0% { top: -16px; opacity: 0; }
+      30% { opacity: 1; }
+      100% { top: 100%; opacity: 0; }
+    }
+    .flow-connector .arrow-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      background: var(--bg-primary);
+      padding: 2px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    /* Branch connectors */
+    .flow-branch {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      width: 100%;
+      max-width: 900px;
+      position: relative;
+    }
+    .flow-branch::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 16.66%;
+      width: 66.66%;
+      height: 2px;
+      background: linear-gradient(to right, var(--accent-indigo), var(--accent-cyan), var(--accent-green));
+      opacity: 0.2;
+    }
+    .flow-branch-node {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      transition: all 0.3s ease;
+      position: relative;
+      cursor: pointer;
+    }
+    .flow-branch-node::before {
+      content: '';
+      position: absolute;
+      top: -16px;
+      left: 50%;
+      width: 2px;
+      height: 16px;
+      background: linear-gradient(to bottom, rgba(99,102,241,0.3), rgba(99,102,241,0.1));
+    }
+    .flow-branch-node:hover {
+      border-color: var(--border-active);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.1);
+    }
+    .flow-branch-node .branch-icon { font-size: 32px; margin-bottom: 8px; }
+    .flow-branch-node .branch-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .flow-branch-node .branch-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .flow-branch-node .branch-files {
+      margin-top: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.8;
+    }
+
+    /* ════════════════════════════════════════════════
+       DIAGRAM 3: TECH STACK
+    ════════════════════════════════════════════════ */
+
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .tech-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius);
+      padding: 24px;
+      transition: all 0.35s ease;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .tech-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      border-radius: 4px 0 0 4px;
+      transition: opacity 0.3s ease;
+    }
+    .tech-card:hover {
+      border-color: var(--border-active);
+      transform: translateY(-4px);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+    }
+    .tech-card .tech-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    .tech-card .tech-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .tech-card .tech-name { font-size: 17px; font-weight: 700; }
+    .tech-card .tech-version {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .tech-card .tech-role {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+    .tech-card .tech-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tech-card .tech-tags .tag {
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    /* Tech card accent colors */
+    .tc-react::before { background: #61dafb; }
+    .tc-react .tech-logo { background: rgba(97, 218, 251, 0.12); color: #61dafb; }
+    .tc-react .tag { background: rgba(97, 218, 251, 0.1); color: #61dafb; border: 1px solid rgba(97, 218, 251, 0.15); }
+
+    .tc-three::before { background: #049ef4; }
+    .tc-three .tech-logo { background: rgba(4, 158, 244, 0.12); color: #049ef4; }
+    .tc-three .tag { background: rgba(4, 158, 244, 0.1); color: #049ef4; border: 1px solid rgba(4, 158, 244, 0.15); }
+
+    .tc-zustand::before { background: #f0c674; }
+    .tc-zustand .tech-logo { background: rgba(240, 198, 116, 0.12); color: #f0c674; }
+    .tc-zustand .tag { background: rgba(240, 198, 116, 0.1); color: #f0c674; border: 1px solid rgba(240, 198, 116, 0.15); }
+
+    .tc-vite::before { background: #bd34fe; }
+    .tc-vite .tech-logo { background: rgba(189, 52, 254, 0.12); color: #bd34fe; }
+    .tc-vite .tag { background: rgba(189, 52, 254, 0.1); color: #bd34fe; border: 1px solid rgba(189, 52, 254, 0.15); }
+
+    .tc-ts::before { background: #3178c6; }
+    .tc-ts .tech-logo { background: rgba(49, 120, 198, 0.12); color: #3178c6; }
+    .tc-ts .tag { background: rgba(49, 120, 198, 0.1); color: #3178c6; border: 1px solid rgba(49, 120, 198, 0.15); }
+
+    .tc-immer::before { background: #34d399; }
+    .tc-immer .tech-logo { background: rgba(52, 211, 153, 0.12); color: #34d399; }
+    .tc-immer .tag { background: rgba(52, 211, 153, 0.1); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.15); }
+
+    .tc-r3f::before { background: #ff8c00; }
+    .tc-r3f .tech-logo { background: rgba(255, 140, 0, 0.12); color: #ff8c00; }
+    .tc-r3f .tag { background: rgba(255, 140, 0, 0.1); color: #ff8c00; border: 1px solid rgba(255, 140, 0, 0.15); }
+
+    .tc-tailwind::before { background: #38bdf8; }
+    .tc-tailwind .tech-logo { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
+    .tc-tailwind .tag { background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.15); }
+
+    .tc-svg::before { background: #fb7185; }
+    .tc-svg .tech-logo { background: rgba(251, 113, 133, 0.12); color: #fb7185; }
+    .tc-svg .tag { background: rgba(251, 113, 133, 0.1); color: #fb7185; border: 1px solid rgba(251, 113, 133, 0.15); }
+
+    .tc-vastu::before { background: #fbbf24; }
+    .tc-vastu .tech-logo { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
+    .tc-vastu .tag { background: rgba(251, 191, 36, 0.1); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.15); }
+
+    .tc-vercel::before { background: #fff; }
+    .tc-vercel .tech-logo { background: rgba(255, 255, 255, 0.08); color: #fff; }
+    .tc-vercel .tag { background: rgba(255, 255, 255, 0.06); color: #ccc; border: 1px solid rgba(255, 255, 255, 0.1); }
+
+    .tc-vitest::before { background: #729b1b; }
+    .tc-vitest .tech-logo { background: rgba(114, 155, 27, 0.12); color: #729b1b; }
+    .tc-vitest .tag { background: rgba(114, 155, 27, 0.1); color: #729b1b; border: 1px solid rgba(114, 155, 27, 0.15); }
+
+    /* Tech stack category headers */
+    .tech-category {
+      grid-column: 1 / -1;
+      padding: 16px 0 8px;
+    }
+    .tech-category h3 {
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .tech-category h3::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--border-subtle), transparent);
+    }
+
+    /* ── Legend ── */
+    .legend {
+      margin-top: 48px;
+      padding: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius);
+    }
+    .legend h4 {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .legend-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .page-wrapper { padding: 20px 16px 60px; }
+      .arch-modules { grid-template-columns: 1fr; }
+      .flow-branch { grid-template-columns: 1fr; }
+      .flow-branch::before { display: none; }
+      .flow-branch-node::before { display: none; }
+      .tech-grid { grid-template-columns: 1fr; }
+      .tab-btn { padding: 10px 16px; font-size: 12px; }
+    }
+
+    /* ── Tooltip ── */
+    .tooltip {
+      position: fixed;
+      background: var(--bg-card);
+      border: 1px solid var(--border-active);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--text-primary);
+      max-width: 280px;
+      pointer-events: none;
+      z-index: 999;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+      display: none;
+      transition: opacity 0.2s;
+    }
+    .tooltip.show { display: block; }
+    .tooltip .tip-title { font-weight: 700; margin-bottom: 4px; }
+    .tooltip .tip-body { color: var(--text-secondary); line-height: 1.6; }
+  </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <!-- ── HERO ── -->
+  <header class="hero">
+    <div class="hero-badge"><span>Home Quest — Interactive Architecture</span></div>
+    <h1>System Architecture<br>& Diagrams</h1>
+    <p>A visual, interactive breakdown of the Architectural Visualization & Vastu Analysis Platform — how every piece connects, how data flows, and what technologies power it.</p>
+  </header>
+
+  <!-- ── TAB NAVIGATION ── -->
+  <nav class="tab-nav" role="tablist">
+    <button class="tab-btn active" onclick="switchTab('arch')" role="tab"><span>🏗️ System Architecture</span></button>
+    <button class="tab-btn" onclick="switchTab('flow')" role="tab"><span>🔀 Data Flow</span></button>
+    <button class="tab-btn" onclick="switchTab('tech')" role="tab"><span>⚡ Tech Stack</span></button>
+  </nav>
+
+  <!-- ════════════════════════════════════════════════════════════
+       TAB 1: SYSTEM ARCHITECTURE DIAGRAM
+  ════════════════════════════════════════════════════════════ -->
+  <div id="tab-arch" class="tab-content active">
+    <div class="section-title">
+      <div class="icon" style="background: rgba(99,102,241,0.12); color: var(--accent-indigo);">🏛️</div>
+      Giant Architecture Overview
+    </div>
+    <p class="section-subtitle">
+      Click any module to see what it does, which files live inside it, and how it connects to other parts. The app is built in <strong>stacked layers</strong> — each layer only talks to the one directly below it.
+    </p>
+
+    <div class="arch-diagram">
+
+      <!-- Layer 1: User Interactions -->
+      <div class="arch-layer layer-user">
+        <div class="arch-layer-label"><span class="dot"></span>LAYER 1 — What the User Does</div>
+        <div class="arch-modules">
+          <div class="arch-module" onclick="showDetail('mouse')">
+            <div class="module-icon">🖱️</div>
+            <div class="module-name">Mouse & Touch Input</div>
+            <div class="module-tech">click · drag · scroll · pinch</div>
+            <div class="module-desc">Draw walls by clicking, move furniture by dragging, zoom in/out by scrolling</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('keyboard')">
+            <div class="module-icon">⌨️</div>
+            <div class="module-name">Keyboard Shortcuts</div>
+            <div class="module-tech">Ctrl+Z · Escape · WASD</div>
+            <div class="module-desc">Undo/redo, cancel drawing, walk around in 3D first-person view</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('panels')">
+            <div class="module-icon">📋</div>
+            <div class="module-name">UI Panels & Controls</div>
+            <div class="module-tech">Toolbar · Property Panel · Menus</div>
+            <div class="module-desc">Tool selection, wall thickness sliders, room type dropdowns, Vastu toggle</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"></div>
+
+      <!-- Layer 2: Smart Helpers (Hooks) -->
+      <div class="arch-layer layer-ui">
+        <div class="arch-layer-label"><span class="dot"></span>LAYER 2 — Smart Helpers (React Hooks)</div>
+        <div class="arch-modules">
+          <div class="arch-module" onclick="showDetail('drawing')">
+            <div class="module-icon">✏️</div>
+            <div class="module-name">Drawing Engine</div>
+            <div class="module-tech">useDrawing.ts</div>
+            <div class="module-desc">Step-by-step wall drawing: click to start → preview line follows mouse → click to finish. Supports chain-drawing for continuous walls.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('snapping')">
+            <div class="module-icon">🧲</div>
+            <div class="module-name">Snap System</div>
+            <div class="module-tech">useSnapping.ts</div>
+            <div class="module-desc">Automatically aligns your cursor to the grid or nearest wall corner, so walls connect perfectly without gaps.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('selection')">
+            <div class="module-icon">🎯</div>
+            <div class="module-name">Selection</div>
+            <div class="module-tech">useSelection.ts</div>
+            <div class="module-desc">Click to select walls, rooms, or furniture. Highlights them and opens the property panel for editing.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('panzoom')">
+            <div class="module-icon">🔍</div>
+            <div class="module-name">Pan & Zoom</div>
+            <div class="module-tech">usePan.ts</div>
+            <div class="module-desc">Scroll to zoom in/out, middle-click and drag to move around the canvas. Keeps everything smooth at 60fps.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"></div>
+
+      <!-- Layer 3: Central Brain (Store) -->
+      <div class="arch-layer layer-state">
+        <div class="arch-layer-label"><span class="dot"></span>LAYER 3 — Central Brain (Zustand Store)</div>
+        <div class="arch-modules">
+          <div class="arch-module" onclick="showDetail('editorSlice')">
+            <div class="module-icon">📐</div>
+            <div class="module-name">Editor Data</div>
+            <div class="module-tech">editorSlice.ts</div>
+            <div class="module-desc">All walls, rooms, furniture positions, and snap settings. The "single source of truth" for the floor plan.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('viewerSlice')">
+            <div class="module-icon">🎥</div>
+            <div class="module-name">Viewer Settings</div>
+            <div class="module-tech">viewerSlice.ts</div>
+            <div class="module-desc">Camera mode (orbit vs first-person), render quality, wireframe toggle, 3D display options.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('vastuSlice')">
+            <div class="module-icon">🧭</div>
+            <div class="module-name">Vastu Results</div>
+            <div class="module-tech">vastuSlice.ts</div>
+            <div class="module-desc">Cached Vastu scores, which zone each room is in, compliance recommendations. Updates when rooms change.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('historySlice')">
+            <div class="module-icon">⏪</div>
+            <div class="module-name">Undo / Redo History</div>
+            <div class="module-tech">historySlice.ts</div>
+            <div class="module-desc">Records every action you take (add wall, move furniture, etc.) so you can undo with Ctrl+Z. Stores up to 100 steps.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"></div>
+
+      <!-- Layer 4: Rendering & Visualization -->
+      <div class="arch-layer layer-ui">
+        <div class="arch-layer-label"><span class="dot"></span>LAYER 4 — Visual Output (What You See)</div>
+        <div class="arch-modules">
+          <div class="arch-module" onclick="showDetail('editor2d')">
+            <div class="module-icon">🗺️</div>
+            <div class="module-name">2D Floor Plan Editor</div>
+            <div class="module-tech">SVG Canvas · 6 layers stacked</div>
+            <div class="module-desc">Grid dots → room fills → wall lines → furniture icons → selection highlights → drawing preview. All composited in a zoomable SVG.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('viewer3d')">
+            <div class="module-icon">🏠</div>
+            <div class="module-name">3D House Viewer</div>
+            <div class="module-tech">React Three Fiber · Three.js</div>
+            <div class="module-desc">Walls become 3D boxes, rooms get floors, furniture becomes 3D models. Walk through in first-person or orbit around.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('vastuOverlay')">
+            <div class="module-icon">🔮</div>
+            <div class="module-name">Vastu Overlays</div>
+            <div class="module-tech">SVG arcs (2D) · Mesh triangles (3D)</div>
+            <div class="module-desc">Colored pie-slices showing North/South/East/West zones. Shows where kitchens, bedrooms, puja rooms should go.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('vastuPanel')">
+            <div class="module-icon">📊</div>
+            <div class="module-name">Score Dashboard</div>
+            <div class="module-tech">VastuPanel.tsx · ScoreCard.tsx</div>
+            <div class="module-desc">Shows an overall Vastu score (0-100), per-room scores, and specific recommendations like "Move kitchen to SE corner."</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"></div>
+
+      <!-- Layer 5: Domain Services (Pure Logic) -->
+      <div class="arch-layer layer-logic">
+        <div class="arch-layer-label"><span class="dot"></span>LAYER 5 — Math & Logic Engine (Pure Functions)</div>
+        <div class="arch-modules">
+          <div class="arch-module" onclick="showDetail('geometry')">
+            <div class="module-icon">📏</div>
+            <div class="module-name">Geometry Math</div>
+            <div class="module-tech">geometry.ts · math.ts</div>
+            <div class="module-desc">Screen pixels → world coordinates, wall thickness quads, point-in-polygon tests, line intersections.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('roomDetection')">
+            <div class="module-icon">🔍</div>
+            <div class="module-name">Room Detection</div>
+            <div class="module-tech">roomDetection.ts</div>
+            <div class="module-desc">Automatically finds enclosed rooms by tracing wall loops. Uses a "follow the left wall" algorithm from computational geometry.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('extrusion')">
+            <div class="module-icon">🧱</div>
+            <div class="module-name">Wall Extrusion</div>
+            <div class="module-tech">extrusion.ts · transform.ts</div>
+            <div class="module-desc">Converts flat 2D walls (cm) into 3D box geometry (meters). Handles wall direction, thickness, and height.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('vastuMath')">
+            <div class="module-icon">🧮</div>
+            <div class="module-name">Vastu Analysis</div>
+            <div class="module-tech">brahmasthan.ts · zones.ts · scoring.ts</div>
+            <div class="module-desc">Calculates center point (Brahmasthan), divides plan into 8 compass zones, scores each room's placement against Vastu rules.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('collision')">
+            <div class="module-icon">💥</div>
+            <div class="module-name">Collision Detection</div>
+            <div class="module-tech">collision.ts</div>
+            <div class="module-desc">Prevents furniture from overlapping. Uses fast grid-based filtering, then precise rotated-box intersection tests.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"></div>
+
+      <!-- Layer 6: Asset Pipeline & Infrastructure -->
+      <div class="arch-layer layer-asset">
+        <div class="arch-layer-label"><span class="dot"></span>LAYER 6 — Assets & 3D Models</div>
+        <div class="arch-modules">
+          <div class="arch-module" onclick="showDetail('gltf')">
+            <div class="module-icon">🪑</div>
+            <div class="module-name">3D Model Loader</div>
+            <div class="module-tech">GLTF / GLB · useAssetLoader.ts</div>
+            <div class="module-desc">Loads furniture models (sofa, bed, table) on demand. Each piece is cloned so multiple instances stay independent.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('materials')">
+            <div class="module-icon">🎨</div>
+            <div class="module-name">Material System</div>
+            <div class="module-tech">materials.ts · shared cache</div>
+            <div class="module-desc">Wall colors, floor textures, roughness/metalness. Materials are shared across walls to save GPU memory.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('textures')">
+            <div class="module-icon">🖼️</div>
+            <div class="module-name">Texture Pipeline</div>
+            <div class="module-tech">KTX2 · Draco compression</div>
+            <div class="module-desc">Compressed textures for walls and floors. Models use Draco compression (80-90% smaller files, faster loading).</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"></div>
+
+      <!-- Layer 7: Infrastructure -->
+      <div class="arch-layer layer-infra">
+        <div class="arch-layer-label"><span class="dot"></span>LAYER 7 — Infrastructure & Deployment</div>
+        <div class="arch-modules">
+          <div class="arch-module" onclick="showDetail('errorHandling')">
+            <div class="module-icon">🛡️</div>
+            <div class="module-name">Error Boundaries</div>
+            <div class="module-tech">ErrorBoundary.tsx · fallbacks/</div>
+            <div class="module-desc">If the 3D viewer crashes, only that panel shows an error — the 2D editor keeps working. Layered error handling.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('persistence')">
+            <div class="module-icon">💾</div>
+            <div class="module-name">Save & Load</div>
+            <div class="module-tech">IndexedDB · zustand persist</div>
+            <div class="module-desc">Your floor plan auto-saves to the browser. Reload the page and your work is still there.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('monitoring')">
+            <div class="module-icon">📡</div>
+            <div class="module-name">Error Tracking</div>
+            <div class="module-tech">Sentry · Performance marks</div>
+            <div class="module-desc">Reports crashes with full context (which wall caused it, what the user was doing). Tracks loading speed.</div>
+          </div>
+          <div class="arch-module" onclick="showDetail('deploy')">
+            <div class="module-icon">🚀</div>
+            <div class="module-name">Deployment</div>
+            <div class="module-tech">Vercel · CDN · Code Splitting</div>
+            <div class="module-desc">Auto-deploys on git push. 3D libraries loaded separately from UI code for fast initial page load.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <h4>Color Legend</h4>
+      <div class="legend-items">
+        <div class="legend-item"><div class="legend-dot" style="background: var(--accent-amber);"></div> User Actions</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--accent-indigo);"></div> React UI & Hooks</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--accent-cyan);"></div> State Management</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--accent-green);"></div> Pure Logic / Math</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--accent-rose);"></div> Assets & Models</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--accent-violet);"></div> Infrastructure</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       TAB 2: DATA FLOW DIAGRAM
+  ════════════════════════════════════════════════════════════ -->
+  <div id="tab-flow" class="tab-content">
+    <div class="section-title">
+      <div class="icon" style="background: rgba(34,211,238,0.12); color: var(--accent-cyan);">🔀</div>
+      Data Flow Diagram
+    </div>
+    <p class="section-subtitle">
+      Follow the journey of a single user action — from a mouse click through every system layer until it becomes pixels on screen. The animated lines show the direction data travels.
+    </p>
+
+    <div class="flow-diagram">
+
+      <!-- Step 1 -->
+      <div class="flow-node" style="border-color: rgba(251,191,36,0.3);">
+        <div class="node-emoji">👆</div>
+        <div class="node-title">User Interacts</div>
+        <div class="node-desc">You click, drag, scroll, or press a key</div>
+        <div class="node-examples">
+          <span class="tag">mouse click</span>
+          <span class="tag">mouse move</span>
+          <span class="tag">scroll wheel</span>
+          <span class="tag">Ctrl+Z</span>
+        </div>
+      </div>
+
+      <div class="flow-connector">
+        <div class="line"></div>
+        <div class="arrow-label">raw pixel coordinates</div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="flow-node" style="border-color: rgba(99,102,241,0.3);">
+        <div class="node-emoji">🧠</div>
+        <div class="node-title">Hooks Process the Input</div>
+        <div class="node-desc">Smart helpers figure out what the user meant</div>
+        <div class="node-examples">
+          <span class="tag">pixels → centimeters</span>
+          <span class="tag">snap to grid</span>
+          <span class="tag">snap to wall corner</span>
+          <span class="tag">drawing state machine</span>
+        </div>
+      </div>
+
+      <div class="flow-connector">
+        <div class="line"></div>
+        <div class="arrow-label">addWall(), moveFurniture(), etc.</div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="flow-node" style="border-color: rgba(34,211,238,0.3);">
+        <div class="node-emoji">🗄️</div>
+        <div class="node-title">Store Updates (Single Source of Truth)</div>
+        <div class="node-desc">The central brain records the change. All data lives here: walls, rooms, furniture, settings.</div>
+        <div class="node-examples">
+          <span class="tag">walls{}</span>
+          <span class="tag">rooms{}</span>
+          <span class="tag">furniture{}</span>
+          <span class="tag">vertices{}</span>
+          <span class="tag">vastuScores{}</span>
+        </div>
+      </div>
+
+      <div class="flow-connector">
+        <div class="line"></div>
+        <div class="arrow-label">selective re-renders via selectors</div>
+      </div>
+
+      <!-- Step 4: Branch into 3 outputs -->
+      <div class="flow-branch">
+
+        <!-- Branch A: 2D Editor -->
+        <div class="flow-branch-node" style="border-color: rgba(99,102,241,0.3);">
+          <div class="branch-icon">🗺️</div>
+          <div class="branch-title">2D Editor Re-renders</div>
+          <div class="branch-desc">SVG layers re-draw the floor plan — grid, rooms, walls, furniture icons, selection highlights</div>
+          <div class="branch-files">
+            <span>GridLayer</span> → <span>RoomLayer</span> → <span>WallLayer</span> → <span>FurnitureLayer</span>
+          </div>
+        </div>
+
+        <!-- Branch B: 3D Viewer -->
+        <div class="flow-branch-node" style="border-color: rgba(52,211,153,0.3);">
+          <div class="branch-icon">🏠</div>
+          <div class="branch-title">3D Scene Rebuilds</div>
+          <div class="branch-desc">The extrusion engine converts 2D data to 3D meshes. Camera, lights, and shadows update.</div>
+          <div class="branch-files">
+            <span>cm → meters</span> → <span>extrude walls</span> → <span>place furniture</span> → <span>render</span>
+          </div>
+        </div>
+
+        <!-- Branch C: Vastu Engine -->
+        <div class="flow-branch-node" style="border-color: rgba(251,191,36,0.3);">
+          <div class="branch-icon">🧭</div>
+          <div class="branch-title">Vastu Engine Recalculates</div>
+          <div class="branch-desc">Finds the center point, assigns each room to a compass direction, scores compliance</div>
+          <div class="branch-files">
+            <span>brahmasthan</span> → <span>zones</span> → <span>scoring</span> → <span>overlays</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="flow-connector" style="margin-top: 16px;">
+        <div class="line"></div>
+        <div class="arrow-label">pixels drawn on screen</div>
+      </div>
+
+      <!-- Final step -->
+      <div class="flow-node" style="border-color: rgba(52,211,153,0.3);">
+        <div class="node-emoji">👀</div>
+        <div class="node-title">User Sees the Result</div>
+        <div class="node-desc">The floor plan updates in real-time — both the 2D top-down view and the 3D walkthrough. Vastu scores and recommendations update automatically.</div>
+      </div>
+
+    </div>
+
+    <!-- Coordinate Systems -->
+    <div style="margin-top: 48px;">
+      <div class="section-title">
+        <div class="icon" style="background: rgba(167,139,250,0.12); color: var(--accent-violet);">📐</div>
+        Three Coordinate Spaces
+      </div>
+      <p class="section-subtitle">
+        Data transforms between three different measurement systems as it flows through the app.
+      </p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;">
+        <div class="flow-branch-node" style="cursor: default;">
+          <div class="branch-icon">🖥️</div>
+          <div class="branch-title">Screen Space</div>
+          <div class="branch-desc" style="text-align: left;">
+            <strong>Origin:</strong> Top-left corner of the browser<br>
+            <strong>Units:</strong> Pixels<br>
+            <strong>Y-axis:</strong> Points downward ↓<br>
+            <strong>Used by:</strong> Mouse events, DOM positioning
+          </div>
+        </div>
+        <div class="flow-branch-node" style="cursor: default;">
+          <div class="branch-icon">📐</div>
+          <div class="branch-title">2D World Space</div>
+          <div class="branch-desc" style="text-align: left;">
+            <strong>Origin:</strong> Center of the canvas<br>
+            <strong>Units:</strong> Centimeters<br>
+            <strong>Y-axis:</strong> Points upward ↑<br>
+            <strong>Used by:</strong> Floor plan model, Vastu
+          </div>
+        </div>
+        <div class="flow-branch-node" style="cursor: default;">
+          <div class="branch-icon">🏠</div>
+          <div class="branch-title">3D World Space</div>
+          <div class="branch-desc" style="text-align: left;">
+            <strong>Origin:</strong> Ground center<br>
+            <strong>Units:</strong> Meters (cm ÷ 100)<br>
+            <strong>Y-axis:</strong> Points upward ↑ (height)<br>
+            <strong>Used by:</strong> Three.js 3D scene
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       TAB 3: TECH STACK
+  ════════════════════════════════════════════════════════════ -->
+  <div id="tab-tech" class="tab-content">
+    <div class="section-title">
+      <div class="icon" style="background: rgba(52,211,153,0.12); color: var(--accent-green);">⚡</div>
+      Technology Stack
+    </div>
+    <p class="section-subtitle">
+      Every technology used in the project, organized by what role it plays. Hover or click to learn why each one was chosen.
+    </p>
+
+    <div class="tech-grid">
+
+      <!-- Category: Core Framework -->
+      <div class="tech-category"><h3>🎯 Core Framework</h3></div>
+
+      <div class="tech-card tc-react">
+        <div class="tech-header">
+          <div class="tech-logo">⚛️</div>
+          <div>
+            <div class="tech-name">React</div>
+            <div class="tech-version">v19.2</div>
+          </div>
+        </div>
+        <div class="tech-role">The UI framework. Builds the editor panels, toolbar, and overlays as composable components. Each SVG layer is a React component that re-renders independently.</div>
+        <div class="tech-tags">
+          <span class="tag">UI components</span>
+          <span class="tag">SVG layers</span>
+          <span class="tag">hooks</span>
+        </div>
+      </div>
+
+      <div class="tech-card tc-ts">
+        <div class="tech-header">
+          <div class="tech-logo">🔷</div>
+          <div>
+            <div class="tech-name">TypeScript</div>
+            <div class="tech-version">v6.0</div>
+          </div>
+        </div>
+        <div class="tech-role">Adds type safety to all geometry calculations, store shapes, and component props. Catches bugs like passing pixels where centimeters are expected.</div>
+        <div class="tech-tags">
+          <span class="tag">type safety</span>
+          <span class="tag">interfaces</span>
+          <span class="tag">Point2D / Point3D</span>
+        </div>
+      </div>
+
+      <div class="tech-card tc-vite">
+        <div class="tech-header">
+          <div class="tech-logo">⚡</div>
+          <div>
+            <div class="tech-name">Vite</div>
+            <div class="tech-version">v8.0</div>
+          </div>
+        </div>
+        <div class="tech-role">Build tool and dev server. Instant hot-reload during development. Splits the production bundle into separate chunks (React, Three.js, UI) for faster loading.</div>
+        <div class="tech-tags">
+          <span class="tag">dev server</span>
+          <span class="tag">code splitting</span>
+          <span class="tag">GLB/GLTF support</span>
+        </div>
+      </div>
+
+      <!-- Category: 3D Rendering -->
+      <div class="tech-category"><h3>🎮 3D Rendering Engine</h3></div>
+
+      <div class="tech-card tc-three">
+        <div class="tech-header">
+          <div class="tech-logo">🔺</div>
+          <div>
+            <div class="tech-name">Three.js</div>
+            <div class="tech-version">v0.184</div>
+          </div>
+        </div>
+        <div class="tech-role">The 3D rendering engine. Creates wall geometry, floor planes, handles lighting, shadows, and camera systems. Runs on WebGL in the browser.</div>
+        <div class="tech-tags">
+          <span class="tag">BufferGeometry</span>
+          <span class="tag">shadows</span>
+          <span class="tag">materials</span>
+          <span class="tag">cameras</span>
+        </div>
+      </div>
+
+      <div class="tech-card tc-r3f">
+        <div class="tech-header">
+          <div class="tech-logo">🎨</div>
+          <div>
+            <div class="tech-name">React Three Fiber</div>
+            <div class="tech-version">v9.6</div>
+          </div>
+        </div>
+        <div class="tech-role">Makes Three.js work like React — write 3D scenes as JSX components instead of imperative code. Handles cleanup, updates, and the render loop automatically.</div>
+        <div class="tech-tags">
+          <span class="tag">declarative 3D</span>
+          <span class="tag">Canvas</span>
+          <span class="tag">useFrame</span>
+        </div>
+      </div>
+
+      <div class="tech-card tc-r3f">
+        <div class="tech-header">
+          <div class="tech-logo">🧰</div>
+          <div>
+            <div class="tech-name">Drei</div>
+            <div class="tech-version">v10.7</div>
+          </div>
+        </div>
+        <div class="tech-role">Helper library for R3F. Provides OrbitControls (rotate camera), Environment maps (realistic lighting), GLTF loader, and LOD (level-of-detail) switching.</div>
+        <div class="tech-tags">
+          <span class="tag">OrbitControls</span>
+          <span class="tag">Environment</span>
+          <span class="tag">useGLTF</span>
+          <span class="tag">ContactShadows</span>
+        </div>
+      </div>
+
+      <!-- Category: State Management -->
+      <div class="tech-category"><h3>📦 State Management</h3></div>
+
+      <div class="tech-card tc-zustand">
+        <div class="tech-header">
+          <div class="tech-logo">🐻</div>
+          <div>
+            <div class="tech-name">Zustand</div>
+            <div class="tech-version">v5.0</div>
+          </div>
+        </div>
+        <div class="tech-role">Lightweight state management. Stores all floor plan data. Uses "slices" pattern to separate editor, viewer, and Vastu data. Selectors prevent unnecessary re-renders.</div>
+        <div class="tech-tags">
+          <span class="tag">slices pattern</span>
+          <span class="tag">selectors</span>
+          <span class="tag">devtools</span>
+          <span class="tag">persist</span>
+        </div>
+      </div>
+
+      <div class="tech-card tc-immer">
+        <div class="tech-header">
+          <div class="tech-logo">✍️</div>
+          <div>
+            <div class="tech-name">Immer</div>
+            <div class="tech-version">v11.1</div>
+          </div>
+        </div>
+        <div class="tech-role">Lets you write store updates that look like you're directly changing data (e.g., <code>state.walls[id] = newWall</code>), but actually creates clean immutable copies underneath.</div>
+        <div class="tech-tags">
+          <span class="tag">immutable updates</span>
+          <span class="tag">draft state</span>
+          <span class="tag">Zustand middleware</span>
+        </div>
+      </div>
+
+      <!-- Category: 2D Rendering -->
+      <div class="tech-category"><h3>✏️ 2D Editor</h3></div>
+
+      <div class="tech-card tc-svg">
+        <div class="tech-header">
+          <div class="tech-logo">◼️</div>
+          <div>
+            <div class="tech-name">SVG (Built-in)</div>
+            <div class="tech-version">Browser native</div>
+          </div>
+        </div>
+        <div class="tech-role">The 2D floor plan is rendered as SVG, not Canvas. SVG gives per-element click events, scales perfectly at any zoom, and works naturally with React's component model.</div>
+        <div class="tech-tags">
+          <span class="tag">per-element events</span>
+          <span class="tag">resolution-free</span>
+          <span class="tag">pattern fills</span>
+        </div>
+      </div>
+
+      <!-- Category: Vastu Analysis -->
+      <div class="tech-category"><h3>🧭 Vastu Analysis</h3></div>
+
+      <div class="tech-card tc-vastu">
+        <div class="tech-header">
+          <div class="tech-logo">🕉️</div>
+          <div>
+            <div class="tech-name">Vastu Engine</div>
+            <div class="tech-version">Custom pure math</div>
+          </div>
+        </div>
+        <div class="tech-role">No library needed — pure TypeScript math. Calculates the Brahmasthan (center), projects 8 compass zones, scores each room (0-100) against traditional Vastu Shastra rules.</div>
+        <div class="tech-tags">
+          <span class="tag">polygon centroid</span>
+          <span class="tag">angular zones</span>
+          <span class="tag">room scoring</span>
+          <span class="tag">recommendations</span>
+        </div>
+      </div>
+
+      <!-- Category: Styling -->
+      <div class="tech-category"><h3>🎨 Styling & UI Components</h3></div>
+
+      <div class="tech-card tc-tailwind">
+        <div class="tech-header">
+          <div class="tech-logo">🌊</div>
+          <div>
+            <div class="tech-name">Tailwind CSS</div>
+            <div class="tech-version">v4.3</div>
+          </div>
+        </div>
+        <div class="tech-role">Utility-first CSS framework for building the toolbar, panels, and UI layout quickly. Dark mode themed. No custom CSS needed for most UI elements.</div>
+        <div class="tech-tags">
+          <span class="tag">utility classes</span>
+          <span class="tag">dark mode</span>
+          <span class="tag">responsive</span>
+        </div>
+      </div>
+
+      <div class="tech-card tc-react">
+        <div class="tech-header">
+          <div class="tech-logo">🧩</div>
+          <div>
+            <div class="tech-name">Lucide React</div>
+            <div class="tech-version">v1.20</div>
+          </div>
+        </div>
+        <div class="tech-role">Clean, consistent icon library for toolbar buttons, status indicators, and panel headers. Lightweight SVG icons that match the modern UI aesthetic.</div>
+        <div class="tech-tags">
+          <span class="tag">SVG icons</span>
+          <span class="tag">toolbar</span>
+          <span class="tag">tree-shakeable</span>
+        </div>
+      </div>
+
+      <!-- Category: Testing & Deployment -->
+      <div class="tech-category"><h3>🚀 Testing & Deployment</h3></div>
+
+      <div class="tech-card tc-vitest">
+        <div class="tech-header">
+          <div class="tech-logo">🧪</div>
+          <div>
+            <div class="tech-name">Vitest</div>
+            <div class="tech-version">Testing framework</div>
+          </div>
+        </div>
+        <div class="tech-role">Unit & integration testing focused on geometry math and state transitions. Tests ensure wall quads, room detection, and Vastu scores calculate correctly.</div>
+        <div class="tech-tags">
+          <span class="tag">unit tests</span>
+          <span class="tag">integration tests</span>
+          <span class="tag">80%+ coverage</span>
+        </div>
+      </div>
+
+      <div class="tech-card tc-vercel">
+        <div class="tech-header">
+          <div class="tech-logo">▲</div>
+          <div>
+            <div class="tech-name">Vercel</div>
+            <div class="tech-version">Deployment platform</div>
+          </div>
+        </div>
+        <div class="tech-role">One-click deployment. Pushes to git auto-deploy. CDN for 3D model files with year-long cache headers. SPA routing handles all client-side navigation.</div>
+        <div class="tech-tags">
+          <span class="tag">auto-deploy</span>
+          <span class="tag">CDN caching</span>
+          <span class="tag">SPA rewrites</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ── DETAIL OVERLAY ── -->
+<div class="detail-overlay" id="detailOverlay" onclick="if(event.target===this) closeDetail()">
+  <div class="detail-panel">
+    <button class="close-btn" onclick="closeDetail()">✕</button>
+    <h3 id="detailTitle"></h3>
+    <div class="detail-tech" id="detailTech"></div>
+    <div class="detail-body" id="detailBody"></div>
+  </div>
+</div>
+
+<!-- ── TOOLTIP ── -->
+<div class="tooltip" id="tooltip">
+  <div class="tip-title" id="tipTitle"></div>
+  <div class="tip-body" id="tipBody"></div>
+</div>
+
+<script>
+// ── Tab switching ──
+function switchTab(id) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ── Detail panel data ──
+const details = {
+  mouse: {
+    title: '🖱️ Mouse & Touch Input',
+    tech: 'DOM events → screenToWorld() → applySnapping()',
+    body: `<p>All user drawing starts here. When you click or move the mouse, the browser gives us <strong>pixel coordinates</strong> (e.g., "542px from the left, 300px from the top").</p>
+    <p>The system then converts those pixels into <strong>real-world centimeters</strong> on the floor plan, accounting for how far you've zoomed or panned.</p>
+    <ul>
+      <li><strong>Click:</strong> Start or finish drawing a wall, select an item</li>
+      <li><strong>Drag:</strong> Move furniture, pan the canvas (with Alt key)</li>
+      <li><strong>Scroll wheel:</strong> Zoom in/out toward where your cursor is</li>
+      <li><strong>Double-click:</strong> Open property editor for the selected item</li>
+    </ul>`
+  },
+  keyboard: {
+    title: '⌨️ Keyboard Shortcuts',
+    tech: 'useKeyboardShortcuts.ts → window.addEventListener("keydown")',
+    body: `<p>Global keyboard shortcuts that work from anywhere in the app.</p>
+    <ul>
+      <li><strong>Ctrl+Z:</strong> Undo the last action (up to 100 steps)</li>
+      <li><strong>Ctrl+Y / Ctrl+Shift+Z:</strong> Redo</li>
+      <li><strong>Escape:</strong> Cancel current wall drawing</li>
+      <li><strong>WASD:</strong> Walk around in first-person 3D mode</li>
+      <li><strong>Mouse look:</strong> Rotate camera in first-person (after clicking to lock cursor)</li>
+    </ul>`
+  },
+  panels: {
+    title: '📋 UI Panels & Controls',
+    tech: 'Toolbar.tsx · PropertyPanel.tsx · StatusBar.tsx',
+    body: `<p>The UI surrounding the canvas. Built with React components and styled with Tailwind CSS.</p>
+    <ul>
+      <li><strong>Toolbar:</strong> Tool buttons (wall draw, select, furniture, delete)</li>
+      <li><strong>Property Panel:</strong> Edit selected item — wall thickness, room type, material</li>
+      <li><strong>Status Bar:</strong> Mouse coordinates, snap indicator, zoom level</li>
+      <li><strong>Vastu Toggle:</strong> Show/hide the compass zone overlay</li>
+    </ul>
+    <div class="file-list">
+      <span>src/domains/shared/components/</span> Toolbar.tsx<br>
+      <span>src/domains/shared/components/</span> PropertyPanel.tsx<br>
+      <span>src/domains/shared/components/</span> StatusBar.tsx<br>
+      <span>src/domains/shared/ui/</span> Button, Dialog, Select, Slider...
+    </div>`
+  },
+  drawing: {
+    title: '✏️ Drawing Engine',
+    tech: 'useDrawing.ts — Finite State Machine',
+    body: `<p>The drawing engine works like a <strong>step-by-step state machine</strong>:</p>
+    <ul>
+      <li><strong>IDLE →</strong> You click: "Ok, that's the start of a new wall." Moves to DRAWING.</li>
+      <li><strong>DRAWING →</strong> A preview line follows your mouse. You click again: "That's the end!" Creates the wall.</li>
+      <li><strong>CHAIN MODE →</strong> The end point becomes the start of the next wall, so you can draw room outlines in one smooth flow.</li>
+      <li><strong>ESCAPE →</strong> Press Escape to cancel mid-draw and go back to IDLE.</li>
+    </ul>
+    <p>When a new wall <strong>crosses an existing wall</strong>, the system automatically splits the old wall at the intersection point. This is essential for room detection to work.</p>`
+  },
+  snapping: {
+    title: '🧲 Snap System',
+    tech: 'useSnapping.ts — Grid + Endpoint snapping',
+    body: `<p>Without snapping, walls would never line up perfectly. The snap system has two modes:</p>
+    <ul>
+      <li><strong>Grid Snap:</strong> Rounds your cursor to the nearest 10cm grid intersection</li>
+      <li><strong>Endpoint Snap:</strong> If you're within 15cm of an existing wall corner, your cursor jumps right to it</li>
+    </ul>
+    <p><strong>Priority:</strong> Endpoint snap wins over grid snap. This ensures walls connect at exact shared vertices, which is critical for room detection.</p>
+    <p><strong>Performance trick:</strong> Uses squared distance comparison (no square root) to test hundreds of points at 60fps without lag.</p>`
+  },
+  selection: {
+    title: '🎯 Selection System',
+    tech: 'useSelection.ts — Hit testing & highlights',
+    body: `<p>Click any wall, room, or furniture piece to select it. The selection system:</p>
+    <ul>
+      <li>Highlights the selected item with a colored outline</li>
+      <li>Opens the Property Panel with editable settings</li>
+      <li>Supports multi-select (Shift+click)</li>
+      <li>Click empty space to deselect everything</li>
+    </ul>`
+  },
+  panzoom: {
+    title: '🔍 Pan & Zoom',
+    tech: 'usePan.ts — ViewTransform { scale, offsetX, offsetY }',
+    body: `<p>The canvas is infinite — you can pan and zoom freely.</p>
+    <ul>
+      <li><strong>Zoom:</strong> Scroll wheel zooms toward cursor position (not center). Range: 10% to 1000%.</li>
+      <li><strong>Pan:</strong> Middle-click drag, or Alt+left-click drag to move the canvas.</li>
+      <li>Uses an <strong>affine transform</strong> — a single translate + scale on the SVG group — so the browser handles all coordinate math natively.</li>
+    </ul>`
+  },
+  editorSlice: {
+    title: '📐 Editor Data Slice',
+    tech: 'editorSlice.ts — walls, rooms, furniture, vertices',
+    body: `<p>The biggest slice of the store. Contains:</p>
+    <ul>
+      <li><strong>vertices{}:</strong> Points where walls meet (corners, junctions)</li>
+      <li><strong>walls{}:</strong> Line segments connecting two vertices, with thickness and height</li>
+      <li><strong>rooms{}:</strong> Closed polygons automatically found by the room detection algorithm</li>
+      <li><strong>furniture{}:</strong> Placed items with position, rotation, scale, and which room they're in</li>
+      <li><strong>selectedIds[]:</strong> Which items are currently selected</li>
+      <li><strong>snapConfig:</strong> Grid size, snap radius, enable/disable toggles</li>
+    </ul>
+    <p>Uses <strong>Record&lt;ID, Entity&gt;</strong> maps (not arrays) for O(1) lookup by ID — critical for hot-path operations like hover detection.</p>`
+  },
+  viewerSlice: {
+    title: '🎥 Viewer Settings Slice',
+    tech: 'viewerSlice.ts — camera mode, render quality',
+    body: `<p>Controls how the 3D scene looks and behaves:</p>
+    <ul>
+      <li><strong>cameraMode:</strong> "orbit" (bird's eye) or "firstPerson" (walk through)</li>
+      <li><strong>renderQuality:</strong> Low/medium/high (affects shadow resolution, antialiasing)</li>
+      <li><strong>showWireframe:</strong> Debug toggle to see mesh edges</li>
+      <li><strong>showVastuOverlay3D:</strong> Toggle the 3D colored zone mesh</li>
+    </ul>`
+  },
+  vastuSlice: {
+    title: '🧭 Vastu Results Slice',
+    tech: 'vastuSlice.ts — scores, recommendations, active zone',
+    body: `<p>Caches the results of Vastu analysis so it doesn't recalculate every frame:</p>
+    <ul>
+      <li><strong>overall score:</strong> 0-100 compliance rating for the entire plan</li>
+      <li><strong>roomScores{}:</strong> Per-room score with direction, ideal directions, and reason text</li>
+      <li><strong>recommendations[]:</strong> Actionable suggestions like "Move kitchen to SE corner"</li>
+      <li>Only recalculates when room polygons change — <em>not</em> during mouse movement or camera rotation.</li>
+    </ul>`
+  },
+  historySlice: {
+    title: '⏪ Undo / Redo History',
+    tech: 'historySlice.ts → HistoryManager → Command pattern',
+    body: `<p>Every action is recorded as a <strong>reversible command</strong> that knows how to undo itself:</p>
+    <ul>
+      <li><strong>AddWallCommand:</strong> undo = remove the wall and its vertices</li>
+      <li><strong>MoveVertexCommand:</strong> undo = move it back to the old position</li>
+      <li><strong>BatchCommand:</strong> Groups related operations (wall split = 3 operations, undone as one)</li>
+      <li>Stack is bounded to <strong>100 commands</strong> to prevent memory leaks</li>
+      <li>Adding a new action <strong>clears the redo stack</strong> (standard behavior)</li>
+    </ul>`
+  },
+  editor2d: {
+    title: '🗺️ 2D Floor Plan Editor',
+    tech: 'EditorCanvas.tsx — SVG with 6 composited layers',
+    body: `<p>The 2D editor uses SVG (not HTML Canvas) because floor plans typically have 50-200 elements — well within SVG's performance sweet spot.</p>
+    <p><strong>Layer stack (bottom to top):</strong></p>
+    <ul>
+      <li><strong>1. Grid:</strong> Infinite dot pattern using SVG &lt;pattern&gt; (only 3 DOM elements regardless of zoom)</li>
+      <li><strong>2. Rooms:</strong> Filled polygons with semi-transparent colors</li>
+      <li><strong>3. Walls:</strong> Thick stroked lines showing wall centerlines</li>
+      <li><strong>4. Furniture:</strong> 2D icons positioned and rotated</li>
+      <li><strong>5. Selection:</strong> Highlighted outlines on selected items</li>
+      <li><strong>6. Drawing Preview:</strong> The rubber-band line while you're drawing a wall</li>
+    </ul>`
+  },
+  viewer3d: {
+    title: '🏠 3D House Viewer',
+    tech: 'ViewerCanvas.tsx → R3F Canvas → Three.js',
+    body: `<p>Transforms the flat floor plan into a walkable 3D environment.</p>
+    <ul>
+      <li><strong>Walls:</strong> Each wall becomes a 3D box (custom BufferGeometry, not rotated BoxGeometry, for perfect corner alignment)</li>
+      <li><strong>Floors:</strong> Room polygons become flat mesh planes with material textures</li>
+      <li><strong>Furniture:</strong> GLTF/GLB 3D models loaded on demand, positioned using the 2D plan coordinates</li>
+      <li><strong>Lighting:</strong> HDRI environment map + directional sun light + hemisphere fill + contact shadows</li>
+      <li><strong>Cameras:</strong> Orbit mode for design review, first-person for client walkthrough</li>
+    </ul>`
+  },
+  vastuOverlay: {
+    title: '🔮 Vastu Zone Overlays',
+    tech: '2D: SVG arc paths · 3D: Triangle fan meshes',
+    body: `<p>Colored pie-slice zones radiating from the center point (Brahmasthan):</p>
+    <ul>
+      <li><strong>8 zones:</strong> N, NE, E, SE, S, SW, W, NW — each 45°</li>
+      <li><strong>Colors:</strong> Blue=water zones (N/NE), Red=fire zones (S/SE), Green=air (E), Purple=space (W), Brown=earth (SW)</li>
+      <li><strong>2D overlay:</strong> SVG &lt;path&gt; elements with arc commands, 30% opacity</li>
+      <li><strong>3D overlay:</strong> Transparent mesh triangles floating 5cm above the floor, double-sided for first-person view</li>
+    </ul>`
+  },
+  vastuPanel: {
+    title: '📊 Vastu Score Dashboard',
+    tech: 'VastuPanel.tsx · ScoreCard.tsx',
+    body: `<p>Displays Vastu compliance analysis in a readable panel:</p>
+    <ul>
+      <li><strong>Overall score:</strong> 0-100 with color indicator (green=good, red=needs improvement)</li>
+      <li><strong>Per-room scores:</strong> Each room shows its compass direction, score, and ideal placement</li>
+      <li><strong>Recommendations:</strong> Actionable tips sorted by severity (critical → warning → suggestion)</li>
+      <li>Example: "Kitchen is in NE (adverse). Should be in SE for proper fire element alignment."</li>
+    </ul>`
+  },
+  geometry: {
+    title: '📏 Geometry Math Engine',
+    tech: 'geometry.ts · math.ts — Pure functions, zero dependencies',
+    body: `<p>The mathematical foundation that everything else builds on:</p>
+    <ul>
+      <li><strong>screenToWorld():</strong> Converts mouse pixels → floor plan centimeters (handles pan, zoom, Y-flip)</li>
+      <li><strong>computeWallQuad():</strong> Turns a wall centerline + thickness into 4 corner points for rendering</li>
+      <li><strong>pointInPolygon():</strong> Tests if furniture is inside a room (ray casting algorithm)</li>
+      <li><strong>line intersection:</strong> Parametric test to find where walls cross (for automatic splitting)</li>
+      <li><strong>vector math:</strong> add, subtract, normalize, dot product, cross product, rotate, lerp</li>
+    </ul>`
+  },
+  roomDetection: {
+    title: '🔍 Room Detection Algorithm',
+    tech: 'roomDetection.ts — Minimal cycle detection via angular sorting',
+    body: `<p>The algorithm that <strong>automatically finds enclosed rooms</strong> from wall connections:</p>
+    <ul>
+      <li>Treats walls as a graph (vertices = corners, edges = wall segments)</li>
+      <li>For each wall, follows the <strong>"always turn left"</strong> rule at every junction</li>
+      <li>If it comes back to the start → found a room!</li>
+      <li>Uses the <strong>shoelace formula</strong> to calculate area — positive area = interior room, negative = exterior boundary (ignored)</li>
+    </ul>
+    <p>This is the same algorithm used in professional CAD software (DCEL face extraction). Time complexity: O(edges × max junction connections).</p>`
+  },
+  extrusion: {
+    title: '🧱 Wall Extrusion Engine',
+    tech: 'extrusion.ts · transform.ts — 2D → 3D conversion',
+    body: `<p>Converts flat 2D walls into 3D box geometry:</p>
+    <ul>
+      <li><strong>Step 1:</strong> Compute 4 corners of wall cross-section (centerline ± half-thickness along perpendicular)</li>
+      <li><strong>Step 2:</strong> Convert cm → meters, map 2D-Y → 3D-(-Z)</li>
+      <li><strong>Step 3:</strong> Extrude from floor (Y=0) to ceiling (Y=height)</li>
+      <li><strong>Step 4:</strong> Build 6 faces (24 vertices) with correct normals and UV coordinates for texturing</li>
+    </ul>
+    <p><strong>Why not THREE.BoxGeometry?</strong> Box is axis-aligned — rotating it causes floating-point gaps at corners. Custom geometry guarantees perfect alignment.</p>`
+  },
+  vastuMath: {
+    title: '🧮 Vastu Analysis Engine',
+    tech: 'brahmasthan.ts · zones.ts · scoring.ts',
+    body: `<p>Three-step analysis pipeline:</p>
+    <ul>
+      <li><strong>1. Find Brahmasthan:</strong> Polygon centroid of the plan boundary (area-weighted, not vertex average)</li>
+      <li><strong>2. Assign zones:</strong> Divide space into 8 compass sectors (45° each). Each room's centroid determines its sector.</li>
+      <li><strong>3. Score rooms:</strong> Compare actual placement vs. ideal Vastu rules. Kitchen in SE = 100 (ideal). Kitchen in NE = 20 (adverse).</li>
+    </ul>
+    <p><strong>Scoring:</strong> Ideal direction = 100, Acceptable = 70, Neutral = 50, Adverse = 20. Overall score = average of all rooms.</p>`
+  },
+  collision: {
+    title: '💥 Collision Detection',
+    tech: 'collision.ts — Spatial hash grid + SAT (Separating Axis Theorem)',
+    body: `<p>Two-phase system to prevent furniture from overlapping:</p>
+    <ul>
+      <li><strong>Broad phase:</strong> Spatial hash grid divides the floor into 1m cells. Only items in the same/neighboring cells are checked. Eliminates 90%+ of pairs.</li>
+      <li><strong>Narrow phase:</strong> Separating Axis Theorem (SAT) on Oriented Bounding Boxes (OBBs). Tests 4 axes — if any axis shows separation, no collision. ~40 math operations per pair.</li>
+    </ul>`
+  },
+  gltf: {
+    title: '🪑 3D Model Loader',
+    tech: 'useAssetLoader.ts · useGLTF (Drei)',
+    body: `<p>Handles loading and displaying 3D furniture models:</p>
+    <ul>
+      <li><strong>Format:</strong> GLTF/GLB (industry standard for web 3D)</li>
+      <li><strong>Lazy loading:</strong> Models only download when that furniture type is first placed</li>
+      <li><strong>Cloning:</strong> Each placed furniture gets its own clone (Three.js objects can only have one parent)</li>
+      <li><strong>Shadows:</strong> All meshes in loaded models are auto-configured for casting and receiving shadows</li>
+      <li><strong>Catalog:</strong> Sofa, dining table, bed, office chair, toilet, kitchen counter</li>
+    </ul>`
+  },
+  materials: {
+    title: '🎨 Material System',
+    tech: 'materials.ts — Global cache, MeshStandardMaterial',
+    body: `<p>Manages the appearance of surfaces in the 3D view:</p>
+    <ul>
+      <li><strong>Cache:</strong> Materials are created once and shared across all walls/floors with the same type (saves GPU memory)</li>
+      <li><strong>Types:</strong> default-wall (cream plaster), brick-wall (red), default-floor (warm stone), tile-floor (smooth)</li>
+      <li><strong>PBR properties:</strong> Roughness (0=mirror, 1=matte), metalness (0=non-metal, 1=metal)</li>
+    </ul>`
+  },
+  textures: {
+    title: '🖼️ Texture & Model Compression',
+    tech: 'Draco · KTX2/Basis Universal · LOD',
+    body: `<p>Production optimization pipeline for fast loading:</p>
+    <ul>
+      <li><strong>Draco compression:</strong> Shrinks 3D model geometry files by 80-90%</li>
+      <li><strong>KTX2 textures:</strong> GPU-native compressed format — decompresses directly on the graphics card</li>
+      <li><strong>LOD (Level of Detail):</strong> Full model close-up, simplified mesh at distance, billboard sprite far away</li>
+      <li><strong>CDN caching:</strong> Models and textures get year-long cache headers on Vercel CDN</li>
+    </ul>`
+  },
+  errorHandling: {
+    title: '🛡️ Error Boundaries',
+    tech: 'ErrorBoundary.tsx — Layered isolation',
+    body: `<p>If something crashes, only that section fails — not the whole app:</p>
+    <ul>
+      <li><strong>Global boundary:</strong> Catches anything. Shows "Restart Application" button.</li>
+      <li><strong>Editor boundary:</strong> If SVG rendering fails, shows "Try Again" — 3D viewer keeps working.</li>
+      <li><strong>Viewer boundary:</strong> If WebGL crashes, shows error — 2D editor keeps working.</li>
+      <li><strong>Vastu boundary:</strong> If math fails, shows subtle warning — everything else is fine.</li>
+    </ul>
+    <p>All errors are reported to <strong>Sentry</strong> with full context (which component, what data was being processed).</p>`
+  },
+  persistence: {
+    title: '💾 Save & Load',
+    tech: 'zustand/middleware/persist → IndexedDB',
+    body: `<p>Your floor plan auto-saves to the browser's IndexedDB storage:</p>
+    <ul>
+      <li>Save happens automatically after every state change (debounced)</li>
+      <li>Reload the page → your work is fully restored</li>
+      <li>No server needed — everything stays in your browser</li>
+    </ul>`
+  },
+  monitoring: {
+    title: '📡 Error Tracking & Performance',
+    tech: 'Sentry · Performance API marks',
+    body: `<p>Production monitoring for catching issues users encounter:</p>
+    <ul>
+      <li><strong>Sentry:</strong> Captures crashes with component stack, error codes, and context data</li>
+      <li><strong>Performance marks:</strong> Measures time for critical flows (wall drawing, room detection, 3D rebuild)</li>
+      <li><strong>Session replay:</strong> Records user sessions where errors occur (1% normal, 100% on error)</li>
+    </ul>`
+  },
+  deploy: {
+    title: '🚀 Deployment',
+    tech: 'Vercel · Code splitting · CDN',
+    body: `<p>Production deployment setup:</p>
+    <ul>
+      <li><strong>Auto-deploy:</strong> Push to git → Vercel builds and deploys automatically</li>
+      <li><strong>Code splitting:</strong> React, Three.js, R3F, and UI libraries load as separate chunks — initial page load is fast</li>
+      <li><strong>CDN caching:</strong> 3D models and textures are served from edge CDN with immutable cache headers</li>
+      <li><strong>SPA routing:</strong> All routes redirect to index.html (client-side routing)</li>
+      <li><strong>Target:</strong> &lt;3 second load time, Lighthouse performance &gt;80</li>
+    </ul>`
+  }
+};
+
+// ── Show/close detail panel ──
+function showDetail(id) {
+  const d = details[id];
+  if (!d) return;
+  document.getElementById('detailTitle').innerHTML = d.title;
+  document.getElementById('detailTech').textContent = d.tech;
+  document.getElementById('detailBody').innerHTML = d.body;
+  document.getElementById('detailOverlay').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+// Close on Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeDetail();
+});
+
+// ── Staggered entrance animation for modules ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const modules = entry.target.querySelectorAll('.arch-module, .flow-node, .flow-branch-node, .tech-card');
+      modules.forEach((m, i) => {
+        m.style.opacity = '0';
+        m.style.transform = 'translateY(20px)';
+        m.style.transition = `opacity 0.5s ease ${i * 0.08}s, transform 0.5s ease ${i * 0.08}s`;
+        requestAnimationFrame(() => {
+          m.style.opacity = '1';
+          m.style.transform = 'translateY(0)';
+        });
+      });
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.arch-layer, .flow-diagram, .tech-grid').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>

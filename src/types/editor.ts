@@ -1,4 +1,4 @@
-import { Point2D } from './geometry';
+import type { Point2D } from '@/types/geometry';
 
 /** Unique identifier for all entities */
 export type EntityId = string;
