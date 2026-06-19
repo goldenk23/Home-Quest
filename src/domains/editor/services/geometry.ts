@@ -12,6 +12,14 @@
 
 import type { Point2D, ScreenPoint, ViewTransform } from '../../../types/geometry';
 
+
+export interface wallQuad {
+    readonly topLeft: Point2D;
+    readonly topRight: Point2D;
+    readonly bottomLeft: Point2D;
+    readonly bottomRight: Point2D;
+}
+
 /**
  *  convert screen pixel coordinates to world space coordinates
  */
@@ -69,4 +77,39 @@ export function worldToScreen(
         py: -world.y * view.scale + view.offsetY + canvasRect.top,
     };
 }
+
+
+export function computeWallQuad(
+    start: Point2D,
+    end: Point2D,
+    thickness: number
+): wallQuad {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+
+    if (length === 0) {
+        // Degenerate wall (zero length) — return collapsed quad
+        return {
+            topLeft: start,
+            topRight: start,
+            bottomRight: start,
+            bottomLeft: start,
+        };
+    }
+
+    // Perpendicular unit vector (rotate direction 90° CCW)
+    const nx = -dy / length;
+    const ny = dx / length;
+
+    const halfThick = thickness / 2;
+
+    return {
+        topLeft: { x: start.x + nx * halfThick, y: start.y + ny * halfThick },
+        topRight: { x: end.x + nx * halfThick, y: end.y + ny * halfThick },
+        bottomRight: { x: end.x - nx * halfThick, y: end.y - ny * halfThick },
+        bottomLeft: { x: start.x - nx * halfThick, y: start.y - ny * halfThick },
+    };
+}
+
 export { planTo3D as world2DTo3D } from '@/domains/viewer/services/transform';
