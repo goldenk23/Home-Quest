@@ -5,21 +5,21 @@ export interface SnapConfig {
     /** Grid cell size in world units (cm) */
     gridSize: number;
 
-    /** Maximum snap distance for snapping to grid cells, in world units (cm) */
+    /** Maximum snap distance in world units (cm) */
     snapRadius: number;
 
-    /** Whether Grid snapping is enabled  */
-    gridSnapEnabled: boolean;
+    /** Whether grid snapping is enabled */
+    gridEnabled: boolean;
 
-    /** Whether endpoint snapping is enabled  */
-    endpointSnapEnabled: boolean;
+    /** Whether endpoint snapping is enabled */
+    endpointEnabled: boolean;
 }
 
 const defaultSnapConfig: SnapConfig = {
-    gridSize: 10,// 10 cm grid cells
-    snapRadius:15,// 15 cm snap radius
-    gridSnapEnabled: true,
-    endpointSnapEnabled: true
+    gridSize: 10,      // 10 cm grid cells
+    snapRadius: 15,    // snap within 15 cm
+    gridEnabled: true,
+    endpointEnabled: true,
 };
 
 /**
@@ -79,23 +79,27 @@ y = Math.round(37 / 10) * 10
     return closestPoint ?? point;// If we found a close enough endpoint, return it; otherwise return the original point
  }
 
- /**
-  * combine both snapping methods: Priority: endpoint snap > grid snap > raw position
-  */
- export function applySnapping(
-    rawpoint: Point2D,
+/**
+ * Combined snapping pipeline.
+ * Priority: endpoint snap > grid snap > raw position.
+ * 
+ * Endpoint snapping takes priority because connecting walls
+ * at exact shared vertices is essential for room detection.
+ */
+export function applySnapping(
+    rawPoint: Point2D,
     endpoints: readonly Point2D[],
     config: SnapConfig = defaultSnapConfig
- ): Point2D {
-    if(config.endpointSnapEnabled){
-        const endpointSnapped = snapToEndpoints(rawpoint, endpoints, config.snapRadius);
-        if(endpointSnapped !== rawpoint){
-            return endpointSnapped;
-        }
+): Point2D {
+    if (config.endpointEnabled) {
+        const snapped = snapToEndpoints(rawPoint, endpoints, config.snapRadius);
+        if (snapped !== rawPoint) return snapped;
     }
-    if(config.gridSnapEnabled){
-        return snapPoint(rawpoint, config.gridSize);
+
+    if (config.gridEnabled) {
+        return snapPoint(rawPoint, config.gridSize);
     }
-    return rawpoint;
- }
+
+    return rawPoint;
+}
 export {}; // Makes the file a valid module

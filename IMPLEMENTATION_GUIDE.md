@@ -809,6 +809,219 @@ function findOrCreateVertex(state: any, position: Point2D): EntityId {
 }
 ```
 
+### Implementation: Viewer Slice
+
+The Viewer Slice owns 3D presentation state — which camera is active, the rendering quality, debug toggles, and the cached plan centroid used to recenter the orbit camera. It deliberately holds no geometry; that lives in the Editor Slice and is bridged through selectors (see `useGeometryForViewer`).
+
+```typescript
+// src/store/slices/viewerSlice.ts
+
+import { StateCreator } from 'zustand';
+import { AppStore } from '..';
+import { Point3D } from '@/types/geometry';
+
+/** Which camera rig is currently driving the 3D viewport */
+export type CameraMode = 'orbit' | 'firstPerson';
+
+/** Render quality tier — trades fidelity for framerate on weaker GPUs */
+export type RenderQuality = 'low' | 'medium' | 'high';
+
+export interface ViewerSlice {
+  // State
+  cameraMode: CameraMode;
+  renderQuality: RenderQuality;
+  showWireframe: boolean;
+  /**
+   * Cached centroid of the plan in 3D world space (meters).
+   * The orbit camera targets this so rotation feels centered on the model.
+   * Recomputed by the viewer whenever the plan boundary changes.
+   */
+  planCentroid3D: Point3D | null;
+
+  // Actions
+  setCameraMode: (mode: CameraMode) => void;
+  setRenderQuality: (quality: RenderQuality) => void;
+  toggleWireframe: () => void;
+  setPlanCentroid3D: (centroid: Point3D | null) => void;
+}
+
+export const createViewerSlice: StateCreator<
+  AppStore,
+  [['zustand/immer', never], ['zustand/devtools', never]],
+  [],
+  ViewerSlice
+> = (set) => ({
+  cameraMode: 'orbit',
+  renderQuality: 'high',
+  showWireframe: false,
+  planCentroid3D: null,
+
+  setCameraMode: (mode) => {
+    set((state) => {
+      state.cameraMode = mode;
+    });
+  },
+
+  setRenderQuality: (quality) => {
+    set((state) => {
+      state.renderQuality = quality;
+    });
+  },
+
+  toggleWireframe: () => {
+    set((state) => {
+      state.showWireframe = !state.showWireframe;
+    });
+  },
+
+  setPlanCentroid3D: (centroid) => {
+    set((state) => {
+      state.planCentroid3D = centroid;
+    });
+  },
+});
+```
+
+### Implementation: Vastu Slice
+
+The Vastu Slice caches the result of the (expensive) analysis pass so panels and overlays read it without recomputing. Scoring runs in a service (`computeVastuScore`); the slice only stores its output plus the inputs and toggles the overlays need.
+
+**Design Decision:** The full `VastuScore` object already contains `overall`, `roomScores`, and `recommendations`, so a single `score` field replaces the separate `scores{}`/`recommendations[]` shown in the high-level diagram. `planBoundary` lives here (rather than the Editor Slice) because it is an analysis input derived from the outer wall loop, and both the 2D and 3D overlays read it directly.
+
+```typescript
+// src/store/slices/vastuSlice.ts
+
+import { StateCreator } from 'zustand';
+import { AppStore } from '..';
+import { Point2D } from '@/types/geometry';
+import { VastuScore } from '@/domains/vastu/services/scoring';
+import { VastuDirection } from '@/domains/vastu/services/zones';
+
+export interface VastuSlice {
+  // State
+  /** Cached analysis result, or null before the first analysis run */
+  vastuScore: VastuScore | null;
+  /** Currently highlighted directional zone (null = none) */
+  activeZone: VastuDirection | null;
+  /** Outer boundary polygon of the plan (cm), used for zones + Brahmasthan */
+  planBoundary: Point2D[] | null;
+  /** Visibility toggles for the directional overlays */
+  showVastuOverlay2D: boolean;
+  showVastuOverlay3D: boolean;
+
+  // Actions
+  setVastuScore: (score: VastuScore | null) => void;
+  setActiveZone: (zone: VastuDirection | null) => void;
+  setPlanBoundary: (boundary: Point2D[] | null) => void;
+  toggleVastuOverlay2D: () => void;
+  toggleVastuOverlay3D: () => void;
+}
+
+export const createVastuSlice: StateCreator<
+  AppStore,
+  [['zustand/immer', never], ['zustand/devtools', never]],
+  [],
+  VastuSlice
+> = (set) => ({
+  vastuScore: null,
+  activeZone: null,
+  planBoundary: null,
+  showVastuOverlay2D: false,
+  showVastuOverlay3D: false,
+
+  setVastuScore: (score) => {
+    set((state) => {
+      state.vastuScore = score;
+    });
+  },
+
+  setActiveZone: (zone) => {
+    set((state) => {
+      state.activeZone = zone;
+    });
+  },
+
+  setPlanBoundary: (boundary) => {
+    set((state) => {
+      state.planBoundary = boundary;
+    });
+  },
+
+  toggleVastuOverlay2D: () => {
+    set((state) => {
+      state.showVastuOverlay2D = !state.showVastuOverlay2D;
+    });
+  },
+
+  toggleVastuOverlay3D: () => {
+    set((state) => {
+      state.showVastuOverlay3D = !state.showVastuOverlay3D;
+    });
+  },
+});
+```
+
+### Implementation: UI Slice
+
+The UI Slice holds presentation-only state: which tool is active in the editor and which panels are visible. Selection (`selectedIds`) intentionally stays in the Editor Slice because it is tightly coupled to entity mutations (delete, move) rather than chrome.
+
+```typescript
+// src/store/slices/uiSlice.ts
+
+import { StateCreator } from 'zustand';
+import { AppStore } from '..';
+
+/** Active editing tool — shared with the Toolbar component */
+export type Tool = 'select' | 'wall' | 'furniture' | 'pan' | 'measure';
+
+/** Dockable panels that can be shown or hidden */
+export type PanelId = 'properties' | 'vastu' | 'catalog' | 'layers';
+
+export interface UISlice {
+  // State
+  activeTool: Tool;
+  panelVisibility: Record<PanelId, boolean>;
+
+  // Actions
+  setActiveTool: (tool: Tool) => void;
+  togglePanel: (panel: PanelId) => void;
+  setPanelVisibility: (panel: PanelId, visible: boolean) => void;
+}
+
+export const createUISlice: StateCreator<
+  AppStore,
+  [['zustand/immer', never], ['zustand/devtools', never]],
+  [],
+  UISlice
+> = (set) => ({
+  activeTool: 'select',
+  panelVisibility: {
+    properties: true,
+    vastu: false,
+    catalog: false,
+    layers: false,
+  },
+
+  setActiveTool: (tool) => {
+    set((state) => {
+      state.activeTool = tool;
+    });
+  },
+
+  togglePanel: (panel) => {
+    set((state) => {
+      state.panelVisibility[panel] = !state.panelVisibility[panel];
+    });
+  },
+
+  setPanelVisibility: (panel, visible) => {
+    set((state) => {
+      state.panelVisibility[panel] = visible;
+    });
+  },
+});
+```
+
 ### Selectors with Memoization
 
 ```typescript

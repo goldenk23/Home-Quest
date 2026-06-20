@@ -42,8 +42,8 @@ export const SnappingTestSandbox: FC = () => {
     const snappedPt = applySnapping(worldPt, DUMMY_ENDPOINTS, {
       gridSize: 20, // 20cm grid
       snapRadius: 30, // snap to endpoint if within 30cm
-      gridSnapEnabled: gridEnabled,
-      endpointSnapEnabled: endpointEnabled
+      gridEnabled: gridEnabled,
+      endpointEnabled: endpointEnabled
     });
     setSnappedMouseWorld(snappedPt);
   };

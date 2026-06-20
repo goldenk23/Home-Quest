@@ -8,7 +8,7 @@ export interface Vertex {
   readonly id: EntityId;
   readonly position: Point2D;
   /** IDs of walls connected to this vertex (mutable via Immer drafts) */
-  connectedWalls: EntityId[];
+  connectedWalls: EntityId[];// This is actually an array of walls to which the current vertex is associated. 
 }
 
 /** A wall segment connecting two vertices */
