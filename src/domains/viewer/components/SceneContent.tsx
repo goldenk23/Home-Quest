@@ -1,10 +1,12 @@
 // src/domains/viewer/components/SceneContent.tsx
 
 import React from 'react';
+import { useAppStore } from '@/store';
 import { useViewerWalls, useViewerRooms } from '@/store/selectors/editorSelectors';
 import { WallMesh } from './WallMesh';
 import { FloorMesh } from './FloorMesh';
 import { FurnitureInstances } from './FurnitureModel';
+import { VastuOverlay3D } from './VastuOverlay3D';
 
 /**
  * Pure orchestrator: maps store geometry to meshes. Each child builds its own geometry,
@@ -13,10 +15,11 @@ import { FurnitureInstances } from './FurnitureModel';
 export const SceneContent: React.FC = () => {
   const walls = useViewerWalls();
   const rooms = useViewerRooms();
+  const showVastu = useAppStore((s) => s.showVastuOverlay3D);
 
   return (
     <group>
-      {/* Infinite‑ish ground plane to catch shadows. */}
+      {/* Infinite ground plane */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
         <planeGeometry args={[100, 100]} />
         <meshStandardMaterial color="#3a5a40" />
@@ -41,7 +44,7 @@ export const SceneContent: React.FC = () => {
       )}
 
       <FurnitureInstances />
-      {/* CameraController arrives in Part 13; VastuOverlay3D in Part 15. */}
+      {showVastu && <VastuOverlay3D />}
     </group>
   );
 };

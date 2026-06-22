@@ -2,18 +2,21 @@
 
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Preload, Stats } from '@react-three/drei';
+import { Preload, Stats } from '@react-three/drei';
 import { SceneEnvironment } from './SceneEnvironment';
 import { SceneContent } from './SceneContent';
+import { CameraController } from './CameraController';
+import { useAppStore } from '@/store';
 
 /**
  * The 3D viewport.
  * - shadows + PCF soft shadow maps for grounded lighting
  * - dpr capped at 2 so 4K displays don't tank the framerate
  * - a Suspense boundary so async GLTF loads don't crash the tree
- * - OrbitControls is a placeholder camera until Part 13's CameraController
  */
 export const ViewerCanvas: React.FC = () => {
+  const cameraMode = useAppStore((s) => s.cameraMode);
+
   return (
     <div className="w-full h-full">
       <Canvas
@@ -25,7 +28,7 @@ export const ViewerCanvas: React.FC = () => {
         <Suspense fallback={null}>
           <SceneEnvironment />
           <SceneContent />
-          <OrbitControls makeDefault />
+          <CameraController mode={cameraMode} />
           <Preload all />
         </Suspense>
         {import.meta.env.DEV && <Stats />}

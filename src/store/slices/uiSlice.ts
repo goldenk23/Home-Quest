@@ -34,12 +34,15 @@ export interface UISlice {
   activeTool: Tool;
   panelVisibility: Record<PanelId, boolean>;
   isChainModeEnabled: boolean;
+  /** The catalog id that the furniture tool will place on the next click. */
+  furnitureCatalogId: string;
 
   // Controls (How we change the memory)
   setActiveTool: (tool: Tool) => void;
   togglePanel: (panel: PanelId) => void;
   setPanelVisibility: (panel: PanelId, visible: boolean) => void;
   setChainMode: (enabled: boolean) => void;
+  setFurnitureCatalogId: (catalogId: string) => void;
 }
 
 export const createUISlice: StateCreator<
@@ -56,6 +59,7 @@ export const createUISlice: StateCreator<
     layers: false,
   },
   isChainModeEnabled: false,
+  furnitureCatalogId: 'sofa-3seat',
 
   setActiveTool: (tool) => {
     set((state) => {
@@ -78,6 +82,12 @@ export const createUISlice: StateCreator<
   setChainMode: (enabled) => {
     set((state) => {
       state.isChainModeEnabled = enabled;
+    });
+  },
+
+  setFurnitureCatalogId: (catalogId) => {
+    set((state) => {
+      state.furnitureCatalogId = catalogId;
     });
   },
 });

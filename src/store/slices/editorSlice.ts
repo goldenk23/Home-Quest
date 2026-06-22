@@ -25,9 +25,11 @@ export interface EditorSlice {
     moveFurniture: (id: EntityId, position: Point2D) => void;
     rotateFurniture: (id: EntityId, rotation: number) => void;
     setRooms: (rooms: Record<EntityId, Room>) => void;
+    updateRoom: (id: EntityId, patch: Partial<Pick<Room, 'roomType' | 'label' | 'floorMaterialId'>>) => void;
     select: (ids: EntityId[]) => void;
     clearSelection: () => void;
     setSnapConfig: (config: Partial<SnapConfig>) => void;
+    clearAll: () => void;
 }
 
 
@@ -186,6 +188,14 @@ export const createEditorSlice: StateCreator<
             state.rooms = castDraft(rooms);
         });
     },
+    updateRoom: (id, patch) => {
+        set((state) => {
+            const room = state.rooms[id];
+            if (room) {
+                Object.assign(room, patch);
+            }
+        });
+    },
     select: (ids) => {
         set((state) => {
             state.selectedIds = ids;
@@ -199,6 +209,15 @@ export const createEditorSlice: StateCreator<
     setSnapConfig: (config) => {
         set((state) => {
         Object.assign(state.snapConfig, config);
+        });
+    },
+    clearAll: () => {
+        set((state) => {
+            state.vertices = {};
+            state.walls = {};
+            state.rooms = {};
+            state.furniture = {};
+            state.selectedIds = [];
         });
     },
 });

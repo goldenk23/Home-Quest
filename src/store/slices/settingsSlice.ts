@@ -33,7 +33,7 @@ export const createSettingsSlice: StateCreator<
 > = (set) => ({
   featureFlags: initialFeatureFlags,
   devMode: true, // Enabled by default in dev environment
-  activeView: 'app',
+  activeView: 'sandbox',
 
   toggleFeatureFlag: (flag) =>
     set((state) => {

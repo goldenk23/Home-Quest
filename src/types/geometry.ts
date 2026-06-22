@@ -26,3 +26,16 @@ export interface ViewTransform {
   readonly offsetX: number;
   readonly offsetY: number;
 }
+
+/** Axis-Aligned Bounding Box — a box whose sides line up with the world axes. */
+export interface AABB {
+  readonly min: Point2D;
+  readonly max: Point2D;
+}
+
+/** Oriented Bounding Box — a box that can be rotated (furniture footprint). */
+export interface OBB {
+  readonly center: Point2D;
+  readonly halfExtents: Point2D; // half-width, half-depth
+  readonly rotation: number; // radians
+}

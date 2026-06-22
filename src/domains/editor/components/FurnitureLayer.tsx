@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { useAppStore } from '@/store';
+import { useCollidingFurnitureIds } from '../hooks/useCollisions';
+import { getCatalogEntry } from '@/domains/viewer/hooks/useAssetLoader';
 
 /**
  * Draws a 2D footprint icon for every furniture item.
@@ -9,9 +11,12 @@ import { useAppStore } from '@/store';
  * (Y‑flipped), rotate, then we draw the rect centered on the origin.
  * Rotation is negated because screen Y is flipped relative to world Y, so a
  * counter‑clockwise world rotation is clockwise on screen.
+ *
+ * Items involved in a collision are drawn red so the collision engine is visible.
  */
 export const FurnitureLayer: React.FC = React.memo(() => {
   const furniture = useAppStore((s) => s.furniture);
+  const colliding = useCollidingFurnitureIds();
 
   return (
     <g className="furniture-layer">
@@ -19,6 +24,10 @@ export const FurnitureLayer: React.FC = React.memo(() => {
         const w = item.bounds.width;
         const d = item.bounds.depth;
         const degrees = (-item.rotation * 180) / Math.PI;
+        const isColliding = colliding.has(item.id);
+        const stroke = isColliding ? '#ef4444' : '#38bdf8';
+        const fill = isColliding ? 'rgba(239, 68, 68, 0.22)' : 'rgba(56, 189, 248, 0.20)';
+        const label = getCatalogEntry(item.catalogId).label;
         return (
           <g
             key={item.id}
@@ -32,12 +41,24 @@ export const FurnitureLayer: React.FC = React.memo(() => {
               width={w}
               height={d}
               rx={3}
-              fill="rgba(56, 189, 248, 0.20)"
-              stroke="#38bdf8"
+              fill={fill}
+              stroke={stroke}
               strokeWidth={1.5}
             />
             {/* Small tick marks the "front" of the piece so orientation is visible. */}
-            <line x1={0} y1={-d / 2} x2={0} y2={-d / 2 + Math.min(d * 0.25, 15)} stroke="#38bdf8" strokeWidth={2} />
+            <line x1={0} y1={-d / 2} x2={0} y2={-d / 2 + Math.min(d * 0.25, 15)} stroke={stroke} strokeWidth={2} />
+            <text
+              x={0}
+              y={0}
+              fontSize={Math.max(10, Math.min(w, d) * 0.18)}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill={isColliding ? '#fecaca' : '#e0f2fe'}
+              pointerEvents="none"
+              transform={`rotate(${-degrees})`}
+            >
+              {label}
+            </text>
           </g>
         );
       })}

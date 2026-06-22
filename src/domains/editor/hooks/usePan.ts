@@ -1,6 +1,6 @@
 // src/domains/editor/hooks/usePan.ts
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { RefObject } from 'react';
 import type { ViewTransform } from '@/types/geometry';
 
@@ -25,31 +25,32 @@ export function usePanZoom(svgRef: RefObject<SVGSVGElement | null>) {
   const isPanning = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
 
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault();
-      // Scroll up = zoom in, scroll down = zoom out.
-      const factor = e.deltaY > 0 ? 1 / ZOOM_FACTOR : ZOOM_FACTOR;
+  // Wheel zoom MUST be a native, non-passive listener — React's synthetic onWheel is
+  // registered as passive, so e.preventDefault() there is ignored and the page scrolls.
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
 
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault(); // stop the page from scrolling while zooming the canvas
+      const factor = e.deltaY > 0 ? 1 / ZOOM_FACTOR : ZOOM_FACTOR;
       setViewTransform((prev) => {
         const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev.scale * factor));
-        if (!svgRef.current) return { ...prev, scale: newScale };
-
-        // Keep the point under the cursor fixed while zooming ("zoom to cursor").
-        const rect = svgRef.current.getBoundingClientRect();
+        const rect = el.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
         const ratio = newScale / prev.scale;
-
         return {
           scale: newScale,
           offsetX: mx - (mx - prev.offsetX) * ratio,
           offsetY: my - (my - prev.offsetY) * ratio,
         };
       });
-    },
-    [svgRef]
-  );
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [svgRef]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Pan with middle mouse, or Alt + left click (keeps left click free for drawing).
@@ -76,10 +77,15 @@ export function usePanZoom(svgRef: RefObject<SVGSVGElement | null>) {
     isPanning.current = false;
   }, []);
 
+  /** Pan the view by a pixel delta (used for left-drag "grab" panning in the canvas). */
+  const panBy = useCallback((dx: number, dy: number) => {
+    setViewTransform((prev) => ({ ...prev, offsetX: prev.offsetX + dx, offsetY: prev.offsetY + dy }));
+  }, []);
+
   return {
     viewTransform,
+    panBy,
     handlers: {
-      onWheel: handleWheel,
       onMouseDown: handleMouseDown,
       onMouseMove: handleMouseMove,
       onMouseUp: handleMouseUp,

@@ -1,44 +1,38 @@
 // src/domains/viewer/hooks/useAssetLoader.ts
 
-import { useGLTF } from '@react-three/drei';
-import { useMemo } from 'react';
-import * as THREE from 'three';
+/**
+ * Furniture catalog — the single source of truth for both the 2D footprint
+ * (FurnitureLayer) and the 3D model (FurnitureModel).
+ *
+ * The original guide loaded GLTF (`.glb`) models via drei's `useGLTF`. Those binary
+ * assets were never shipped in `/public/models`, so the furniture pipeline could never
+ * actually render. To make the feature real and testable with zero external assets, we
+ * render furniture as procedural boxes sized to real-world dimensions (cm) and colored
+ * per type. Swapping back to GLTF later only requires changing `FurnitureModel`.
+ */
 
-/** Maps a catalog id to its model file, base scale, and vertical offset. */
-export const FURNITURE_CATALOG: Record<string, { path: string; scale: number; yOffset: number }> = {
-  'sofa-3seat': { path: '/models/sofa-3seat.glb', scale: 0.01, yOffset: 0 },
-  'dining-table': { path: '/models/dining-table.glb', scale: 0.01, yOffset: 0 },
-  'bed-queen': { path: '/models/bed-queen.glb', scale: 0.01, yOffset: 0 },
-  'chair-office': { path: '/models/chair-office.glb', scale: 0.01, yOffset: 0 },
-  'toilet': { path: '/models/toilet.glb', scale: 0.01, yOffset: 0 },
-  'kitchen-counter': { path: '/models/kitchen-counter.glb', scale: 0.01, yOffset: 0 },
-};
-
-/** Warm the cache for commonly used models so first placement isn't laggy. */
-export function preloadCommonModels(): void {
-  for (const id of ['sofa-3seat', 'dining-table', 'bed-queen']) {
-    const entry = FURNITURE_CATALOG[id];
-    if (entry) useGLTF.preload(entry.path);
-  }
+export interface FurnitureCatalogEntry {
+  /** Human-friendly name shown in the catalog UI. */
+  label: string;
+  /** Base color for the procedural 3D box and 2D footprint accent. */
+  color: string;
+  /** Real-world dimensions in centimeters. */
+  bounds: { width: number; depth: number; height: number };
 }
 
-/**
- * Loads a model and returns an independent CLONE per furniture instance.
- * A Three.js Object3D can only have one parent, so two pieces sharing the same model must
- * each get their own clone — otherwise the second one "steals" the mesh from the first.
- */
-export function useFurnitureModel(catalogId: string, instanceId: string): THREE.Object3D {
-  const entry = FURNITURE_CATALOG[catalogId];
-  const { scene } = useGLTF(entry?.path ?? '/models/placeholder.glb');
+export const FURNITURE_CATALOG: Record<string, FurnitureCatalogEntry> = {
+  'sofa-3seat': { label: 'Sofa (3-seat)', color: '#8b6f47', bounds: { width: 200, depth: 90, height: 80 } },
+  'dining-table': { label: 'Dining Table', color: '#9c6b3f', bounds: { width: 150, depth: 90, height: 75 } },
+  'bed-queen': { label: 'Queen Bed', color: '#6b7280', bounds: { width: 160, depth: 210, height: 60 } },
+  'chair-office': { label: 'Office Chair', color: '#374151', bounds: { width: 60, depth: 60, height: 110 } },
+  'toilet': { label: 'Toilet', color: '#e5e7eb', bounds: { width: 40, depth: 70, height: 80 } },
+  'kitchen-counter': { label: 'Kitchen Counter', color: '#4b5563', bounds: { width: 200, depth: 60, height: 90 } },
+};
 
-  return useMemo(() => {
-    const clone = scene.clone(true);
-    clone.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-    return clone;
-  }, [scene, instanceId]); // instanceId keeps clones unique per piece
+/** Convenience: ordered list of catalog ids for building UI menus. */
+export const FURNITURE_CATALOG_IDS = Object.keys(FURNITURE_CATALOG);
+
+/** Returns the catalog entry for an id, falling back to the sofa if unknown. */
+export function getCatalogEntry(catalogId: string): FurnitureCatalogEntry {
+  return FURNITURE_CATALOG[catalogId] ?? FURNITURE_CATALOG['sofa-3seat'];
 }

@@ -3,6 +3,7 @@
 import React from 'react';
 import { useAppStore } from '@/store';
 import { ROOM_FILL_COLORS } from '../constants';
+import { computeSignedArea } from '../services/roomDetection';
 import type { Point2D } from '@/types/geometry';
 
 /** Convert an ordered list of world points into a closed SVG polygon path (Y‑flipped). */
@@ -35,6 +36,9 @@ export const RoomLayer: React.FC = React.memo(() => {
         const cx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
         const cy = points.reduce((sum, p) => sum + p.y, 0) / points.length;
 
+        // Area in m² (positions are in cm, so divide by 10,000).
+        const areaM2 = Math.abs(computeSignedArea(points)) / 10000;
+
         return (
           <g key={room.id}>
             <path
@@ -47,15 +51,25 @@ export const RoomLayer: React.FC = React.memo(() => {
             />
             <text
               x={cx}
-              y={-cy}
+              y={-cy - 9}
               fontSize={16}
               textAnchor="middle"
               dominantBaseline="middle"
-              fill="rgba(255,255,255,0.7)"
+              fill="rgba(255,255,255,0.8)"
               pointerEvents="none"
-              // Counter the parent zoom a touch so labels stay readable; optional.
             >
               {room.label}
+            </text>
+            <text
+              x={cx}
+              y={-cy + 11}
+              fontSize={12}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="rgba(255,255,255,0.55)"
+              pointerEvents="none"
+            >
+              {areaM2.toFixed(2)} m²
             </text>
           </g>
         );

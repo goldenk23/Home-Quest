@@ -9,8 +9,10 @@ import { createUISlice } from './slices/uiSlice';
 import type { UISlice } from './slices/uiSlice';
 import { createSettingsSlice } from './slices/settingsSlice';
 import type { SettingsSlice } from './slices/settingsSlice';
+import { createVastuSlice } from './slices/vastuSlice';
+import type { VastuSlice } from './slices/vastuSlice';
 
-export type AppStore = EditorSlice & ViewerSlice & UISlice & SettingsSlice;
+export type AppStore = EditorSlice & ViewerSlice & UISlice & SettingsSlice & VastuSlice;
 
 export const useAppStore = create<AppStore>()(
   devtools(
@@ -19,6 +21,7 @@ export const useAppStore = create<AppStore>()(
       ...createViewerSlice(...args),
       ...createUISlice(...args),
       ...createSettingsSlice(...args),
+      ...createVastuSlice(...args),
     })),
     { name: 'HomeQuest' }
   )
