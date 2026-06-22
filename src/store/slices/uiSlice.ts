@@ -33,11 +33,13 @@ export interface UISlice {
   // Memory (What we remember)
   activeTool: Tool;
   panelVisibility: Record<PanelId, boolean>;
+  isChainModeEnabled: boolean;
 
   // Controls (How we change the memory)
   setActiveTool: (tool: Tool) => void;
   togglePanel: (panel: PanelId) => void;
   setPanelVisibility: (panel: PanelId, visible: boolean) => void;
+  setChainMode: (enabled: boolean) => void;
 }
 
 export const createUISlice: StateCreator<
@@ -53,6 +55,7 @@ export const createUISlice: StateCreator<
     catalog: false,
     layers: false,
   },
+  isChainModeEnabled: false,
 
   setActiveTool: (tool) => {
     set((state) => {
@@ -69,6 +72,12 @@ export const createUISlice: StateCreator<
   setPanelVisibility: (panel, visible) => {
     set((state) => {
       state.panelVisibility[panel] = visible;
+    });
+  },
+
+  setChainMode: (enabled) => {
+    set((state) => {
+      state.isChainModeEnabled = enabled;
     });
   },
 });

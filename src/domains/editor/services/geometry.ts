@@ -79,10 +79,13 @@ export function worldToScreen(
 }
 
 
+import type { MiterOffsets } from './wallOps';
+
 export function computeWallQuad(
     start: Point2D,
     end: Point2D,
-    thickness: number
+    thickness: number,
+    offsets?: MiterOffsets
 ): wallQuad {
     const dx = end.x - start.x;
     const dy = end.y - start.y;
@@ -98,17 +101,38 @@ export function computeWallQuad(
         };
     }
 
+    // Unit direction vector
+    const vx = dx / length;
+    const vy = dy / length;
+
     // Perpendicular unit vector (rotate direction 90° CCW)
-    const nx = -dy / length;
-    const ny = dx / length;
+    const nx = -vy;
+    const ny = vx;
 
     const halfThick = thickness / 2;
 
+    const sLeft = offsets?.startLeft ?? 0;
+    const sRight = offsets?.startRight ?? 0;
+    const eLeft = offsets?.endLeft ?? 0;
+    const eRight = offsets?.endRight ?? 0;
+
     return {
-        topLeft: { x: start.x + nx * halfThick, y: start.y + ny * halfThick },
-        topRight: { x: end.x + nx * halfThick, y: end.y + ny * halfThick },
-        bottomRight: { x: end.x - nx * halfThick, y: end.y - ny * halfThick },
-        bottomLeft: { x: start.x - nx * halfThick, y: start.y - ny * halfThick },
+        topLeft: { 
+            x: start.x + nx * halfThick + vx * sLeft, 
+            y: start.y + ny * halfThick + vy * sLeft 
+        },
+        topRight: { 
+            x: end.x + nx * halfThick - vx * eRight, 
+            y: end.y + ny * halfThick - vy * eRight 
+        },
+        bottomRight: { 
+            x: end.x - nx * halfThick - vx * eLeft, 
+            y: end.y - ny * halfThick - vy * eLeft 
+        },
+        bottomLeft: { 
+            x: start.x - nx * halfThick + vx * sRight, 
+            y: start.y - ny * halfThick + vy * sRight 
+        },
     };
 }
 

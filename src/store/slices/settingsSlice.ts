@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import type { AppStore } from '../index';
 
 export interface FeatureFlags {
   enableVastuOverlay: boolean;
@@ -24,22 +25,28 @@ const initialFeatureFlags: FeatureFlags = {
   showDebugGrid: true,
 };
 
-export const createSettingsSlice: StateCreator<SettingsSlice> = (set) => ({
+export const createSettingsSlice: StateCreator<
+  AppStore,
+  [['zustand/immer', never], ['zustand/devtools', never]],
+  [],
+  SettingsSlice
+> = (set) => ({
   featureFlags: initialFeatureFlags,
   devMode: true, // Enabled by default in dev environment
   activeView: 'app',
-  
-  toggleFeatureFlag: (flag) => 
-    set((state) => ({
-      featureFlags: {
-        ...state.featureFlags,
-        [flag]: !state.featureFlags[flag],
-      },
-    })),
-    
-  toggleDevMode: () => 
-    set((state) => ({ devMode: !state.devMode })),
-    
-  setActiveView: (view) => 
-    set({ activeView: view }),
+
+  toggleFeatureFlag: (flag) =>
+    set((state) => {
+      state.featureFlags[flag] = !state.featureFlags[flag];
+    }),
+
+  toggleDevMode: () =>
+    set((state) => {
+      state.devMode = !state.devMode;
+    }),
+
+  setActiveView: (view) =>
+    set((state) => {
+      state.activeView = view;
+    }),
 });

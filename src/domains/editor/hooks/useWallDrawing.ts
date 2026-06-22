@@ -1,0 +1,53 @@
+// src/domains/editor/hooks/useWallDrawing.ts
+
+import { useState, useCallback } from 'react';
+import { useAppStore } from '@/store';
+import type { Point2D } from '@/types/geometry';
+import { findWallIntersections, splitWallAtPoint } from '../services/wallOps';
+
+const MIN_WALL_LENGTH_SQ = 1; // reject sub‑1cm walls (squared, so 1 = 1cm²)
+
+export function useWallDrawing() {
+  // The pending start point. null ⇒ we're idle (no wall in progress).
+  const [drawStart, setDrawStart] = useState<Point2D | null>(null);
+  const chainMode = useAppStore(s => s.isChainModeEnabled);
+
+  /** Call this with a SNAPPED world point on each editor click. */
+  const handleClick = useCallback(
+    (worldPos: Point2D) => {
+      // First click: remember where the wall starts.
+      if (!drawStart) {
+        setDrawStart(worldPos);
+        return;
+      }
+
+      // Second click: finish the wall.
+      const start = drawStart;
+      const end = worldPos;
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      if (dx * dx + dy * dy < MIN_WALL_LENGTH_SQ) return; // ignore accidental tiny walls
+
+      // Read FRESH state (not a stale closure) for accurate intersection tests.
+      const { walls, vertices, addWall } = useAppStore.getState();
+
+      // Split every existing wall this new wall crosses, in order along the new wall.
+      const crossings = findWallIntersections(start, end, walls, vertices);
+      for (const c of crossings) {
+        splitWallAtPoint(c.wallId, c.point);
+      }
+
+      // Add the new wall (the store action finds/creates shared vertices for us).
+      addWall(start, end);
+
+      // Chain mode keeps drawing from the point we just placed; otherwise go idle.
+      setDrawStart(chainMode ? end : null);
+    },
+    [drawStart, chainMode]
+  );
+
+  /** Cancel the in‑progress wall (e.g. on Escape). */
+  const cancel = useCallback(() => setDrawStart(null), []);
+
+  return { drawStart, chainMode, handleClick, cancel };
+}

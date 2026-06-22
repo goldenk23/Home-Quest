@@ -1,41 +1,4 @@
-/*
- * ============================================================================
- * WHAT IS THIS FILE FOR?
- * ============================================================================
- * 
- * This file holds the visual "paint" and styling rules for our 2D floor plan 
- * editor. Instead of scattering colors and sizes throughout our code, we keep 
- * them all right here. If you ever want to change how thick a wall looks, or 
- * the color of a bedroom, this is the only file you need to update!
- *
- * THE MENTAL MODEL:
- * 
- * 1. Real-World Sizes: Every number here (like wallStrokeWidth or vertexRadius) 
- *    is measured in real-world Centimeters (cm). Our zoom engine automatically 
- *    scales everything for the screen!
- * 2. See-Through Colors: Room colors are intentionally made slightly transparent
- *    (low saturation) so you can still easily see walls and furniture on top.
- *
- * DIAGRAM: HOW THIS FILE FEEDS THE CANVAS
- *
- *     [ Real-World Centimeters ] ------+
- *                                      |
- *     [ Theme Colors ] ----------------+-----> [ This File (constants.ts) ]
- *                                      |                    |
- *     [ Room Types ] ------------------+                    |
- *                                                           | (Provides styles to)
- *                                                           v
- *    +-----------------------------------------------------------------+
- *    |                         EDITOR CANVAS                           |
- *    |                                                                 |
- *    |  [SelectionLayer] <-- Uses selectionStroke & glow               |
- *    |  [FurnitureLayer]                                               |
- *    |  [WallLayer]      <-- Uses wallFill, wallStroke, vertexRadius   |
- *    |  [RoomLayer]      <-- Uses ROOM_FILL_COLORS (bedroom, kitchen)  |
- *    |  [GridLayer]                                                    |
- *    +-----------------------------------------------------------------+
- * ============================================================================
- */
+// src/domains/editor/constants.ts
 
 import type { RoomType } from '@/types/editor';
 

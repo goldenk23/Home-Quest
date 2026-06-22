@@ -81,7 +81,7 @@ y = Math.round(37 / 10) * 10
 
 /**
  * Combined snapping pipeline.
- * Priority: endpoint snap > grid snap > raw position.
+ * Priority: endpoint snap > angle snap > grid snap > raw position.
  * 
  * Endpoint snapping takes priority because connecting walls
  * at exact shared vertices is essential for room detection.
@@ -89,17 +89,59 @@ y = Math.round(37 / 10) * 10
 export function applySnapping(
     rawPoint: Point2D,
     endpoints: readonly Point2D[],
-    config: SnapConfig = defaultSnapConfig
+    config: SnapConfig = defaultSnapConfig,
+    origin: Point2D | null = null,
+    shiftPressed: boolean = false
 ): Point2D {
+    // 1. Endpoint Snapping (Highest Priority)
     if (config.endpointEnabled) {
         const snapped = snapToEndpoints(rawPoint, endpoints, config.snapRadius);
         if (snapped !== rawPoint) return snapped;
     }
 
-    if (config.gridEnabled) {
-        return snapPoint(rawPoint, config.gridSize);
+    let pointToSnap = rawPoint;
+
+    // 2. Angle Snapping (If we have a start point)
+    // Snap to 15 degree increments if holding Shift, or if close to 90 degree increments automatically.
+    if (origin) {
+        const dx = rawPoint.x - origin.x;
+        const dy = rawPoint.y - origin.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 0) {
+            let angle = Math.atan2(dy, dx);
+            // Convert to degrees for easier math
+            let angleDeg = angle * (180 / Math.PI);
+            
+            // Snap to nearest 15 degrees if shift is pressed, otherwise snap to 90 degree axes if within 5 degrees
+            if (shiftPressed) {
+                angleDeg = Math.round(angleDeg / 15) * 15;
+            } else {
+                const nearest90 = Math.round(angleDeg / 90) * 90;
+                if (Math.abs(angleDeg - nearest90) < 5) {
+                    angleDeg = nearest90;
+                } else {
+                    const nearest45 = Math.round(angleDeg / 45) * 45;
+                    if (Math.abs(angleDeg - nearest45) < 3) {
+                        angleDeg = nearest45;
+                    }
+                }
+            }
+
+            // Convert back to radians and apply
+            const snappedAngle = angleDeg * (Math.PI / 180);
+            pointToSnap = {
+                x: origin.x + Math.cos(snappedAngle) * distance,
+                y: origin.y + Math.sin(snappedAngle) * distance
+            };
+        }
     }
 
-    return rawPoint;
+    // 3. Grid Snapping
+    if (config.gridEnabled) {
+        return snapPoint(pointToSnap, config.gridSize);
+    }
+
+    return pointToSnap;
 }
 export {}; // Makes the file a valid module
