@@ -10,14 +10,18 @@ const MIN_WALL_LENGTH_SQ = 1; // reject sub‑1cm walls (squared, so 1 = 1cm²)
 export function useWallDrawing() {
   // The pending start point. null ⇒ we're idle (no wall in progress).
   const [drawStart, setDrawStart] = useState<Point2D | null>(null);
+  // The FIRST point of the current chain. Lets us snap the chain closed back onto its
+  // origin so rectangles/rooms close exactly (and the loop is detected as a room).
+  const [chainOrigin, setChainOrigin] = useState<Point2D | null>(null);
   const chainMode = useAppStore(s => s.isChainModeEnabled);
 
   /** Call this with a SNAPPED world point on each editor click. */
   const handleClick = useCallback(
     (worldPos: Point2D) => {
-      // First click: remember where the wall starts.
+      // First click: remember where the wall starts (and where the chain began).
       if (!drawStart) {
         setDrawStart(worldPos);
+        setChainOrigin(worldPos);
         return;
       }
 
@@ -40,14 +44,31 @@ export function useWallDrawing() {
       // Add the new wall (the store action finds/creates shared vertices for us).
       addWall(start, end);
 
+      // If we just closed the loop back onto the chain origin, the room is complete —
+      // stop drawing so the user doesn't keep extending past the closed rectangle.
+      const closedLoop =
+        chainMode &&
+        chainOrigin != null &&
+        (end.x - chainOrigin.x) ** 2 + (end.y - chainOrigin.y) ** 2 < MIN_WALL_LENGTH_SQ;
+
+      if (closedLoop) {
+        setDrawStart(null);
+        setChainOrigin(null);
+        return;
+      }
+
       // Chain mode keeps drawing from the point we just placed; otherwise go idle.
       setDrawStart(chainMode ? end : null);
+      if (!chainMode) setChainOrigin(null);
     },
-    [drawStart, chainMode]
+    [drawStart, chainMode, chainOrigin]
   );
 
   /** Cancel the in‑progress wall (e.g. on Escape). */
-  const cancel = useCallback(() => setDrawStart(null), []);
+  const cancel = useCallback(() => {
+    setDrawStart(null);
+    setChainOrigin(null);
+  }, []);
 
-  return { drawStart, chainMode, handleClick, cancel };
+  return { drawStart, chainOrigin, chainMode, handleClick, cancel };
 }

@@ -7,6 +7,7 @@ import { screenToWorld } from '../services/geometry';
 import { applySnapping } from '../hooks/useSnapping';
 import { usePanZoom } from '../hooks/usePan';
 import { useWallDrawing } from '../hooks/useWallDrawing';
+import { toWallSegments } from '../services/wallGuides';
 import { getCatalogEntry } from '@/domains/viewer/hooks/useAssetLoader';
 import type { Point2D } from '@/types/geometry';
 import type { AppStore } from '@/store';
@@ -102,7 +103,7 @@ export const EditorCanvas: React.FC = () => {
   const snapConfig = useAppStore((s) => s.snapConfig);
   const activeTool = useAppStore((s) => s.activeTool);
 
-  const { drawStart, handleClick, cancel } = useWallDrawing();
+  const { drawStart, chainOrigin, handleClick, cancel } = useWallDrawing();
 
   const viewTransformRef = useRef(viewTransform);
   viewTransformRef.current = viewTransform;
@@ -184,7 +185,11 @@ export const EditorCanvas: React.FC = () => {
       const rect = svgRef.current.getBoundingClientRect();
       const raw = screenToWorld({ px: e.clientX, py: e.clientY }, rect, viewTransformRef.current);
       const origin = activeTool === 'wall' ? drawStart : null;
-      return applySnapping(raw, endpoints, snapConfig, origin, e.shiftKey);
+      // When drawing, allow snapping onto existing wall centerlines so a wall drawn
+      // across a room connects cleanly and splits it. (Not needed for select/furniture.)
+      const st = useAppStore.getState();
+      const wallSegments = activeTool === 'wall' ? toWallSegments(st.walls, st.vertices) : [];
+      return applySnapping(raw, endpoints, snapConfig, origin, e.shiftKey, wallSegments);
     },
     [activeTool, drawStart, endpoints, snapConfig]
   );
@@ -413,7 +418,7 @@ export const EditorCanvas: React.FC = () => {
         <FurnitureLayer />
         <SelectionLayer />
         <VastuOverlay2D />
-        {activeTool === 'wall' && <DrawingPreview start={drawStart} />}
+        {activeTool === 'wall' && <DrawingPreview start={drawStart} chainOrigin={chainOrigin} />}
         {dragHud && <DragReadout {...dragHud} />}
       </g>
       {/* Screen-anchored compass (outside the pan/zoom group) so it never moves or scales. */}

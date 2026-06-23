@@ -1,5 +1,6 @@
 
 import type { Point2D } from '@/types/geometry';
+import { snapToWallEdge, type WallSegment } from '../services/wallGuides';
 
 export interface SnapConfig {
     /** Grid cell size in world units (cm) */
@@ -91,12 +92,24 @@ export function applySnapping(
     endpoints: readonly Point2D[],
     config: SnapConfig = defaultSnapConfig,
     origin: Point2D | null = null,
-    shiftPressed: boolean = false
+    shiftPressed: boolean = false,
+    wallSegments: readonly WallSegment[] = []
 ): Point2D {
     // 1. Endpoint Snapping (Highest Priority)
+    // Connecting at an EXACT shared vertex is what makes room detection work, so this
+    // wins over everything else.
     if (config.endpointEnabled) {
         const snapped = snapToEndpoints(rawPoint, endpoints, config.snapRadius);
         if (snapped !== rawPoint) return snapped;
+    }
+
+    // 1b. Wall-edge Snapping (second priority).
+    // Snap onto an existing wall centerline so a wall drawn THROUGH a room lands exactly
+    // on its boundary walls. That guarantees the crossing is detected and the enclosed
+    // area is split into two separate rooms.
+    if (config.endpointEnabled && wallSegments.length > 0) {
+        const onWall = snapToWallEdge(rawPoint, wallSegments, config.snapRadius);
+        if (onWall !== rawPoint) return onWall;
     }
 
     let pointToSnap = rawPoint;
