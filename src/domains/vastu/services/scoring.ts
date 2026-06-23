@@ -2,8 +2,7 @@
 
 import type { Room, RoomType } from '@/types/editor';
 import type { Point2D } from '@/types/geometry';
-import { type VastuDirection, DIRECTIONS } from './zones';
-import { calculateBrahmasthan } from './brahmasthan';
+import { type VastuDirection } from './zones';
 import { computeSignedArea } from '@/domains/editor/services/roomDetection';
 
 export interface VastuScore {
@@ -137,7 +136,6 @@ export function computeVastuScore(
 ): VastuScore {
   const brahmasthan = calculateBrahmasthan(planBoundary);
   const bbox = boundingBox(planBoundary);
-  const planArea = Math.abs(computeSignedArea(planBoundary));
   const scoredRooms = rooms.filter((r) => {
     const p = roomPolygons[r.id];
     return p && p.length >= 3;
@@ -217,7 +215,6 @@ export function computeVastuScore(
   const sevRank = { critical: 0, warning: 1, suggestion: 2 } as const;
   recommendations.sort((a, b) => sevRank[a.severity] - sevRank[b.severity]);
 
-  void brahmasthan; // retained for callers/overlays; direction now uses the bbox grid
   return { overall, roomScores, recommendations };
 }
 
@@ -282,5 +279,3 @@ export function directionCell(p: Point2D, bbox: BBox): VastuDirection | 'CENTER'
   ];
   return grid[row][col];
 }
-
-void DIRECTIONS;
