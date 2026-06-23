@@ -15,14 +15,22 @@ Already a pro? Just edit this README.md and make it your own. Want to make it ea
 
 ```
 cd existing_repo
+<<<<<<< HEAD
 git remote add origin https://gitlab.com/vas-venture-software/home-quest.git
+=======
+git remote add origin https://gitlab.com/homequestgroup/home-quest.git
+>>>>>>> 7039bad4a38675b4377d7010f7f1b30e46cd6ae8
 git branch -M main
 git push -uf origin main
 ```
 
 ## Integrate with your tools
 
+<<<<<<< HEAD
 * [Set up project integrations](https://gitlab.com/vas-venture-software/home-quest/-/settings/integrations)
+=======
+* [Set up project integrations](https://gitlab.com/homequestgroup/home-quest/-/settings/integrations)
+>>>>>>> 7039bad4a38675b4377d7010f7f1b30e46cd6ae8
 
 ## Collaborate with your team
 
