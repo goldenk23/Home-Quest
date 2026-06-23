@@ -29,7 +29,7 @@ export const VASTU_ZONES_8: VastuZone[] = [
 ];
 
 /** Maps an angle (degrees, 0=E, CCW) to one of the 8 directions. */
-function degreesToDirection(degrees: number): VastuDirection {
+export function degreesToDirection(degrees: number): VastuDirection {
   const d = ((degrees % 360) + 360) % 360;
   if (d >= 337.5 || d < 22.5) return 'E';
   if (d < 67.5) return 'NE';
@@ -41,10 +41,43 @@ function degreesToDirection(degrees: number): VastuDirection {
   return 'SE';
 }
 
-/** The primary direction of a room, measured from the Brahmasthan to the room's centroid. */
-export function getRoomDirection(roomPolygon: Point2D[], brahmasthan: Point2D): VastuDirection {
-  const n = roomPolygon.length;
-  const centroid = roomPolygon.reduce((acc, p) => ({ x: acc.x + p.x / n, y: acc.y + p.y / n }), { x: 0, y: 0 });
-  const angle = Math.atan2(centroid.y - brahmasthan.y, centroid.x - brahmasthan.x);
+/**
+ * Area (centroid) of a polygon. Used so a room's direction is measured from its true
+ * geometric centre rather than a vertex average (which is biased toward dense corners).
+ * Falls back to the vertex average for degenerate (near-zero-area) polygons.
+ */
+function polygonCentroid(polygon: Point2D[]): Point2D {
+  const n = polygon.length;
+  const avg = polygon.reduce((acc, p) => ({ x: acc.x + p.x / n, y: acc.y + p.y / n }), { x: 0, y: 0 });
+  if (n < 3) return avg;
+
+  let area = 0;
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const cross = polygon[i].x * polygon[j].y - polygon[j].x * polygon[i].y;
+    area += cross;
+    cx += (polygon[i].x + polygon[j].x) * cross;
+    cy += (polygon[i].y + polygon[j].y) * cross;
+  }
+  area *= 0.5;
+  if (Math.abs(area) < 1e-9) return avg; // degenerate / collinear → fall back
+  const f = 1 / (6 * area);
+  return { x: cx * f, y: cy * f };
+}
+
+/**
+ * The primary compass direction of a room, measured from the Brahmasthan (plan centre)
+ * to the room's area centroid. Returns `null` when the room sits effectively on the
+ * centre, so callers can treat it as "central" instead of snapping to a spurious sector.
+ */
+export function getRoomDirection(roomPolygon: Point2D[], brahmasthan: Point2D): VastuDirection | null {
+  if (roomPolygon.length === 0) return null;
+  const centroid = polygonCentroid(roomPolygon);
+  const dx = centroid.x - brahmasthan.x;
+  const dy = centroid.y - brahmasthan.y;
+  if (dx * dx + dy * dy < 1e-6) return null; // essentially at the centre
+  const angle = Math.atan2(dy, dx);
   return degreesToDirection((angle * 180) / Math.PI);
 }

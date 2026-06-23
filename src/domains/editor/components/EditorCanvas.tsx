@@ -17,6 +17,7 @@ import { FurnitureLayer } from './FurnitureLayer';
 import { SelectionLayer } from './SelectionLayer';
 import { DrawingPreview } from './DrawingPreview';
 import { VastuOverlay2D } from '@/domains/vastu/components/VastuOverlay2D';
+import { CompassRose } from './CompassRose';
 
 /** Point-in-(rotated)-rectangle test for furniture footprints (with a grab margin in cm). */
 function hitTestFurniture(cursor: Point2D, furniture: AppStore['furniture'], margin = 0): string | null {
@@ -370,6 +371,8 @@ export const EditorCanvas: React.FC = () => {
         {activeTool === 'wall' && <DrawingPreview start={drawStart} />}
         {dragHud && <DragReadout {...dragHud} />}
       </g>
+      {/* Screen-anchored compass (outside the pan/zoom group) so it never moves or scales. */}
+      <CompassRose />
     </svg>
   );
 };
