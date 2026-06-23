@@ -134,8 +134,8 @@ export function computeVastuScore(
   roomPolygons: Record<string, Point2D[]>,
   planBoundary: Point2D[]
 ): VastuScore {
-  const brahmasthan = calculateBrahmasthan(planBoundary);
   const bbox = boundingBox(planBoundary);
+  const planArea = Math.abs(computeSignedArea(planBoundary));
   const scoredRooms = rooms.filter((r) => {
     const p = roomPolygons[r.id];
     return p && p.length >= 3;
