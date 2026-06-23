@@ -1,7 +1,8 @@
 // src/domains/editor/services/samplePlan.ts
 
 import { useAppStore } from '@/store';
-import type { RoomType } from '@/types/editor';
+import type { RoomType, EntityId, Vertex } from '@/types/editor';
+import type { Point2D } from '@/types/geometry';
 import { detectRooms } from './roomDetection';
 import { computePlanBoundary } from '@/domains/vastu/services/planBoundary';
 import { directionCell } from '@/domains/vastu/services/scoring';
@@ -104,9 +105,6 @@ export function loadSampleHouse(): void {
 }
 
 // ---- local geometry helpers ----------------------------------------------
-
-import type { EntityId, Vertex } from '@/types/editor';
-import type { Point2D } from '@/types/geometry';
 
 function bboxOf(points: Point2D[]) {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
