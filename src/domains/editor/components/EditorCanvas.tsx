@@ -56,6 +56,45 @@ function hitTestWall(cursor: Point2D, state: AppStore): string | null {
   return null;
 }
 
+/** Ray-casting point-in-polygon test (polygon points in world cm). */
+function pointInPolygon(p: Point2D, polygon: Point2D[]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x, yi = polygon[i].y;
+    const xj = polygon[j].x, yj = polygon[j].y;
+    const intersect = yi > p.y !== yj > p.y && p.x < ((xj - xi) * (p.y - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * Finds the room whose polygon contains the cursor. When boxes are nested or overlap,
+ * the smallest-area room wins so the innermost room is selectable.
+ */
+function hitTestRoom(cursor: Point2D, state: AppStore): string | null {
+  let bestId: string | null = null;
+  let bestArea = Infinity;
+  for (const room of Object.values(state.rooms)) {
+    const poly = room.boundaryVertexIds
+      .map((id) => state.vertices[id]?.position)
+      .filter((pt): pt is Point2D => Boolean(pt));
+    if (poly.length < 3) continue;
+    if (!pointInPolygon(cursor, poly)) continue;
+    // Shoelace area (abs) to pick the tightest containing room.
+    let area = 0;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      area += poly[j].x * poly[i].y - poly[i].x * poly[j].y;
+    }
+    area = Math.abs(area) / 2;
+    if (area < bestArea) {
+      bestArea = area;
+      bestId = room.id;
+    }
+  }
+  return bestId;
+}
+
 export const EditorCanvas: React.FC = () => {
   const svgRef = useRef<SVGSVGElement>(null);
   const { viewTransform, panBy, handlers } = usePanZoom(svgRef);
@@ -297,6 +336,12 @@ export const EditorCanvas: React.FC = () => {
         const wallId = hitTestWall(cursor, state);
         if (wallId) {
           state.select([wallId]);
+          return;
+        }
+        // Lowest priority: clicking inside a room selects that room (so it can be assigned).
+        const roomId = hitTestRoom(cursor, state);
+        if (roomId) {
+          state.select([roomId]);
         } else {
           state.clearSelection();
         }

@@ -22,6 +22,7 @@ function polygonPath(points: Point2D[]): string {
 export const RoomLayer: React.FC = React.memo(() => {
   const rooms = useAppStore((s) => s.rooms);
   const vertices = useAppStore((s) => s.vertices);
+  const selectedIds = useAppStore((s) => s.selectedIds);
 
   return (
     <g className="room-layer">
@@ -31,6 +32,8 @@ export const RoomLayer: React.FC = React.memo(() => {
           .map((id) => vertices[id]?.position)
           .filter((p): p is Point2D => Boolean(p));
         if (points.length < 3) return null;
+
+        const isSelected = selectedIds.includes(room.id);
 
         // Label position = polygon centroid (simple average is fine for convex-ish rooms).
         const cx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
@@ -44,8 +47,8 @@ export const RoomLayer: React.FC = React.memo(() => {
             <path
               d={polygonPath(points)}
               fill={ROOM_FILL_COLORS[room.roomType]}
-              stroke="rgba(255,255,255,0.08)"
-              strokeWidth={1}
+              stroke={isSelected ? '#f59e0b' : 'rgba(255,255,255,0.08)'}
+              strokeWidth={isSelected ? 4 : 1}
               data-entity-id={room.id}
               data-entity-type="room"
             />

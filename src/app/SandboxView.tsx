@@ -50,6 +50,8 @@ const Row: React.FC<{ children: React.ReactNode; label?: string }> = ({ children
 const RoomsPanel: React.FC = () => {
   const rooms = useAppStore((s) => s.rooms);
   const updateRoom = useAppStore((s) => s.updateRoom);
+  const selectedIds = useAppStore((s) => s.selectedIds);
+  const select = useAppStore((s) => s.select);
   const roomList = Object.values(rooms);
 
   if (roomList.length === 0) {
@@ -58,20 +60,42 @@ const RoomsPanel: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      {roomList.map((room) => (
-        <div key={room.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: '0.85rem' }}>
-          <span style={{ color: '#475569' }}>{room.label}</span>
-          <select
-            value={room.roomType}
-            onChange={(e) => updateRoom(room.id, { roomType: e.target.value as RoomType })}
-            style={{ padding: '3px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.8rem' }}
+      <p style={{ margin: '0 0 4px', fontSize: '0.78rem', color: '#94a3b8' }}>
+        {roomList.length} room{roomList.length === 1 ? '' : 's'} detected. Click a row (or a box in the 2D editor) to select it, then set its type.
+      </p>
+      {roomList.map((room) => {
+        const isSelected = selectedIds.includes(room.id);
+        return (
+          <div
+            key={room.id}
+            onClick={() => select([room.id])}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              fontSize: '0.85rem',
+              padding: '6px 8px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              background: isSelected ? '#fff7ed' : '#f8fafc',
+              border: isSelected ? '1px solid #f59e0b' : '1px solid transparent',
+            }}
           >
-            {ROOM_TYPES.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
-      ))}
+            <span style={{ color: '#475569' }}>{isSelected ? '◉ ' : ''}{room.label}</span>
+            <select
+              value={room.roomType}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => updateRoom(room.id, { roomType: e.target.value as RoomType })}
+              style={{ padding: '3px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.8rem' }}
+            >
+              {ROOM_TYPES.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+        );
+      })}
     </div>
   );
 };
