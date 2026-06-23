@@ -30,11 +30,29 @@ export function useRoomDetection(): void {
     }
 
     const next: Record<EntityId, Room> = {};
+    const usedIds = new Set<EntityId>();
+    const usedPriorKeys = new Set<string>();
+
     for (const room of detected) {
-      const prior = previousByBoundary.get(boundaryKey(room.boundaryVertexIds));
-      const merged = prior
-        ? { ...room, id: prior.id, roomType: prior.roomType, label: prior.label, floorMaterialId: prior.floorMaterialId }
+      const key = boundaryKey(room.boundaryVertexIds);
+      const prior = previousByBoundary.get(key);
+
+      // Only carry over a prior room's identity/metadata if:
+      //  - a prior room actually shares this exact boundary, AND
+      //  - we haven't already claimed that prior room for another detected room, AND
+      //  - its id isn't already taken in this pass.
+      // Otherwise keep the freshly generated id. This guarantees that splitting one room
+      // into two yields two DISTINCT rooms with distinct ids (so they can be selected and
+      // named independently) instead of both collapsing onto the old room's id.
+      const canReusePrior =
+        prior != null && !usedPriorKeys.has(key) && !usedIds.has(prior.id);
+
+      const merged = canReusePrior
+        ? { ...room, id: prior!.id, roomType: prior!.roomType, label: prior!.label, floorMaterialId: prior!.floorMaterialId }
         : room;
+
+      if (canReusePrior) usedPriorKeys.add(key);
+      usedIds.add(merged.id);
       next[merged.id] = merged;
     }
 
