@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useAppStore } from '@/store';
 import type { Point2D } from '@/types/geometry';
-import { findWallIntersections, splitWallAtPoint } from '../services/wallOps';
+import { findWallIntersections, splitWallAtPoint, splitWallsAtPoint } from '../services/wallOps';
 
 const MIN_WALL_LENGTH_SQ = 1; // reject sub‑1cm walls (squared, so 1 = 1cm²)
 
@@ -35,13 +35,21 @@ export function useWallDrawing() {
       // Read FRESH state (not a stale closure) for accurate intersection tests.
       const { walls, vertices, addWall } = useAppStore.getState();
 
-      // Split every existing wall this new wall crosses, in order along the new wall.
+      // Split every existing wall this new wall CROSSES (interior crossings), in order.
       const crossings = findWallIntersections(start, end, walls, vertices);
       for (const c of crossings) {
         splitWallAtPoint(c.wallId, c.point);
       }
 
-      // Add the new wall (the store action finds/creates shared vertices for us).
+      // T-junctions: if either ENDPOINT lands on an existing wall (e.g. a wall drawn
+      // through a room and ending on its far boundary), split that boundary wall so the
+      // new wall shares a real vertex with it. Without this the new wall connects to
+      // nothing and the enclosed area is never divided into two rooms.
+      splitWallsAtPoint(start);
+      splitWallsAtPoint(end);
+
+      // Add the new wall (the store action finds/creates shared vertices for us; because
+      // of the splits above, those vertices now already exist at start/end).
       addWall(start, end);
 
       // If we just closed the loop back onto the chain origin, the room is complete —

@@ -121,6 +121,59 @@ export function splitWallAtPoint(wallId: EntityId, point: Point2D): EntityId {
 }
 
 /**
+ * Splits any existing wall whose centerline passes through `point` (a T-junction), so a
+ * NEW wall ending at `point` will share a real vertex with the boundary it touches.
+ *
+ * This is the missing piece for "draw a wall through a room to split it": the dividing
+ * wall's endpoints land ON the boundary walls (not on existing vertices), so without
+ * this they would create free-floating vertices and no new face would form. By splitting
+ * the boundary wall here, `addWall`'s findOrCreateVertex reuses the junction vertex and
+ * the planar-graph room detector then sees two faces.
+ *
+ * Endpoints that already coincide with an existing vertex are skipped (no split needed).
+ * `tolerance` is how close (cm) the point must be to a wall centerline to count as "on" it.
+ */
+export function splitWallsAtPoint(point: Point2D, tolerance = 1): EntityId | '' {
+  const { walls, vertices } = useAppStore.getState();
+
+  // Already an existing vertex here? Then nothing to split; the wall will share it.
+  for (const v of Object.values(vertices)) {
+    const dx = v.position.x - point.x;
+    const dy = v.position.y - point.y;
+    if (dx * dx + dy * dy < 0.1 * 0.1) return v.id;
+  }
+
+  const tolSq = tolerance * tolerance;
+  for (const wall of Object.values(walls)) {
+    const a = vertices[wall.startVertexId]?.position;
+    const b = vertices[wall.endVertexId]?.position;
+    if (!a || !b) continue;
+
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const l2 = abx * abx + aby * aby;
+    if (l2 === 0) continue;
+
+    // Projection parameter of point onto the wall centerline.
+    let t = ((point.x - a.x) * abx + (point.y - a.y) * aby) / l2;
+    // Must be strictly interior — endpoints are handled by vertex sharing above.
+    const EPS = 1e-3;
+    if (t <= EPS || t >= 1 - EPS) continue;
+
+    const projX = a.x + t * abx;
+    const projY = a.y + t * aby;
+    const ddx = point.x - projX;
+    const ddy = point.y - projY;
+    if (ddx * ddx + ddy * ddy <= tolSq) {
+      // Point lies on this wall — split it exactly at the projected point and reuse it.
+      return splitWallAtPoint(wall.id, { x: projX, y: projY });
+    }
+  }
+
+  return '';
+}
+
+/**
  * Returns the angles (radians) of every wall meeting at a vertex, sorted ascending.
  * Used later for mitered corner rendering. Pure — safe to call anywhere.
  */
