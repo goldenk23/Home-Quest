@@ -2,8 +2,75 @@
 
 import React, { useState } from 'react';
 import { useAppStore } from '@/store';
-import { VASTU_RULES_LIST, DIR_NAME, type VastuRecommendation } from '../services/scoring';
+import { VASTU_RULES_LIST, DIR_NAME, type VastuRecommendation, type RoomVastuScore } from '../services/scoring';
 import type { VastuDirection } from '../services/zones';
+
+/** Status keyword → badge label + icon, so meaning never relies on colour alone. */
+const STATUS_META: Record<RoomVastuScore['status'], { icon: string; label: string }> = {
+  ideal: { icon: '✅', label: 'Ideal' },
+  acceptable: { icon: '🟡', label: 'Acceptable' },
+  neutral: { icon: '⚪', label: 'Neutral' },
+  adverse: { icon: '⛔', label: 'Adverse (dosha)' },
+  center: { icon: '⛔', label: 'On Brahmasthan' },
+  unset: { icon: '❓', label: 'No type set' },
+};
+
+/** A single expandable room card showing what's correct, what's wrong and how to fix it. */
+const RoomScoreCard: React.FC<{ rs: RoomVastuScore }> = ({ rs }) => {
+  const [open, setOpen] = useState(false);
+  const meta = STATUS_META[rs.status];
+  const dirText = rs.direction === 'CENTER' ? 'Centre' : rs.direction;
+
+  return (
+    <div style={{ background: '#f8fafc', borderRadius: '6px', borderLeft: `3px solid ${scoreColor(rs.score)}`, overflow: 'hidden' }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 8px', font: 'inherit', textAlign: 'left' }}
+      >
+        <span style={{ color: '#334155', fontSize: '0.85rem' }}>
+          <span title={meta.label} aria-label={meta.label}>{meta.icon}</span>{' '}
+          <strong style={{ textTransform: 'capitalize' }}>{rs.roomType}</strong>
+          <span style={{ color: '#94a3b8' }}> · {dirText}</span>
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontWeight: 700, color: scoreColor(rs.score), fontSize: '0.9rem' }}>{rs.score}</span>
+          <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{open ? '▲' : '▼'}</span>
+        </span>
+      </button>
+
+      {open && (
+        <div style={{ padding: '0 10px 10px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.82rem', lineHeight: 1.5 }}>
+          <div>
+            <div style={lineHeadStyle('#16a34a')}>✅ What's correct</div>
+            <div style={{ color: '#475569' }}>{rs.whatsCorrect}</div>
+          </div>
+          {rs.whatsWrong && (
+            <div>
+              <div style={lineHeadStyle('#d97706')}>⚠️ What's wrong</div>
+              <div style={{ color: '#475569' }}>{rs.whatsWrong}</div>
+            </div>
+          )}
+          {rs.howToFix && (
+            <div>
+              <div style={lineHeadStyle('#2563eb')}>🔧 How to fix</div>
+              <div style={{ color: '#475569' }}>{rs.howToFix}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const lineHeadStyle = (color: string): React.CSSProperties => ({
+  fontWeight: 700,
+  color,
+  fontSize: '0.74rem',
+  textTransform: 'uppercase',
+  letterSpacing: '0.03em',
+  marginBottom: '2px',
+});
 
 /** Severity → icon + label, so meaning never relies on color alone (accessibility). */
 const SEVERITY_META: Record<VastuRecommendation['severity'], { icon: string; label: string; color: string }> = {
@@ -62,29 +129,10 @@ export const VastuPanel: React.FC = () => {
         </p>
       ) : (
         <div style={{ marginBottom: '1rem' }}>
-          <div style={subHeadingStyle}>Rooms ({roomScores.length})</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={subHeadingStyle}>Rooms ({roomScores.length}) — click a room for full guidance</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {roomScores.map((rs) => (
-              <div
-                key={rs.roomId}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: '0.85rem',
-                  padding: '4px 8px',
-                  background: '#f8fafc',
-                  borderRadius: '4px',
-                  borderLeft: `3px solid ${scoreColor(rs.score)}`,
-                }}
-              >
-                <span style={{ color: '#334155' }}>
-                  {rs.isIdeal ? '✓ ' : ''}
-                  <strong style={{ textTransform: 'capitalize' }}>{rs.roomType}</strong>
-                  <span style={{ color: '#94a3b8' }}> · {rs.direction}</span>
-                </span>
-                <span style={{ fontWeight: 600, color: scoreColor(rs.score) }}>{rs.score}</span>
-              </div>
+              <RoomScoreCard key={rs.roomId} rs={rs} />
             ))}
           </div>
         </div>
