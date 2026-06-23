@@ -2,8 +2,9 @@
 
 import type { Room, RoomType } from '@/types/editor';
 import type { Point2D } from '@/types/geometry';
-import { type VastuDirection, getRoomDirection } from './zones';
-import { calculateBrahmasthan, calculateBrahmasthanZone } from './brahmasthan';
+import { type VastuDirection, DIRECTIONS } from './zones';
+import { calculateBrahmasthan } from './brahmasthan';
+import { computeSignedArea } from '@/domains/editor/services/roomDetection';
 
 export interface VastuScore {
   readonly overall: number; // 0-100
@@ -121,7 +122,13 @@ const ROOM_WEIGHT: Record<RoomType, number> = {
 
 /**
  * Full Vastu analysis for a plan. `roomPolygons` maps room id → its boundary points (cm);
- * `planBoundary` is the outer outline used to find the Brahmasthan.
+ * `planBoundary` is the outer outline used to find the Brahmasthan and the directional grid.
+ *
+ * A room's direction is determined by which cell of the 3×3 Vastu Purusha Mandala grid its
+ * centroid falls into, measured against the PLAN's bounding box (not the room's own centre).
+ * This is the authentic way to read direction and, crucially, gives a meaningful, distinct
+ * result for every room — unlike measuring a room against its own centroid, which collapses
+ * to the centre for a single-room plan.
  */
 export function computeVastuScore(
   rooms: Room[],
@@ -129,57 +136,65 @@ export function computeVastuScore(
   planBoundary: Point2D[]
 ): VastuScore {
   const brahmasthan = calculateBrahmasthan(planBoundary);
-  const centreZone = calculateBrahmasthanZone(planBoundary, brahmasthan);
+  const bbox = boundingBox(planBoundary);
+  const planArea = Math.abs(computeSignedArea(planBoundary));
+  const scoredRooms = rooms.filter((r) => {
+    const p = roomPolygons[r.id];
+    return p && p.length >= 3;
+  });
+
+  // Detect the "single room == whole plan" case: one room whose area is ~the whole plan.
+  // Direction is undefined here (the room IS the house), so we guide instead of mis-scoring.
+  const singleRoomPlan =
+    scoredRooms.length === 1 &&
+    Math.abs(computeSignedArea(roomPolygons[scoredRooms[0].id])) >= planArea * 0.9;
+
   const roomScores: Record<string, RoomVastuScore> = {};
   const recommendations: VastuRecommendation[] = [];
-
   let weightedSum = 0;
   let weightTotal = 0;
 
-  for (const room of rooms) {
+  for (const room of scoredRooms) {
     const polygon = roomPolygons[room.id];
-    if (!polygon || polygon.length < 3) continue;
-
     const rules = VASTU_RULES[room.roomType];
     const roomName = ROOM_NAME[room.roomType];
-    const dir = getRoomDirection(polygon, brahmasthan);
-
-    // Distance of the room centroid from the plan centre, to flag Brahmasthan obstruction.
-    const n = polygon.length;
-    const centroid = polygon.reduce((a, p) => ({ x: a.x + p.x / n, y: a.y + p.y / n }), { x: 0, y: 0 });
-    const distToCentre = Math.hypot(centroid.x - brahmasthan.x, centroid.y - brahmasthan.y);
-    const inBrahmasthan = dir === null || distToCentre <= centreZone.radius;
+    const centroid = polygonCentroid(polygon);
+    const cell = directionCell(centroid, bbox); // VastuDirection | 'CENTER'
+    const direction: VastuDirection | 'CENTER' = cell;
 
     let score: number;
     let isIdeal = false;
     let reason: string;
-    const direction: VastuDirection | 'CENTER' = dir ?? 'CENTER';
 
     if (room.roomType === 'custom') {
-      // No authentic rule to apply — stay neutral and don't penalise.
       score = 50;
-      reason = `${room.label}: set a specific room type to get a Vastu placement check.`;
-    } else if (inBrahmasthan) {
-      // The centre (Brahmasthan) should stay open; a room sitting on it is a real issue.
-      score = 30;
-      reason = `${roomName} sits over the Brahmasthan (the sacred centre), which should be kept open and uncluttered. Shift it toward ${dirLabel(rules.ideal)}.`;
-      recommendations.push({ severity: 'critical', roomId: room.id, message: reason });
-    } else if (rules.ideal.includes(dir!)) {
+      reason = `“${room.label}” has no specific type yet. Assign a room type (kitchen, bedroom, …) to get an authentic Vastu placement check.`;
+      recommendations.push({ severity: 'suggestion', roomId: room.id, message: `Set a type for “${room.label}” to enable Vastu scoring.` });
+    } else if (singleRoomPlan) {
+      // The plan is a single room; there is no inner direction to evaluate yet.
+      score = 60;
+      reason = `“${room.label}” currently fills the whole plan, so its Vastu direction can't be judged. Add more rooms so the ${roomName.toLowerCase()} occupies a specific zone — ideally ${dirLabel(rules.ideal)}.`;
+      recommendations.push({ severity: 'suggestion', roomId: room.id, message: `Add interior walls so the ${roomName.toLowerCase()} sits in a specific direction (ideal: ${dirLabel(rules.ideal)}).` });
+    } else if (cell === 'CENTER') {
+      score = 35;
+      reason = `${roomName} sits over the Brahmasthan (the sacred centre of the plan), which Vastu says should stay open. Shift it toward ${dirLabel(rules.ideal)}.`;
+      recommendations.push({ severity: 'critical', roomId: room.id, message: `Move the ${roomName.toLowerCase()} off the central Brahmasthan toward ${dirLabel(rules.ideal)}; keep the centre open.` });
+    } else if (rules.ideal.includes(cell)) {
       score = 100;
       isIdeal = true;
-      reason = `${roomName} is correctly placed in the ${DIR_NAME[dir!]}. ${rules.note}`;
-    } else if (rules.acceptable.includes(dir!)) {
-      score = 75;
-      reason = `${roomName} in the ${DIR_NAME[dir!]} is acceptable. The ideal location is ${dirLabel(rules.ideal)}. ${rules.note}`;
-      recommendations.push({ severity: 'suggestion', roomId: room.id, message: `Consider moving the ${roomName.toLowerCase()} from the ${DIR_NAME[dir!]} toward ${dirLabel(rules.ideal)} for a better result.` });
-    } else if (rules.adverse.includes(dir!)) {
-      score = 20;
-      reason = `${roomName} in the ${DIR_NAME[dir!]} is a Vastu dosha (adverse). ${rules.note} Move it to ${dirLabel(rules.ideal)}.`;
-      recommendations.push({ severity: 'critical', roomId: room.id, message: `Relocate the ${roomName.toLowerCase()} out of the ${DIR_NAME[dir!]} (adverse) to ${dirLabel(rules.ideal)}.` });
+      reason = `${roomName} is correctly placed in the ${DIR_NAME[cell]}. ${rules.note}`;
+    } else if (rules.acceptable.includes(cell)) {
+      score = 78;
+      reason = `${roomName} in the ${DIR_NAME[cell]} is acceptable. The ideal location is ${dirLabel(rules.ideal)}. ${rules.note}`;
+      recommendations.push({ severity: 'suggestion', roomId: room.id, message: `Optional: move the ${roomName.toLowerCase()} from the ${DIR_NAME[cell]} toward ${dirLabel(rules.ideal)} for a stronger result.` });
+    } else if (rules.adverse.includes(cell)) {
+      score = 22;
+      reason = `${roomName} in the ${DIR_NAME[cell]} is a Vastu dosha (adverse). ${rules.note} Relocate it to ${dirLabel(rules.ideal)}.`;
+      recommendations.push({ severity: 'critical', roomId: room.id, message: `Relocate the ${roomName.toLowerCase()} out of the ${DIR_NAME[cell]} (adverse) to ${dirLabel(rules.ideal)}.` });
     } else {
       score = 55;
-      reason = `${roomName} in the ${DIR_NAME[dir!]} is neutral. The ideal location is ${dirLabel(rules.ideal)}.`;
-      recommendations.push({ severity: 'warning', roomId: room.id, message: `The ${roomName.toLowerCase()} in the ${DIR_NAME[dir!]} is not ideal; ${dirLabel(rules.ideal)} is recommended.` });
+      reason = `${roomName} in the ${DIR_NAME[cell]} is neutral — not harmful, but not ideal. ${dirLabel(rules.ideal)} is recommended.`;
+      recommendations.push({ severity: 'warning', roomId: room.id, message: `The ${roomName.toLowerCase()} in the ${DIR_NAME[cell]} is not ideal; prefer ${dirLabel(rules.ideal)}.` });
     }
 
     roomScores[room.id] = {
@@ -199,9 +214,73 @@ export function computeVastuScore(
 
   const overall = weightTotal > 0 ? weightedSum / weightTotal : 0;
 
-  // Order recommendations by severity so the most important fixes surface first.
   const sevRank = { critical: 0, warning: 1, suggestion: 2 } as const;
   recommendations.sort((a, b) => sevRank[a.severity] - sevRank[b.severity]);
 
+  void brahmasthan; // retained for callers/overlays; direction now uses the bbox grid
   return { overall, roomScores, recommendations };
 }
+
+// ---- geometry helpers -----------------------------------------------------
+
+interface BBox { minX: number; minY: number; maxX: number; maxY: number; }
+
+function boundingBox(points: Point2D[]): BBox {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of points) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+/** Area centroid of a polygon, with a vertex-average fallback for degenerate shapes. */
+function polygonCentroid(polygon: Point2D[]): Point2D {
+  const n = polygon.length;
+  const avg = polygon.reduce((a, p) => ({ x: a.x + p.x / n, y: a.y + p.y / n }), { x: 0, y: 0 });
+  if (n < 3) return avg;
+  let area = 0, cx = 0, cy = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const cross = polygon[i].x * polygon[j].y - polygon[j].x * polygon[i].y;
+    area += cross;
+    cx += (polygon[i].x + polygon[j].x) * cross;
+    cy += (polygon[i].y + polygon[j].y) * cross;
+  }
+  area *= 0.5;
+  if (Math.abs(area) < 1e-9) return avg;
+  const f = 1 / (6 * area);
+  return { x: cx * f, y: cy * f };
+}
+
+/**
+ * Maps a point to one cell of the 3×3 Vastu Purusha Mandala grid laid over the plan's
+ * bounding box. Columns are West→East (u), rows are South→North (v, since N = +Y). The
+ * centre cell is the Brahmasthan; the eight surrounding cells are the compass directions.
+ *
+ * The centre band spans the middle third of each axis, matching the classical 9-part
+ * (Padavinyasa) division of the plot.
+ */
+export function directionCell(p: Point2D, bbox: BBox): VastuDirection | 'CENTER' {
+  const w = bbox.maxX - bbox.minX;
+  const h = bbox.maxY - bbox.minY;
+  if (w <= 0 || h <= 0) return 'CENTER';
+
+  const u = (p.x - bbox.minX) / w; // 0 = West edge, 1 = East edge
+  const v = (p.y - bbox.minY) / h; // 0 = South edge, 1 = North edge
+
+  const col = u < 1 / 3 ? 0 : u < 2 / 3 ? 1 : 2; // 0=W 1=mid 2=E
+  const row = v < 1 / 3 ? 0 : v < 2 / 3 ? 1 : 2; // 0=S 1=mid 2=N
+
+  // grid[row][col]; row 2 = North band, row 0 = South band.
+  const grid: (VastuDirection | 'CENTER')[][] = [
+    ['SW', 'S', 'SE'],
+    ['W', 'CENTER', 'E'],
+    ['NW', 'N', 'NE'],
+  ];
+  return grid[row][col];
+}
+
+void DIRECTIONS;
