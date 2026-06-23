@@ -245,8 +245,9 @@ export const SandboxView: React.FC = () => {
             <li><strong>Smart align:</strong> on drop, furniture snaps to the grid and to the nearest 90°, and near-straight walls auto-straighten to keep right angles — so the house won't drift into a random shape.</li>
             <li><strong>Rotate/Delete:</strong> select a furniture piece, then <kbd>R</kbd>/<kbd>Shift+R</kbd> or the Rotate buttons; <kbd>Del</kbd> removes the selection (walls or furniture). Rotation applies to furniture only.</li>
             <li><strong>Pan/zoom:</strong> with the Select tool, <strong>drag empty space to move the diagram</strong> around (or Alt/middle-drag in any tool); scroll wheel zooms.</li>
-            <li><strong>3D:</strong> updates live. Orbit to inspect, or First-Person to walk.</li>
-            <li><strong>Walk (First-Person):</strong> click the 3D view, then <strong>hold the left mouse to walk forward</strong> and steer with the mouse (right mouse = back). WASD/arrows also work; <kbd>Shift</kbd> sprints; <kbd>Esc</kbd> exits.</li>
+            <li><strong>3D:</strong> updates live. Orbit to inspect, or First-Person to walk through the house.</li>
+            <li><strong>Walk (First-Person):</strong> click the 3D view, then <strong>hold the left mouse to walk forward</strong> and steer with the mouse (right mouse = back). WASD/arrows also work; <kbd>Shift</kbd> sprints; <strong>scroll to zoom</strong>; <kbd>Esc</kbd> exits.</li>
+            <li><strong>Smart walking:</strong> you start standing in the middle of the largest room, and you can't walk through walls — the camera auto-slides along a wall instead of getting stuck or going dark.</li>
           </ul>
         </Card>
       </div>
