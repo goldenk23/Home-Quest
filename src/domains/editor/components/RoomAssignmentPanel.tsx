@@ -37,7 +37,10 @@ export const RoomAssignmentPanel: React.FC = () => {
       <select
         autoFocus
         value={room.roomType}
-        onChange={(e) => updateRoom(room.id, { roomType: e.target.value as RoomType })}
+        onChange={(e) => {
+          const next = e.target.value as RoomType;
+          useAppStore.getState().recordHistory('Set Room Type', () => updateRoom(room.id, { roomType: next }));
+        }}
         style={select}
       >
         {ROOM_TYPES.map((t) => (

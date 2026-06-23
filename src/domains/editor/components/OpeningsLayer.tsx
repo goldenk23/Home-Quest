@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { useAppStore } from '@/store';
-import type { Point2D } from '@/types/geometry';
 
 export const OpeningsLayer: React.FC = React.memo(() => {
   const openingsMap = useAppStore(s => s.openings);

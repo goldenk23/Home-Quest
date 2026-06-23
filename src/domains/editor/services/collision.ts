@@ -166,3 +166,39 @@ export function checkFurnitureCollisions(
   }
   return collisions;
 }
+
+// --- Part 27: furniture-vs-wall collision -----------------------------------
+// A wall is a rotated rectangle, so we model it as an OBB and reuse obbIntersects.
+
+import type { EntityId } from '@/types/editor';
+
+/** Builds an OBB for a wall from its two endpoints and thickness. */
+export function wallToOBB(wall: Wall, vertices: Record<EntityId, Vertex>): OBB | null {
+  const a = vertices[wall.startVertexId]?.position;
+  const b = vertices[wall.endVertexId]?.position;
+  if (!a || !b) return null;
+
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 0.01) return null;
+
+  return {
+    center: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+    halfExtents: { x: length / 2, y: wall.thickness / 2 },
+    rotation: Math.atan2(dy, dx), // wall's angle = its local long axis
+  };
+}
+
+/** True if a furniture OBB overlaps any wall. */
+export function furnitureIntersectsAnyWall(
+  itemOBB: OBB,
+  walls: Record<EntityId, Wall>,
+  vertices: Record<EntityId, Vertex>
+): boolean {
+  for (const wall of Object.values(walls)) {
+    const wallOBB = wallToOBB(wall, vertices);
+    if (wallOBB && obbIntersects(itemOBB, wallOBB)) return true;
+  }
+  return false;
+}

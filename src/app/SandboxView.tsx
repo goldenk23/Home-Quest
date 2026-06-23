@@ -8,6 +8,7 @@ import { VastuLegend } from '../domains/vastu/components/VastuLegend';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { FURNITURE_CATALOG_IDS, getCatalogEntry } from '../domains/viewer/hooks/useAssetLoader';
 import { loadSampleHouse } from '../domains/editor/services/samplePlan';
+import { exportFloorPlan, importFloorPlan } from '../store/persistence/fileIO';
 import type { RoomType } from '../types/editor';
 
 const ROOM_TYPES: RoomType[] = [
@@ -95,7 +96,10 @@ const RoomsPanel: React.FC = () => {
             <select
               value={room.roomType}
               onClick={(e) => e.stopPropagation()}
-              onChange={(e) => updateRoom(room.id, { roomType: e.target.value as RoomType })}
+              onChange={(e) => {
+                const next = e.target.value as RoomType;
+                useAppStore.getState().recordHistory('Set Room Type', () => updateRoom(room.id, { roomType: next }));
+              }}
               style={{ padding: '3px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.8rem' }}
             >
               {ROOM_TYPES.map((t) => (
@@ -138,8 +142,24 @@ export const SandboxView: React.FC = () => {
   const clearSelection = useAppStore((s) => s.clearSelection);
   const clearAll = useAppStore((s) => s.clearAll);
 
+  // Undo / redo (Installment 4 — history slice)
+  const canUndo = useAppStore((s) => s.canUndo);
+  const canRedo = useAppStore((s) => s.canRedo);
+  const undo = useAppStore((s) => s.undo);
+  const redo = useAppStore((s) => s.redo);
+
   const [showSnapTest, setShowSnapTest] = useState(false);
   const [isWalking, setIsWalking] = useState(false);
+  const [ioMessage, setIoMessage] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const result = await importFloorPlan(file);
+    setIoMessage(result.success ? `Loaded “${file.name}”.` : `Import failed: ${result.error}`);
+    e.target.value = ''; // allow re-importing the same file
+  };
 
   // Track pointer-lock so we can show/hide the "click to walk" prompt.
   React.useEffect(() => {
@@ -157,19 +177,31 @@ export const SandboxView: React.FC = () => {
       : 'nothing selected';
 
   const rotateSelected = (deltaDeg: number) => {
-    selectedIds.forEach((id) => {
-      const item = furniture[id];
-      if (item) rotateFurniture(id, item.rotation + (deltaDeg * Math.PI) / 180);
+    useAppStore.getState().recordHistory('Rotate', () => {
+      selectedIds.forEach((id) => {
+        const item = furniture[id];
+        if (item) rotateFurniture(id, item.rotation + (deltaDeg * Math.PI) / 180);
+      });
     });
   };
 
   const deleteSelected = () => {
     const state = useAppStore.getState();
-    selectedIds.forEach((id) => {
-      if (state.walls[id]) removeWall(id);
-      if (state.furniture[id]) removeFurniture(id);
+    state.recordHistory('Delete', () => {
+      selectedIds.forEach((id) => {
+        if (state.walls[id]) removeWall(id);
+        if (state.furniture[id]) removeFurniture(id);
+      });
+      clearSelection();
     });
-    clearSelection();
+  };
+
+  const scaleBy = (factor: number) => {
+    useAppStore.getState().recordHistory('Scale Plan', () => scalePlan(factor));
+  };
+
+  const clearAllWithHistory = () => {
+    useAppStore.getState().recordHistory('Clear All', () => clearAll());
   };
 
   return (
@@ -227,8 +259,8 @@ export const SandboxView: React.FC = () => {
         </Row>
 
         <Row label="Scale">
-          <button style={btn(false, '#6366f1')} onClick={() => scalePlan(1 / 1.1)}>➖ Scale Down</button>
-          <button style={btn(false, '#6366f1')} onClick={() => scalePlan(1.1)}>➕ Scale Up</button>
+          <button style={btn(false, '#6366f1')} onClick={() => scaleBy(1 / 1.1)}>➖ Scale Down</button>
+          <button style={btn(false, '#6366f1')} onClick={() => scaleBy(1.1)}>➕ Scale Up</button>
           <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
             Resize the whole plan (±10% each step). Wall lengths update live; furniture keeps real-world size.
           </span>
@@ -242,7 +274,31 @@ export const SandboxView: React.FC = () => {
 
         <Row label="Plan">
           <button style={btn(false, '#8b5cf6')} onClick={loadSampleHouse}>🏠 Load Sample House</button>
-          <button style={btn(false, '#ef4444')} onClick={() => { clearAll(); }}>♻️ Clear All</button>
+          <button style={btn(false, '#ef4444')} onClick={() => { clearAllWithHistory(); }}>♻️ Clear All</button>
+        </Row>
+
+        <Row label="History">
+          <button style={{ ...btn(false, '#0ea5e9'), opacity: canUndo ? 1 : 0.5 }} disabled={!canUndo} onClick={undo}>↶ Undo</button>
+          <button style={{ ...btn(false, '#0ea5e9'), opacity: canRedo ? 1 : 0.5 }} disabled={!canRedo} onClick={redo}>↷ Redo</button>
+          <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+            Keyboard: <kbd>Ctrl/Cmd+Z</kbd> undo · <kbd>Ctrl+Y</kbd> / <kbd>Ctrl+Shift+Z</kbd> redo
+          </span>
+        </Row>
+
+        <Row label="File">
+          <button style={btn(false, '#16a34a')} onClick={() => exportFloorPlan()}>💾 Export JSON</button>
+          <button style={btn(false, '#16a34a')} onClick={() => fileInputRef.current?.click()}>📂 Import JSON</button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            style={{ display: 'none' }}
+            onChange={handleImportFile}
+          />
+          {ioMessage && <span style={{ fontSize: '0.78rem', color: '#64748b' }}>{ioMessage}</span>}
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+            Plans also auto-save to your browser (IndexedDB) and reload on refresh.
+          </span>
         </Row>
       </Card>
 

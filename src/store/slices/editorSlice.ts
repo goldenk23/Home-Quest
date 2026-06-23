@@ -5,6 +5,7 @@ import type { Point2D } from '@/types/geometry';
 import { generateId } from '@/utils/id';
 import type { SnapConfig } from '@/domains/editor/hooks/useSnapping';
 import { castDraft } from 'immer';
+import { validateAddWall } from '@/store/guards/storeGuards';
 
 export interface EditorSlice {
     // State
@@ -86,13 +87,15 @@ export const createEditorSlice: StateCreator<
     },
     currentMouseWorld: null,
     addWall: (start, end, thickness = 20, height = 280) => {
-        const wallId = generateId('wall');
-        
-        // Reject zero-length walls
+        // Pre-flight validation: rejects non-finite, zero-length, or absurd walls.
+        const validation = validateAddWall(start, end, thickness, height);
+        if (!validation.valid) {
+            console.warn(`[Store] addWall rejected: ${validation.error}`);
+            return '';
+        }
 
-        const dx = end.x - start.x;
-        const dy = end.y - start.y;
-        if(dx*dx + dy*dy <0.01) return ''; // Return empty string for zero-length wall
+        const wallId = generateId('wall');
+        let wallCreated = false;
 
         set((state) => {
             const startVertexId = findOrCreateVertex(state, start);
@@ -101,6 +104,14 @@ export const createEditorSlice: StateCreator<
             if(startVertexId === endVertexId){
                 return; // Don't create wall if both endpoints are the same vertex
             }
+
+            // No duplicate wall between the same two vertices (either direction).
+            const dup = Object.values(state.walls).find(
+                (w) =>
+                    (w.startVertexId === startVertexId && w.endVertexId === endVertexId) ||
+                    (w.startVertexId === endVertexId && w.endVertexId === startVertexId)
+            );
+            if (dup) return;
 
             state.walls[wallId] = {
                 id: wallId,
@@ -116,8 +127,9 @@ export const createEditorSlice: StateCreator<
             // Update vertex connectivity
             state.vertices[startVertexId].connectedWalls.push(wallId);
             state.vertices[endVertexId].connectedWalls.push(wallId);
+            wallCreated = true;
         });
-        return wallId;
+        return wallCreated ? wallId : '';
     },
     removeWall: (wallId) => {
         set((state) => {

@@ -17,7 +17,6 @@ interface WallMeshProps {
   offsets?: MiterOffsets;
 }
 import { useShallow } from 'zustand/react/shallow';
-import * as THREE from 'three';
 
 const CM_TO_M = 0.01;
 
@@ -120,7 +119,7 @@ const OpeningFrames: React.FC<{ wallId: string; thickness: number; start: Point2
 export const WallMesh: React.FC<WallMeshProps> = React.memo(
   ({ id, start, end, thickness, height, materialId, offsets }) => {
     // We must subscribe to the openings of this specific wall so the mesh regenerates when an opening is added
-    const openingIds = useAppStore(s => s.walls[id]?.openingIds);
+    useAppStore(s => s.walls[id]?.openingIds);
     // Deep map the openings so we re-render if any opening dimensions change
     const openingsStr = useAppStore(s => {
        const wall = s.walls[id];

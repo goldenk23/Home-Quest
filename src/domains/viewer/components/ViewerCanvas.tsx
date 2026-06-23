@@ -7,18 +7,33 @@ import { SceneEnvironment } from './SceneEnvironment';
 import { SceneContent } from './SceneContent';
 import { CameraController } from './CameraController';
 import { useAppStore } from '@/store';
+import { ModelLoadingProgress } from '@/domains/shared/components/ModelLoadingProgress';
+import { EmptyState } from '@/domains/shared/components/EmptyState';
 
 /**
  * The 3D viewport.
  * - shadows + PCF soft shadow maps for grounded lighting
  * - dpr capped at 2 so 4K displays don't tank the framerate
- * - a Suspense boundary so async GLTF loads don't crash the tree
+ * - a Suspense boundary so async asset loads don't crash the tree
+ * - an empty state until the plan has walls, and an asset-loading overlay
  */
 export const ViewerCanvas: React.FC = () => {
   const cameraMode = useAppStore((s) => s.cameraMode);
+  const hasWalls = useAppStore((s) => Object.keys(s.walls).length > 0);
+
+  if (!hasWalls) {
+    return (
+      <EmptyState
+        title="No floor plan yet"
+        description="Draw walls in the 2D editor to see your design come to life in 3D."
+        icon="🏗️"
+      />
+    );
+  }
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full relative">
+      <ModelLoadingProgress />
       <Canvas
         shadows
         dpr={[1, 2]}

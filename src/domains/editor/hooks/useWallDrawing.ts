@@ -33,24 +33,29 @@ export function useWallDrawing() {
       if (dx * dx + dy * dy < MIN_WALL_LENGTH_SQ) return; // ignore accidental tiny walls
 
       // Read FRESH state (not a stale closure) for accurate intersection tests.
-      const { walls, vertices, addWall } = useAppStore.getState();
+      const store = useAppStore.getState();
+      const { walls, vertices, addWall } = store;
 
-      // Split every existing wall this new wall CROSSES (interior crossings), in order.
-      const crossings = findWallIntersections(start, end, walls, vertices);
-      for (const c of crossings) {
-        splitWallAtPoint(c.wallId, c.point);
-      }
+      // Record the entire wall placement (crossings + T-junction splits + the new wall)
+      // as a single undo step.
+      store.recordHistory('Draw Wall', () => {
+        // Split every existing wall this new wall CROSSES (interior crossings), in order.
+        const crossings = findWallIntersections(start, end, walls, vertices);
+        for (const c of crossings) {
+          splitWallAtPoint(c.wallId, c.point);
+        }
 
-      // T-junctions: if either ENDPOINT lands on an existing wall (e.g. a wall drawn
-      // through a room and ending on its far boundary), split that boundary wall so the
-      // new wall shares a real vertex with it. Without this the new wall connects to
-      // nothing and the enclosed area is never divided into two rooms.
-      splitWallsAtPoint(start);
-      splitWallsAtPoint(end);
+        // T-junctions: if either ENDPOINT lands on an existing wall (e.g. a wall drawn
+        // through a room and ending on its far boundary), split that boundary wall so the
+        // new wall shares a real vertex with it. Without this the new wall connects to
+        // nothing and the enclosed area is never divided into two rooms.
+        splitWallsAtPoint(start);
+        splitWallsAtPoint(end);
 
-      // Add the new wall (the store action finds/creates shared vertices for us; because
-      // of the splits above, those vertices now already exist at start/end).
-      addWall(start, end);
+        // Add the new wall (the store action finds/creates shared vertices for us; because
+        // of the splits above, those vertices now already exist at start/end).
+        addWall(start, end);
+      });
 
       // If we just closed the loop back onto the chain origin, the room is complete —
       // stop drawing so the user doesn't keep extending past the closed rectangle.

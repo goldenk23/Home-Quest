@@ -271,6 +271,7 @@ export const EditorCanvas: React.FC = () => {
         if (gizmo) {
           const item = state.furniture[gizmo.id];
           if (item) {
+            state.beginTransaction();
             dragRef.current = { 
               kind: gizmo.kind, 
               id: gizmo.id, 
@@ -288,6 +289,7 @@ export const EditorCanvas: React.FC = () => {
         const furnitureId = hitTestFurniture(cursor, state.furniture, GRAB_MARGIN);
         if (furnitureId) {
           state.select([furnitureId]);
+          state.beginTransaction();
           dragRef.current = { kind: 'furniture', id: furnitureId };
           dragLastWorldRef.current = cursor;
           didDragRef.current = false;
@@ -297,6 +299,7 @@ export const EditorCanvas: React.FC = () => {
         const wallId = hitTestWall(cursor, state);
         if (wallId) {
           state.select([wallId]);
+          state.beginTransaction();
           dragRef.current = { kind: 'wall', id: wallId };
           dragLastWorldRef.current = cursor;
           didDragRef.current = false;
@@ -385,7 +388,19 @@ export const EditorCanvas: React.FC = () => {
       void e;
       // Smart-align the component we just dragged so the layout stays orthogonal.
       const drag = dragRef.current;
-      if (drag && didDragRef.current) smartAlign(drag);
+      const state = useAppStore.getState();
+      if (drag && didDragRef.current) {
+        smartAlign(drag);
+        // Record the whole drag (move + smart-align) as one undo step.
+        const label =
+          drag.kind === 'gizmo-rotate' ? 'Rotate' :
+          drag.kind === 'gizmo-scale' ? 'Scale' :
+          drag.kind === 'wall' ? 'Move Wall' : 'Move Furniture';
+        state.commitTransaction(label);
+      } else {
+        // A click that only selected/panned — nothing to record.
+        state.cancelTransaction();
+      }
       dragRef.current = null;
       dragLastWorldRef.current = null;
       panningRef.current = false;
@@ -415,15 +430,18 @@ export const EditorCanvas: React.FC = () => {
       if (activeTool === 'furniture') {
         const catalogId = state.furnitureCatalogId;
         const entry = getCatalogEntry(catalogId);
-        const id = state.addFurniture({
-          position: cursor,
-          rotation: 0,
-          scale: 1,
-          catalogId,
-          roomId: null,
-          bounds: { width: entry.bounds.width, depth: entry.bounds.depth },
+        let id = '';
+        state.recordHistory('Place Furniture', () => {
+          id = state.addFurniture({
+            position: cursor,
+            rotation: 0,
+            scale: 1,
+            catalogId,
+            roomId: null,
+            bounds: { width: entry.bounds.width, depth: entry.bounds.depth },
+          });
         });
-        state.select([id]);
+        if (id) state.select([id]);
         return;
       }
 
@@ -457,13 +475,15 @@ export const EditorCanvas: React.FC = () => {
             elevation = 220;
           }
 
-          state.addOpening({
-            wallId,
-            type: activeTool,
-            offsetCm,
-            width,
-            height,
-            elevation
+          state.recordHistory(`Add ${activeTool}`, () => {
+            state.addOpening({
+              wallId,
+              type: activeTool,
+              offsetCm,
+              width,
+              height,
+              elevation
+            });
           });
         }
         return;
@@ -503,21 +523,27 @@ export const EditorCanvas: React.FC = () => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const state = useAppStore.getState();
         if (state.selectedIds.length > 0) {
-          state.selectedIds.forEach((id) => {
-            if (state.walls[id]) state.removeWall(id);
-            if (state.furniture[id]) state.removeFurniture(id);
+          state.recordHistory('Delete', () => {
+            state.selectedIds.forEach((id) => {
+              if (state.walls[id]) state.removeWall(id);
+              if (state.furniture[id]) state.removeFurniture(id);
+            });
+            state.clearSelection();
           });
-          state.clearSelection();
         }
       }
 
       if (e.key === 'r' || e.key === 'R') {
         const state = useAppStore.getState();
         const delta = (e.shiftKey ? -1 : 1) * (Math.PI / 12); // ±15°
-        state.selectedIds.forEach((id) => {
-          const item = state.furniture[id];
-          if (item) state.rotateFurniture(id, item.rotation + delta);
-        });
+        if (state.selectedIds.some((id) => state.furniture[id])) {
+          state.recordHistory('Rotate', () => {
+            state.selectedIds.forEach((id) => {
+              const item = state.furniture[id];
+              if (item) state.rotateFurniture(id, item.rotation + delta);
+            });
+          });
+        }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -536,6 +562,18 @@ export const EditorCanvas: React.FC = () => {
       onMouseUp={handleMouseUp}
       onMouseLeave={() => {
         handlers.onMouseUp();
+        const drag = dragRef.current;
+        const state = useAppStore.getState();
+        if (drag && didDragRef.current) {
+          smartAlign(drag);
+          const label =
+            drag.kind === 'gizmo-rotate' ? 'Rotate' :
+            drag.kind === 'gizmo-scale' ? 'Scale' :
+            drag.kind === 'wall' ? 'Move Wall' : 'Move Furniture';
+          state.commitTransaction(label);
+        } else {
+          state.cancelTransaction();
+        }
         dragRef.current = null;
         dragLastWorldRef.current = null;
         panningRef.current = false;

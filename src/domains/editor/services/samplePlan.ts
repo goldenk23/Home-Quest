@@ -205,6 +205,10 @@ export function loadSampleHouse(): void {
   place('wardrobe', 900, 800, HALF);
   place('nightstand', 600, 670);
   place('nightstand', 840, 670);
+
+  // Loading the sample is a fresh baseline — drop any prior undo history so the first
+  // undo doesn't try to revert to an unrelated earlier plan.
+  useAppStore.getState().clearHistory();
 }
 
 function centroidOfIds(ids: readonly EntityId[], vertices: Record<EntityId, Vertex>): Point2D {
