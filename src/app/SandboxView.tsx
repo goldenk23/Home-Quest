@@ -82,7 +82,15 @@ const RoomsPanel: React.FC = () => {
               border: isSelected ? '1px solid #f59e0b' : '1px solid transparent',
             }}
           >
-            <span style={{ color: '#475569' }}>{isSelected ? '◉ ' : ''}{room.label}</span>
+            <span style={{ color: '#f59e0b', fontSize: '0.9rem', width: '12px' }}>{isSelected ? '◉' : ''}</span>
+            <input
+              type="text"
+              value={room.label}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => updateRoom(room.id, { label: e.target.value })}
+              style={{ flex: 1, minWidth: 0, padding: '3px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.8rem', color: '#475569' }}
+              aria-label="Room name"
+            />
             <select
               value={room.roomType}
               onClick={(e) => e.stopPropagation()}

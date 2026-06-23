@@ -138,7 +138,7 @@ function closestOnSegment(p: Point2D, a: Point2D, b: Point2D): { point: Point2D;
  */
 export function snapToWallEdge(
   point: Point2D,
-  segments: WallSegment[],
+  segments: readonly WallSegment[],
   radius: number
 ): Point2D {
   const radiusSq = radius * radius;

@@ -96,9 +96,12 @@ function traceCycle(
     const outgoing = allEdges.filter((e) => e.fromVertexId === currentTo && e.toVertexId !== currentFrom);
     if (outgoing.length === 0) return null; // dead end
 
-    // Pick the outgoing edge with the smallest counter‑clockwise turn.
+    // Pick the next edge CLOCKWISE from the reverse of the edge we arrived on (i.e. the
+    // largest CCW relative angle). This is the standard planar-graph face rule: it hugs
+    // the minimal face and correctly turns INTO chords/dividers, so a wall drawn across a
+    // room splits it into two faces instead of tracing the big outer loop.
     let bestEdge: DirectedEdge | null = null;
-    let bestAngle = Infinity;
+    let bestAngle = -Infinity;
     for (const edge of outgoing) {
       const outAngle = Math.atan2(
         vertices[edge.toVertexId].position.y - vertices[currentTo].position.y,
@@ -107,7 +110,7 @@ function traceCycle(
       let rel = outAngle - incomingAngle;
       while (rel <= 0) rel += Math.PI * 2; // normalize into (0, 2π]
       while (rel > Math.PI * 2) rel -= Math.PI * 2;
-      if (rel < bestAngle) {
+      if (rel > bestAngle) {
         bestAngle = rel;
         bestEdge = edge;
       }
