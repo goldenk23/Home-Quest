@@ -33,6 +33,7 @@ export const SceneContent: React.FC = () => {
         wall.start && wall.end ? (
           <WallMesh
             key={wall.id}
+            id={wall.id}
             start={wall.start}
             end={wall.end}
             thickness={wall.thickness}

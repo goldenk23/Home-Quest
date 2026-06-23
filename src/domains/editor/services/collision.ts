@@ -10,8 +10,8 @@ export function aabbOverlaps(a: AABB, b: AABB): boolean {
 
 /** Tightest axis-aligned box around a (possibly rotated) furniture item. */
 export function furnitureToAABB(item: FurnitureItem): AABB {
-  const hw = item.bounds.width / 2;
-  const hd = item.bounds.depth / 2;
+  const hw = (item.bounds.width * item.scale) / 2;
+  const hd = (item.bounds.depth * item.scale) / 2;
   const cos = Math.abs(Math.cos(item.rotation));
   const sin = Math.abs(Math.sin(item.rotation));
   const ex = hw * cos + hd * sin; // rotated extent on X
@@ -149,7 +149,7 @@ export function checkFurnitureCollisions(
   const itemAABB = furnitureToAABB(item);
   const itemOBB: OBB = {
     center: item.position,
-    halfExtents: { x: item.bounds.width / 2, y: item.bounds.depth / 2 },
+    halfExtents: { x: (item.bounds.width * item.scale) / 2, y: (item.bounds.depth * item.scale) / 2 },
     rotation: item.rotation,
   };
 
@@ -159,7 +159,7 @@ export function checkFurnitureCollisions(
     if (!other) continue;
     const otherOBB: OBB = {
       center: other.position,
-      halfExtents: { x: other.bounds.width / 2, y: other.bounds.depth / 2 },
+      halfExtents: { x: (other.bounds.width * other.scale) / 2, y: (other.bounds.depth * other.scale) / 2 },
       rotation: other.rotation,
     };
     if (obbIntersects(itemOBB, otherOBB)) collisions.push(candidateId);

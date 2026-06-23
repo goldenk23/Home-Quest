@@ -24,6 +24,8 @@ export interface Wall {
   readonly materialId: string;
   /** Whether this is a load-bearing wall (affects Vastu) */
   readonly isLoadBearing: boolean;
+  /** IDs of openings (doors, windows, vents) on this wall */
+  readonly openingIds: EntityId[];
 }
 
 /** 
@@ -74,10 +76,28 @@ export interface FurnitureItem {
   readonly bounds: { width: number; depth: number };
 }
 
+export type OpeningType = 'door' | 'window' | 'vent';
+
+/** A punched hole in a wall (door, window, or vent) */
+export interface Opening {
+  readonly id: EntityId;
+  readonly wallId: EntityId;
+  readonly type: OpeningType;
+  /** Distance from the wall's startVertex in cm */
+  readonly offsetCm: number;
+  /** Width of the hole in cm */
+  readonly width: number;
+  /** Height of the hole in cm */
+  readonly height: number;
+  /** Elevation from floor in cm (0 for doors) */
+  readonly elevation: number;
+}
+
 /** Complete floor plan state */
 export interface FloorPlan {
   readonly vertices: Record<EntityId, Vertex>;
   readonly walls: Record<EntityId, Wall>;
   readonly rooms: Record<EntityId, Room>;
   readonly furniture: Record<EntityId, FurnitureItem>;
+  readonly openings: Record<EntityId, Opening>;
 }

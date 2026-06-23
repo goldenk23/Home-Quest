@@ -64,11 +64,30 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
   const sprinting = useRef(false);
 
   const requestLock = useCallback(() => {
-    gl.domElement.requestPointerLock();
+    const el = gl.domElement;
+    if (document.pointerLockElement === el) return; // already locked
+    // requestPointerLock returns a Promise in newer browsers; it can reject (e.g. the
+    // ~1s security cool-down right after the user hit Esc). Swallow that so it doesn't
+    // surface as an uncaught error — the next click will succeed.
+    const res = el.requestPointerLock() as unknown as Promise<void> | undefined;
+    if (res && typeof res.catch === 'function') res.catch(() => {});
   }, [gl]);
+
+  // Reliably enter pointer-lock on ANY click on the 3D canvas while first-person mode is
+  // active. This replaces the old approach of raycasting an invisible world-space plane,
+  // which silently failed whenever the camera faced away from (or was positioned past)
+  // that plane — leaving the user unable to start walking.
+  useEffect(() => {
+    const el = gl.domElement;
+    const onCanvasClick = () => requestLock();
+    el.addEventListener('click', onCanvasClick);
+    return () => el.removeEventListener('click', onCanvasClick);
+  }, [gl, requestLock]);
 
   // Spawn standing in the MIDDLE of a room (the largest one) so you don't start jammed
   // against a wall. Falls back to the plan centroid, then the origin.
+  const resetCameraTick = useAppStore((s) => s.resetCameraTick);
+
   useEffect(() => {
     const { rooms, vertices, planCentroid3D } = useAppStore.getState();
 
@@ -109,7 +128,7 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
       (camera as THREE.PerspectiveCamera).fov = DEFAULT_FOV;
       (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
     }
-  }, [camera, config.eyeHeight]);
+  }, [camera, config.eyeHeight, resetCameraTick]);
 
   useEffect(() => {
     const onLockChange = () => {
@@ -179,10 +198,10 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
     };
   }, [camera, gl, config.lookSpeed]);
 
-  /** True if a camera at plan-meters (mx, mz) would be too close to / inside any wall. */
   const collidesWithWall = useCallback(
     (mx: number, mz: number): boolean => {
-      const { walls, vertices } = useAppStore.getState();
+      if (isNaN(mx) || isNaN(mz)) return false;
+      const { walls, vertices, openings } = useAppStore.getState();
       const px = mx * CM_PER_M;
       const py = -mz * CM_PER_M; // inverse of planTo3D's z = -y
       const radiusCm = config.collisionRadius * CM_PER_M;
@@ -191,7 +210,34 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
         const b = vertices[wall.endVertexId]?.position;
         if (!a || !b) continue;
         const dist = pointToSegmentDistanceCm(px, py, a.x, a.y, b.x, b.y);
-        if (dist < wall.thickness / 2 + radiusCm) return true;
+        
+        if (dist < wall.thickness / 2 + radiusCm) {
+          // Check if we are passing through a door
+          let insideDoor = false;
+          if (wall.openingIds && wall.openingIds.length > 0) {
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const lenSq = dx * dx + dy * dy;
+            let t = 0;
+            if (lenSq > 0) {
+              t = ((px - a.x) * dx + (py - a.y) * dy) / lenSq;
+              t = Math.max(0, Math.min(1, t));
+            }
+            const distAlongWall = t * Math.sqrt(lenSq);
+            
+            for (const oid of wall.openingIds) {
+              const opening = openings[oid];
+              if (opening && opening.type === 'door') {
+                // Relax the boundary by adding radiusCm so the player doesn't get stuck on door edges
+                if (Math.abs(distAlongWall - opening.offsetCm) < (opening.width / 2) + radiusCm) {
+                  insideDoor = true;
+                  break;
+                }
+              }
+            }
+          }
+          if (!insideDoor) return true;
+        }
       }
       return false;
     },
@@ -200,6 +246,7 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
 
   /** Unit tangent (3D x,z) of the wall nearest to plan-meters (mx, mz), or null. */
   const nearestWallTangent = useCallback((mx: number, mz: number): { x: number; z: number } | null => {
+    if (isNaN(mx) || isNaN(mz)) return null;
     const { walls, vertices } = useAppStore.getState();
     const px = mx * CM_PER_M;
     const py = -mz * CM_PER_M;
@@ -249,10 +296,28 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
     const moveQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, euler.current.y, 0));
     direction.applyQuaternion(moveQuat);
 
-    const speed = config.moveSpeed * (sprinting.current ? config.sprintMultiplier : 1) * delta;
+    // Prevent massive physics jumps if the browser tab was backgrounded
+    const clampedDelta = Math.min(delta, 0.1);
+    const speed = config.moveSpeed * (sprinting.current ? config.sprintMultiplier : 1) * clampedDelta;
     const stepX = direction.x * speed;
     const stepZ = direction.z * speed;
     const cur = camera.position;
+
+    // NaN safety net: if camera somehow broke, reset it to origin
+    if (isNaN(cur.x) || isNaN(cur.z)) {
+      cur.set(0, config.eyeHeight, 0);
+      return;
+    }
+
+    // ESCAPE HATCH: If the player is somehow already stuck inside a wall 
+    // (e.g. clipped the edge of a door frame), allow free movement so they can walk out 
+    // rather than permanently freezing their position.
+    if (collidesWithWall(cur.x, cur.z)) {
+      cur.x += stepX;
+      cur.z += stepZ;
+      camera.position.y = config.eyeHeight;
+      return;
+    }
 
     if (!collidesWithWall(cur.x + stepX, cur.z + stepZ)) {
       // Clear path — go straight.

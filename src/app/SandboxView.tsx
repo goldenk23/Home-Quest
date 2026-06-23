@@ -4,6 +4,7 @@ import { SnappingTestSandbox } from '../domains/editor/components/SnappingTestSa
 import { EditorScreen } from '../domains/editor/components/EditorScreen';
 import { ViewerCanvas } from '../domains/viewer/components/ViewerCanvas';
 import { VastuPanel } from '../domains/vastu/components/VastuPanel';
+import { VastuLegend } from '../domains/vastu/components/VastuLegend';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { FURNITURE_CATALOG_IDS, getCatalogEntry } from '../domains/viewer/hooks/useAssetLoader';
 import { loadSampleHouse } from '../domains/editor/services/samplePlan';
@@ -115,6 +116,9 @@ export const SandboxView: React.FC = () => {
   const setActiveTool = useAppStore((s) => s.setActiveTool);
   const isChainModeEnabled = useAppStore((s) => s.isChainModeEnabled);
   const setChainMode = useAppStore((s) => s.setChainMode);
+  const showDimensions = useAppStore((s) => s.showDimensions);
+  const toggleDimensions = useAppStore((s) => s.toggleDimensions);
+  const scalePlan = useAppStore((s) => s.scalePlan);
   const furnitureCatalogId = useAppStore((s) => s.furnitureCatalogId);
   const setFurnitureCatalogId = useAppStore((s) => s.setFurnitureCatalogId);
   const showVastuOverlay2D = useAppStore((s) => s.showVastuOverlay2D);
@@ -123,6 +127,7 @@ export const SandboxView: React.FC = () => {
   const toggleVastuOverlay3D = useAppStore((s) => s.toggleVastuOverlay3D);
   const cameraMode = useAppStore((s) => s.cameraMode);
   const setCameraMode = useAppStore((s) => s.setCameraMode);
+  const triggerCameraReset = useAppStore((s) => s.triggerCameraReset);
 
   const selectedIds = useAppStore((s) => s.selectedIds);
   const furniture = useAppStore((s) => s.furniture);
@@ -182,6 +187,9 @@ export const SandboxView: React.FC = () => {
           <button style={btn(activeTool === 'select')} onClick={() => setActiveTool('select')}>🖱️ Select</button>
           <button style={btn(activeTool === 'wall')} onClick={() => setActiveTool('wall')}>📏 Draw Wall</button>
           <button style={btn(activeTool === 'furniture')} onClick={() => setActiveTool('furniture')}>🛋️ Furniture</button>
+          <button style={btn(activeTool === 'door')} onClick={() => setActiveTool('door')}>🚪 Door</button>
+          <button style={btn(activeTool === 'window')} onClick={() => setActiveTool('window')}>🪟 Window</button>
+          <button style={btn(activeTool === 'vent')} onClick={() => setActiveTool('vent')}>💨 Vent</button>
           <label style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', fontSize: '0.82rem', color: '#374151', cursor: 'pointer' }}>
             <input type="checkbox" checked={isChainModeEnabled} onChange={(e) => setChainMode(e.target.checked)} />
             Chain mode
@@ -215,11 +223,21 @@ export const SandboxView: React.FC = () => {
         <Row label="Overlays">
           <button style={btn(showVastuOverlay2D, '#10b981')} onClick={toggleVastuOverlay2D}>Vastu 2D</button>
           <button style={btn(showVastuOverlay3D, '#10b981')} onClick={toggleVastuOverlay3D}>Vastu 3D</button>
+          <button style={btn(showDimensions, '#0ea5e9')} onClick={toggleDimensions}>📏 Dimensions</button>
+        </Row>
+
+        <Row label="Scale">
+          <button style={btn(false, '#6366f1')} onClick={() => scalePlan(1 / 1.1)}>➖ Scale Down</button>
+          <button style={btn(false, '#6366f1')} onClick={() => scalePlan(1.1)}>➕ Scale Up</button>
+          <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+            Resize the whole plan (±10% each step). Wall lengths update live; furniture keeps real-world size.
+          </span>
         </Row>
 
         <Row label="Camera">
           <button style={btn(cameraMode === 'orbit', '#f59e0b')} onClick={() => setCameraMode('orbit')}>🚁 Orbit</button>
           <button style={btn(cameraMode === 'firstPerson', '#f59e0b')} onClick={() => setCameraMode('firstPerson')}>🚶 First-Person (WASD)</button>
+          <button style={btn(false, '#64748b')} onClick={triggerCameraReset}>🔄 Reset View</button>
         </Row>
 
         <Row label="Plan">
@@ -266,6 +284,12 @@ export const SandboxView: React.FC = () => {
         </Card>
 
         <VastuPanel />
+
+        {(showVastuOverlay2D || showVastuOverlay3D) && (
+          <Card title="🧭 Vastu Chakra Legend">
+            <VastuLegend />
+          </Card>
+        )}
 
         <Card title="⌨️ How to test">
           <ul style={{ margin: 0, paddingLeft: '1.1rem', color: '#475569', fontSize: '0.82rem', lineHeight: 1.7 }}>

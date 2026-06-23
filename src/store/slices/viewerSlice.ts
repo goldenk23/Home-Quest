@@ -53,6 +53,8 @@ export interface ViewerSlice {
   setRenderQuality: (quality: RenderQuality) => void;
   toggleWireframe: () => void;
   setPlanCentroid3D: (centroid: Point3D | null) => void;
+  resetCameraTick: number;
+  triggerCameraReset: () => void;
 }
 
 export const createViewerSlice: StateCreator<
@@ -65,6 +67,7 @@ export const createViewerSlice: StateCreator<
   renderQuality: 'high',
   showWireframe: false,
   planCentroid3D: null,
+  resetCameraTick: 0,
 
   setCameraMode: (mode) => {
     set((state) => {
@@ -87,6 +90,12 @@ export const createViewerSlice: StateCreator<
   setPlanCentroid3D: (centroid) => {
     set((state) => {
       state.planCentroid3D = centroid;
+    });
+  },
+
+  triggerCameraReset: () => {
+    set((state) => {
+      state.resetCameraTick += 1;
     });
   },
 });

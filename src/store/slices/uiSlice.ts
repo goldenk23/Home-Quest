@@ -24,7 +24,7 @@ import type { StateCreator } from 'zustand';
 import type  { AppStore } from '..';
 
 /** What the user is currently holding in their cursor (e.g. wall tool, select tool) */
-export type Tool = 'select' | 'wall' | 'furniture' | 'pan' | 'measure';
+export type Tool = 'select' | 'wall' | 'furniture' | 'pan' | 'measure' | 'door' | 'window' | 'vent';
 
 /** The different side-menus the user can open and close */
 export type PanelId = 'properties' | 'vastu' | 'catalog' | 'layers';
@@ -34,6 +34,8 @@ export interface UISlice {
   activeTool: Tool;
   panelVisibility: Record<PanelId, boolean>;
   isChainModeEnabled: boolean;
+  /** Whether wall-length dimension labels are shown in the 2D editor. */
+  showDimensions: boolean;
   /** The catalog id that the furniture tool will place on the next click. */
   furnitureCatalogId: string;
 
@@ -42,6 +44,7 @@ export interface UISlice {
   togglePanel: (panel: PanelId) => void;
   setPanelVisibility: (panel: PanelId, visible: boolean) => void;
   setChainMode: (enabled: boolean) => void;
+  toggleDimensions: () => void;
   setFurnitureCatalogId: (catalogId: string) => void;
 }
 
@@ -60,6 +63,7 @@ export const createUISlice: StateCreator<
   },
   isChainModeEnabled: false,
   furnitureCatalogId: 'sofa-3seat',
+  showDimensions: true,
 
   setActiveTool: (tool) => {
     set((state) => {
@@ -82,6 +86,12 @@ export const createUISlice: StateCreator<
   setChainMode: (enabled) => {
     set((state) => {
       state.isChainModeEnabled = enabled;
+    });
+  },
+
+  toggleDimensions: () => {
+    set((state) => {
+      state.showDimensions = !state.showDimensions;
     });
   },
 

@@ -12,12 +12,12 @@ export const CameraController: React.FC<CameraControllerProps> = ({ mode }) => {
   return mode === 'orbit' ? <OrbitCameraController /> : <FirstPersonCamera />;
 };
 
-/** An invisible click-catcher that enters pointer-lock when clicked. */
+/**
+ * First-person controls. Pointer-lock is requested via a DOM click handler on the canvas
+ * (registered inside useFirstPersonControls), so a click anywhere on the 3D view reliably
+ * starts the walkthrough — no fragile world-space click-catcher needed.
+ */
 const FirstPersonCamera: React.FC = () => {
-  const { requestLock } = useFirstPersonControls();
-  return (
-    <mesh visible={false} onClick={requestLock}>
-      <planeGeometry args={[1000, 1000]} />
-    </mesh>
-  );
+  useFirstPersonControls();
+  return null;
 };

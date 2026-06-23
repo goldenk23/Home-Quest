@@ -14,6 +14,8 @@ import type { AppStore } from '@/store';
 import { GridLayer } from './GridLayer';
 import { RoomLayer } from './RoomLayer';
 import { WallLayer } from './WallLayer';
+import { DimensionLayer } from './DimensionLayer';
+import { OpeningsLayer } from './OpeningsLayer';
 import { FurnitureLayer } from './FurnitureLayer';
 import { SelectionLayer } from './SelectionLayer';
 import { DrawingPreview } from './DrawingPreview';
@@ -30,8 +32,45 @@ function hitTestFurniture(cursor: Point2D, furniture: AppStore['furniture'], mar
     const sin = Math.sin(item.rotation);
     const lx = dx * cos + dy * sin;
     const ly = -dx * sin + dy * cos;
-    if (Math.abs(lx) <= item.bounds.width / 2 + margin && Math.abs(ly) <= item.bounds.depth / 2 + margin) {
+    if (Math.abs(lx) <= (item.bounds.width * item.scale) / 2 + margin && Math.abs(ly) <= (item.bounds.depth * item.scale) / 2 + margin) {
       return item.id;
+    }
+  }
+  return null;
+}
+
+/** Gizmo hit test. Rotation handle is visually at top edge, scale handles at 4 corners. */
+function hitTestGizmo(
+  cursor: Point2D,
+  state: AppStore,
+  margin = 5
+): { kind: 'gizmo-rotate' | 'gizmo-scale'; id: string } | null {
+  for (const id of state.selectedIds) {
+    const item = state.furniture[id];
+    if (!item) continue;
+    
+    const dx = cursor.x - item.position.x;
+    const dy = cursor.y - item.position.y;
+    
+    const cos = Math.cos(item.rotation);
+    const sin = Math.sin(item.rotation);
+    const lx = dx * cos + dy * sin;
+    const ly = -dx * sin + dy * cos;
+    
+    const hw = (item.bounds.width * item.scale) / 2;
+    const hd = (item.bounds.depth * item.scale) / 2;
+    
+    if (Math.abs(lx) <= 10 + margin && Math.abs(ly - (hd + 20)) <= 10 + margin) {
+      return { kind: 'gizmo-rotate', id };
+    }
+    
+    const corners = [
+      {x: -hw, y: -hd}, {x: hw, y: -hd}, {x: -hw, y: hd}, {x: hw, y: hd}
+    ];
+    for (const corner of corners) {
+      if (Math.abs(lx - corner.x) <= 10 + margin && Math.abs(ly - corner.y) <= 10 + margin) {
+        return { kind: 'gizmo-scale', id };
+      }
     }
   }
   return null;
@@ -96,12 +135,33 @@ function hitTestRoom(cursor: Point2D, state: AppStore): string | null {
   return bestId;
 }
 
+function isPerimeterWall(wallId: string, state: AppStore): boolean {
+  let count = 0;
+  const wall = state.walls[wallId];
+  if (!wall) return true;
+  const s = wall.startVertexId;
+  const e = wall.endVertexId;
+
+  for (const room of Object.values(state.rooms)) {
+    const b = room.boundaryVertexIds;
+    for (let i = 0; i < b.length; i++) {
+      const next = b[(i + 1) % b.length];
+      if ((b[i] === s && next === e) || (b[i] === e && next === s)) {
+        count++;
+        break;
+      }
+    }
+  }
+  return count <= 1;
+}
+
 export const EditorCanvas: React.FC = () => {
   const svgRef = useRef<SVGSVGElement>(null);
   const { viewTransform, panBy, handlers } = usePanZoom(svgRef);
   const endpoints = useEndpoints();
   const snapConfig = useAppStore((s) => s.snapConfig);
   const activeTool = useAppStore((s) => s.activeTool);
+  const showDimensions = useAppStore((s) => s.showDimensions);
 
   const { drawStart, chainOrigin, handleClick, cancel } = useWallDrawing();
 
@@ -109,7 +169,7 @@ export const EditorCanvas: React.FC = () => {
   viewTransformRef.current = viewTransform;
 
   // Drag state (refs avoid re-renders on every mouse move).
-  const dragRef = useRef<{ kind: 'furniture' | 'wall'; id: string } | null>(null);
+  const dragRef = useRef<{ kind: 'furniture' | 'wall' | 'gizmo-rotate' | 'gizmo-scale'; id: string; baseScale?: number; baseDist?: number } | null>(null);
   const dragLastWorldRef = useRef<Point2D | null>(null);
   const didDragRef = useRef(false);
   // Grab-to-pan state (left-drag on empty space while using the Select tool).
@@ -129,7 +189,7 @@ export const EditorCanvas: React.FC = () => {
    *  - Walls: snaps the moved endpoints to the grid and straightens every wall meeting
    *    them that is near-axis-aligned (horizontal/vertical), restoring orthogonality.
    */
-  const smartAlign = useCallback((drag: { kind: 'furniture' | 'wall'; id: string }) => {
+  const smartAlign = useCallback((drag: { kind: 'furniture' | 'wall' | 'gizmo-rotate' | 'gizmo-scale'; id: string }) => {
     const st = useAppStore.getState();
     const grid = st.snapConfig.gridSize || 10;
     const snap = (v: number) => Math.round(v / grid) * grid;
@@ -142,6 +202,8 @@ export const EditorCanvas: React.FC = () => {
       st.rotateFurniture(drag.id, Math.round(item.rotation / step) * step);
       return;
     }
+    
+    if (drag.kind === 'gizmo-rotate' || drag.kind === 'gizmo-scale') return;
 
     const wall = st.walls[drag.id];
     if (!wall) return;
@@ -204,6 +266,24 @@ export const EditorCanvas: React.FC = () => {
         if (!cursor) return;
         const state = useAppStore.getState();
 
+        // 0) Check gizmo first so it takes priority over moving furniture
+        const gizmo = hitTestGizmo(cursor, state, GRAB_MARGIN);
+        if (gizmo) {
+          const item = state.furniture[gizmo.id];
+          if (item) {
+            dragRef.current = { 
+              kind: gizmo.kind, 
+              id: gizmo.id, 
+              baseScale: item.scale,
+              baseDist: Math.hypot(cursor.x - item.position.x, cursor.y - item.position.y)
+            };
+            dragLastWorldRef.current = cursor;
+            didDragRef.current = false;
+            setDragHud(null);
+            return;
+          }
+        }
+
         // 1) Grab a specific component (furniture first, then walls) to move it.
         const furnitureId = hitTestFurniture(cursor, state.furniture, GRAB_MARGIN);
         if (furnitureId) {
@@ -263,7 +343,22 @@ export const EditorCanvas: React.FC = () => {
         const dy = snapped.y - last.y;
         if (dx !== 0 || dy !== 0) {
           const state = useAppStore.getState();
-          if (drag.kind === 'furniture') {
+          if (drag.kind === 'gizmo-rotate') {
+            const item = state.furniture[drag.id];
+            if (item) {
+              let angle = Math.atan2(snapped.y - item.position.y, snapped.x - item.position.x);
+              state.rotateFurniture(drag.id, angle - Math.PI / 2);
+            }
+          } else if (drag.kind === 'gizmo-scale') {
+            const item = state.furniture[drag.id];
+            if (item && drag.baseDist && drag.baseScale) {
+              const currentDist = Math.hypot(snapped.x - item.position.x, snapped.y - item.position.y);
+              if (drag.baseDist > 0.01) {
+                const ratio = currentDist / drag.baseDist;
+                state.scaleFurniture(drag.id, drag.baseScale * ratio);
+              }
+            }
+          } else if (drag.kind === 'furniture') {
             const item = state.furniture[drag.id];
             if (item) state.moveFurniture(drag.id, { x: item.position.x + dx, y: item.position.y + dy });
           } else {
@@ -329,6 +424,48 @@ export const EditorCanvas: React.FC = () => {
           bounds: { width: entry.bounds.width, depth: entry.bounds.depth },
         });
         state.select([id]);
+        return;
+      }
+
+      if (activeTool === 'door' || activeTool === 'window' || activeTool === 'vent') {
+        const wallId = hitTestWall(cursor, state);
+        if (wallId) {
+          const wall = state.walls[wallId];
+          const start = state.vertices[wall.startVertexId]?.position;
+          if (!start) return;
+
+          if (activeTool === 'window' || activeTool === 'vent') {
+            if (!isPerimeterWall(wallId, state)) {
+              alert('Windows and ventilation can only be placed on perimeter walls.');
+              return;
+            }
+          }
+
+          const offsetCm = Math.hypot(cursor.x - start.x, cursor.y - start.y);
+          
+          let width = 120;
+          let height = 210;
+          let elevation = 0;
+
+          if (activeTool === 'window') {
+            width = 120;
+            height = 120;
+            elevation = 90;
+          } else if (activeTool === 'vent') {
+            width = 60;
+            height = 30;
+            elevation = 220;
+          }
+
+          state.addOpening({
+            wallId,
+            type: activeTool,
+            offsetCm,
+            width,
+            height,
+            elevation
+          });
+        }
         return;
       }
 
@@ -415,8 +552,10 @@ export const EditorCanvas: React.FC = () => {
         <GridLayer gridSize={snapConfig.gridSize} />
         <RoomLayer />
         <WallLayer />
+        <OpeningsLayer />
         <FurnitureLayer />
         <SelectionLayer />
+        {showDimensions && <DimensionLayer />}
         <VastuOverlay2D />
         {activeTool === 'wall' && <DrawingPreview start={drawStart} chainOrigin={chainOrigin} />}
         {dragHud && <DragReadout {...dragHud} />}

@@ -44,8 +44,8 @@ export const SelectionLayer: React.FC = React.memo(() => {
 
         const item = furniture[id];
         if (item) {
-          const w = item.bounds.width + EDITOR_STYLE.selectionStrokeWidth * 2;
-          const d = item.bounds.depth + EDITOR_STYLE.selectionStrokeWidth * 2;
+          const w = item.bounds.width * item.scale + EDITOR_STYLE.selectionStrokeWidth * 2;
+          const d = item.bounds.depth * item.scale + EDITOR_STYLE.selectionStrokeWidth * 2;
           const degrees = (-item.rotation * 180) / Math.PI;
           return (
             <g key={id} transform={`translate(${item.position.x} ${-item.position.y}) rotate(${degrees})`}>
@@ -59,6 +59,14 @@ export const SelectionLayer: React.FC = React.memo(() => {
                 stroke={EDITOR_STYLE.selectionStroke}
                 strokeWidth={EDITOR_STYLE.selectionStrokeWidth}
               />
+              {/* Scale Handles (Corners) */}
+              <circle cx={-w/2} cy={-d/2} r={4} fill="#fff" stroke={EDITOR_STYLE.selectionStroke} strokeWidth={2} />
+              <circle cx={w/2} cy={-d/2} r={4} fill="#fff" stroke={EDITOR_STYLE.selectionStroke} strokeWidth={2} />
+              <circle cx={-w/2} cy={d/2} r={4} fill="#fff" stroke={EDITOR_STYLE.selectionStroke} strokeWidth={2} />
+              <circle cx={w/2} cy={d/2} r={4} fill="#fff" stroke={EDITOR_STYLE.selectionStroke} strokeWidth={2} />
+              {/* Rotation Handle */}
+              <line x1={0} y1={-d/2} x2={0} y2={-d/2 - 20} stroke={EDITOR_STYLE.selectionStroke} strokeWidth={2} />
+              <circle cx={0} cy={-d/2 - 20} r={5} fill="#fff" stroke={EDITOR_STYLE.selectionStroke} strokeWidth={2} />
             </g>
           );
         }

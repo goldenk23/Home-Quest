@@ -6,6 +6,7 @@ import { useAppStore } from '@/store';
 import { useCollidingFurnitureIds } from '@/domains/editor/hooks/useCollisions';
 import { planTo3D } from '../services/transform';
 import { getCatalogEntry } from '../hooks/useAssetLoader';
+import { renderProceduralPrefab } from './furniture/ProceduralPrefabs';
 import type { FurnitureItem } from '@/types/editor';
 
 const CM_TO_M = 0.01;
@@ -40,14 +41,9 @@ const FurniturePiece: React.FC<{ item: FurnitureItem; colliding: boolean }> = Re
     }, [item.position, h]);
 
     return (
-      <mesh position={position} rotation={[0, item.rotation, 0]} castShadow receiveShadow>
-        <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial
-          color={colliding ? '#ef4444' : catalog.color}
-          roughness={0.7}
-          metalness={0.05}
-        />
-      </mesh>
+      <group position={position} rotation={[0, item.rotation, 0]}>
+        {renderProceduralPrefab(item.catalogId, w, h, d, catalog.color, colliding)}
+      </group>
     );
   }
 );

@@ -11,13 +11,21 @@ import { useAppStore } from '@/store';
 export const OrbitCameraController: React.FC = () => {
   const controlsRef = useRef<any>(null);
   const planCentroid = useAppStore((s) => s.planCentroid3D);
+  const resetCameraTick = useAppStore((s) => s.resetCameraTick);
 
   useEffect(() => {
-    if (controlsRef.current && planCentroid) {
-      controlsRef.current.target.set(planCentroid.x, 0, planCentroid.z);
+    if (controlsRef.current) {
+      if (planCentroid) {
+        controlsRef.current.target.set(planCentroid.x, 0, planCentroid.z);
+      } else {
+        controlsRef.current.target.set(0, 0, 0);
+      }
+      
+      const cam = controlsRef.current.object;
+      cam.position.set(10, 10, 10);
       controlsRef.current.update();
     }
-  }, [planCentroid]);
+  }, [planCentroid, resetCameraTick]);
 
   return (
     <OrbitControls

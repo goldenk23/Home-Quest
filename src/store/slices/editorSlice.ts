@@ -12,6 +12,7 @@ export interface EditorSlice {
     walls: Record<EntityId, Wall>;
     rooms: Record<EntityId, Room>;
     furniture: Record<EntityId, FurnitureItem>;
+    openings: Record<EntityId, import('@/types/editor').Opening>;
     selectedIds: EntityId[];
     snapConfig: SnapConfig;
     currentMouseWorld: Point2D | null;
@@ -24,11 +25,17 @@ export interface EditorSlice {
     removeFurniture: (id: EntityId) => void;
     moveFurniture: (id: EntityId, position: Point2D) => void;
     rotateFurniture: (id: EntityId, rotation: number) => void;
+    scaleFurniture: (id: EntityId, scale: number) => void;
+    
+    addOpening: (opening: Omit<import('@/types/editor').Opening, 'id'>) => EntityId;
+    removeOpening: (id: EntityId) => void;
+
     setRooms: (rooms: Record<EntityId, Room>) => void;
     updateRoom: (id: EntityId, patch: Partial<Pick<Room, 'roomType' | 'label' | 'floorMaterialId'>>) => void;
     select: (ids: EntityId[]) => void;
     clearSelection: () => void;
     setSnapConfig: (config: Partial<SnapConfig>) => void;
+    scalePlan: (factor: number) => void;
     clearAll: () => void;
 }
 
@@ -69,6 +76,7 @@ export const createEditorSlice: StateCreator<
     walls: {},
     rooms: {},
     furniture: {},
+    openings: {},
     selectedIds: [],
     snapConfig: {
         gridSize: 10,
@@ -102,6 +110,7 @@ export const createEditorSlice: StateCreator<
                 height,
                 materialId: 'default-wall',
                 isLoadBearing: false,
+                openingIds: [],
             };
 
             // Update vertex connectivity
@@ -134,6 +143,14 @@ export const createEditorSlice: StateCreator<
                     delete state.vertices[wall.endVertexId];
                 }
             }
+            
+            // Remove associated openings
+            if (wall.openingIds) {
+                wall.openingIds.forEach(openingId => {
+                    delete state.openings[openingId];
+                });
+            }
+
             delete state.walls[wallId];
         });
     },
@@ -183,6 +200,42 @@ export const createEditorSlice: StateCreator<
         });
     },
 
+    scaleFurniture: (id, scale) => {
+        set((state) => {
+            const furniture = state.furniture[id];
+            if(furniture){
+                // constrain scale to reasonable limits
+                furniture.scale = Math.max(0.1, Math.min(scale, 10));
+            }
+        });
+    },
+
+    addOpening: (opening) => {
+        const openingId = generateId('opening');
+        set((state) => {
+            const wall = state.walls[opening.wallId];
+            if (wall) {
+                state.openings[openingId] = { ...opening, id: openingId };
+                wall.openingIds = wall.openingIds || [];
+                wall.openingIds.push(openingId);
+            }
+        });
+        return openingId;
+    },
+
+    removeOpening: (id) => {
+        set((state) => {
+            const opening = state.openings[id];
+            if (opening) {
+                const wall = state.walls[opening.wallId];
+                if (wall && wall.openingIds) {
+                    wall.openingIds = wall.openingIds.filter(oid => oid !== id);
+                }
+                delete state.openings[id];
+            }
+        });
+    },
+
     setRooms: (rooms) => {
         set((state) => {
             state.rooms = castDraft(rooms);
@@ -211,12 +264,45 @@ export const createEditorSlice: StateCreator<
         Object.assign(state.snapConfig, config);
         });
     },
+    /**
+     * Uniformly scales the whole floor plan about its geometric centre: every wall
+     * vertex and furniture position is moved toward/away from the centre by `factor`, and
+     * each opening's along-wall offset scales with it so doors/windows stay proportional.
+     * Real-world SIZES (wall thickness/height, furniture footprints, opening widths) are
+     * left unchanged, so scaling up makes rooms genuinely more spacious rather than just
+     * zooming. factor > 1 enlarges, < 1 shrinks.
+     */
+    scalePlan: (factor) => {
+        if (!(factor > 0) || factor === 1) return;
+        set((state) => {
+            const verts = Object.values(state.vertices);
+            const furn = Object.values(state.furniture);
+
+            // Centre on the walls (fall back to furniture, then origin).
+            let cx = 0, cy = 0, n = 0;
+            for (const v of verts) { cx += v.position.x; cy += v.position.y; n++; }
+            if (n === 0) for (const f of furn) { cx += f.position.x; cy += f.position.y; n++; }
+            if (n === 0) return;
+            cx /= n; cy /= n;
+
+            for (const v of verts) {
+                v.position = { x: cx + (v.position.x - cx) * factor, y: cy + (v.position.y - cy) * factor };
+            }
+            for (const f of furn) {
+                f.position = { x: cx + (f.position.x - cx) * factor, y: cy + (f.position.y - cy) * factor };
+            }
+            for (const o of Object.values(state.openings)) {
+                o.offsetCm = o.offsetCm * factor;
+            }
+        });
+    },
     clearAll: () => {
         set((state) => {
             state.vertices = {};
             state.walls = {};
             state.rooms = {};
             state.furniture = {};
+            state.openings = {};
             state.selectedIds = [];
         });
     },
