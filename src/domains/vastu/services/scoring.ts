@@ -18,7 +18,16 @@ export interface RoomVastuScore {
   readonly score: number;
   readonly isIdeal: boolean;
   readonly idealDirections: VastuDirection[];
+  /** One-line summary (kept for backward compatibility). */
   readonly reason: string;
+  /** Status keyword for the badge: ideal / acceptable / neutral / adverse / center / unset. */
+  readonly status: 'ideal' | 'acceptable' | 'neutral' | 'adverse' | 'center' | 'unset';
+  /** What is already right about this placement (always present, even if minimal). */
+  readonly whatsCorrect: string;
+  /** What is wrong / sub-optimal. Empty string when nothing is wrong. */
+  readonly whatsWrong: string;
+  /** Plain, step-by-step guidance on how to fix or improve it. Empty when already ideal. */
+  readonly howToFix: string;
 }
 
 /** Human-readable full names for clearer suggestions. */
@@ -163,37 +172,72 @@ export function computeVastuScore(
     let score: number;
     let isIdeal = false;
     let reason: string;
+    let status: RoomVastuScore['status'];
+    let whatsCorrect: string;
+    let whatsWrong: string;
+    let howToFix: string;
+
+    const idealText = dirLabel(rules.ideal);
+    const cellName = cell === 'CENTER' ? 'the centre (Brahmasthan)' : DIR_NAME[cell];
 
     if (room.roomType === 'custom') {
       score = 50;
-      reason = `“${room.label}” has no specific type yet. Assign a room type (kitchen, bedroom, …) to get an authentic Vastu placement check.`;
+      status = 'unset';
+      whatsCorrect = `“${room.label}” is detected as a valid enclosed room.`;
+      whatsWrong = `It has no room type assigned, so Vastu placement can't be evaluated.`;
+      howToFix = `In the Rooms panel, pick what this room is (kitchen, bedroom, puja, etc.). The Vastu check will then tell you if its direction is correct.`;
+      reason = `${whatsCorrect} ${whatsWrong}`;
       recommendations.push({ severity: 'suggestion', roomId: room.id, message: `Set a type for “${room.label}” to enable Vastu scoring.` });
     } else if (singleRoomPlan) {
-      // The plan is a single room; there is no inner direction to evaluate yet.
       score = 60;
-      reason = `“${room.label}” currently fills the whole plan, so its Vastu direction can't be judged. Add more rooms so the ${roomName.toLowerCase()} occupies a specific zone — ideally ${dirLabel(rules.ideal)}.`;
-      recommendations.push({ severity: 'suggestion', roomId: room.id, message: `Add interior walls so the ${roomName.toLowerCase()} sits in a specific direction (ideal: ${dirLabel(rules.ideal)}).` });
+      status = 'neutral';
+      whatsCorrect = `The ${roomName.toLowerCase()} is a properly closed room with a measurable area.`;
+      whatsWrong = `It currently fills the entire plan, so it has no specific compass direction to judge — Vastu direction only means something once a room occupies one part of the house.`;
+      howToFix = `Add interior walls to split the house into separate rooms. Aim to place this ${roomName.toLowerCase()} in the ${idealText} zone, which is its ideal Vastu location.`;
+      reason = `${whatsCorrect} ${whatsWrong}`;
+      recommendations.push({ severity: 'suggestion', roomId: room.id, message: `Add interior walls so the ${roomName.toLowerCase()} occupies the ${idealText} zone.` });
     } else if (cell === 'CENTER') {
       score = 35;
-      reason = `${roomName} sits over the Brahmasthan (the sacred centre of the plan), which Vastu says should stay open. Shift it toward ${dirLabel(rules.ideal)}.`;
-      recommendations.push({ severity: 'critical', roomId: room.id, message: `Move the ${roomName.toLowerCase()} off the central Brahmasthan toward ${dirLabel(rules.ideal)}; keep the centre open.` });
+      status = 'center';
+      whatsCorrect = `The ${roomName.toLowerCase()} is a valid, enclosed room.`;
+      whatsWrong = `It sits over the Brahmasthan — the sacred centre of the house. Vastu Shastra says the centre should stay open and unburdened, so any room here is a dosha (defect).`;
+      howToFix = `Move the ${roomName.toLowerCase()} outward, toward the ${idealText} part of the house, and leave the central zone as open space (a courtyard, hall, or light well).`;
+      reason = `${whatsCorrect} ${whatsWrong}`;
+      recommendations.push({ severity: 'critical', roomId: room.id, message: `Move the ${roomName.toLowerCase()} off the central Brahmasthan toward the ${idealText}; keep the centre open.` });
     } else if (rules.ideal.includes(cell)) {
       score = 100;
       isIdeal = true;
-      reason = `${roomName} is correctly placed in the ${DIR_NAME[cell]}. ${rules.note}`;
+      status = 'ideal';
+      whatsCorrect = `The ${roomName.toLowerCase()} is in the ${DIR_NAME[cell]}, which is the ideal Vastu direction for it. ${rules.note}`;
+      whatsWrong = '';
+      howToFix = '';
+      reason = whatsCorrect;
     } else if (rules.acceptable.includes(cell)) {
       score = 78;
-      reason = `${roomName} in the ${DIR_NAME[cell]} is acceptable. The ideal location is ${dirLabel(rules.ideal)}. ${rules.note}`;
-      recommendations.push({ severity: 'suggestion', roomId: room.id, message: `Optional: move the ${roomName.toLowerCase()} from the ${DIR_NAME[cell]} toward ${dirLabel(rules.ideal)} for a stronger result.` });
+      status = 'acceptable';
+      whatsCorrect = `The ${roomName.toLowerCase()} is in the ${DIR_NAME[cell]}, which is an acceptable location — it does not cause a Vastu defect.`;
+      whatsWrong = `It is not in the most auspicious spot. According to Vastu Shastra the ideal direction for a ${roomName.toLowerCase()} is the ${idealText}.`;
+      howToFix = `If you can, shift the ${roomName.toLowerCase()} toward the ${idealText} zone. If relocating is impractical, leaving it here is still fine.`;
+      reason = `${whatsCorrect} ${whatsWrong}`;
+      recommendations.push({ severity: 'suggestion', roomId: room.id, message: `Optional: move the ${roomName.toLowerCase()} from the ${DIR_NAME[cell]} toward the ${idealText} for a stronger result.` });
     } else if (rules.adverse.includes(cell)) {
       score = 22;
-      reason = `${roomName} in the ${DIR_NAME[cell]} is a Vastu dosha (adverse). ${rules.note} Relocate it to ${dirLabel(rules.ideal)}.`;
-      recommendations.push({ severity: 'critical', roomId: room.id, message: `Relocate the ${roomName.toLowerCase()} out of the ${DIR_NAME[cell]} (adverse) to ${dirLabel(rules.ideal)}.` });
+      status = 'adverse';
+      whatsCorrect = `The ${roomName.toLowerCase()} is a valid, enclosed room and its area is being measured correctly.`;
+      whatsWrong = `Its direction is wrong: it is in the ${DIR_NAME[cell]}, which Vastu Shastra considers adverse (a dosha) for a ${roomName.toLowerCase()}. ${rules.note}`;
+      howToFix = `Relocate the ${roomName.toLowerCase()} to the ${idealText} zone of the house. Practically: redraw its walls so its centre falls in the ${idealText} third of the plan, and use the ${DIR_NAME[cell]} space for a room that suits it instead.`;
+      reason = `${whatsCorrect} ${whatsWrong}`;
+      recommendations.push({ severity: 'critical', roomId: room.id, message: `Relocate the ${roomName.toLowerCase()} out of the ${DIR_NAME[cell]} (adverse) to the ${idealText}.` });
     } else {
       score = 55;
-      reason = `${roomName} in the ${DIR_NAME[cell]} is neutral — not harmful, but not ideal. ${dirLabel(rules.ideal)} is recommended.`;
-      recommendations.push({ severity: 'warning', roomId: room.id, message: `The ${roomName.toLowerCase()} in the ${DIR_NAME[cell]} is not ideal; prefer ${dirLabel(rules.ideal)}.` });
+      status = 'neutral';
+      whatsCorrect = `The ${roomName.toLowerCase()} is in the ${DIR_NAME[cell]}, which is neutral — not a defect, so it won't harm the layout.`;
+      whatsWrong = `It is not the recommended direction. The ideal Vastu location for a ${roomName.toLowerCase()} is the ${idealText}.`;
+      howToFix = `For a better score, move the ${roomName.toLowerCase()} toward the ${idealText} zone. If that isn't possible, this position is acceptable to keep.`;
+      reason = `${whatsCorrect} ${whatsWrong}`;
+      recommendations.push({ severity: 'warning', roomId: room.id, message: `The ${roomName.toLowerCase()} in the ${DIR_NAME[cell]} is not ideal; prefer the ${idealText}.` });
     }
+    void cellName;
 
     roomScores[room.id] = {
       roomId: room.id,
@@ -203,6 +247,10 @@ export function computeVastuScore(
       isIdeal,
       idealDirections: rules.ideal,
       reason,
+      status,
+      whatsCorrect,
+      whatsWrong,
+      howToFix,
     };
 
     const w = ROOM_WEIGHT[room.roomType];
