@@ -22,7 +22,7 @@ export interface RoomVastuScore {
 }
 
 /** Human-readable full names for clearer suggestions. */
-const DIR_NAME: Record<VastuDirection, string> = {
+export const DIR_NAME: Record<VastuDirection, string> = {
   N: 'North',
   NE: 'North-East (Ishanya)',
   E: 'East',
@@ -33,7 +33,7 @@ const DIR_NAME: Record<VastuDirection, string> = {
   NW: 'North-West (Vayavya)',
 };
 
-const ROOM_NAME: Record<RoomType, string> = {
+export const ROOM_NAME: Record<RoomType, string> = {
   living: 'Living room',
   bedroom: 'Bedroom',
   kitchen: 'Kitchen',
@@ -68,10 +68,14 @@ export interface VastuRecommendation {
  * water sources in the North-East (Ishanya), and toilets away from the sacred NE.
  * Each `note` records the classical rationale so suggestions can cite an authentic reason.
  */
-const VASTU_RULES: Record<
-  RoomType,
-  { ideal: VastuDirection[]; acceptable: VastuDirection[]; adverse: VastuDirection[]; note: string }
-> = {
+export interface VastuRule {
+  ideal: VastuDirection[];
+  acceptable: VastuDirection[];
+  adverse: VastuDirection[];
+  note: string;
+}
+
+export const VASTU_RULES: Record<RoomType, VastuRule> = {
   // Kitchen = fire element → Agneya (SE). NW acceptable as a secondary fire corner.
   kitchen: { ideal: ['SE'], acceptable: ['NW', 'S', 'E'], adverse: ['NE', 'SW', 'N'], note: 'The kitchen governs Agni (fire) and belongs in the South-East (Agneya).' },
   // Master bedroom = earth/stability → Nairutya (SW). Avoid the sacred NE.
@@ -98,6 +102,15 @@ const VASTU_RULES: Record<
   corridor: { ideal: ['N', 'E', 'W'], acceptable: ['S', 'NW', 'NE', 'SE'], adverse: [], note: 'Corridors are flexible but flow best along the North–East side.' },
   custom: { ideal: [], acceptable: [], adverse: [], note: 'No Vastu rule is defined for a custom room type.' },
 };
+
+/**
+ * The authentic Vastu placement rules as a display-ready list (excludes `custom`, which
+ * has no rule). Used by the UI to show a reference table without needing a drawn plan.
+ */
+export const VASTU_RULES_LIST: ReadonlyArray<{ roomType: RoomType; roomName: string; rule: VastuRule }> =
+  (Object.keys(VASTU_RULES) as RoomType[])
+    .filter((t) => t !== 'custom')
+    .map((t) => ({ roomType: t, roomName: ROOM_NAME[t], rule: VASTU_RULES[t] }));
 
 /** Weight a room contributes to the overall score (more critical rooms count more). */
 const ROOM_WEIGHT: Record<RoomType, number> = {

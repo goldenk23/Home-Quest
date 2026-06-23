@@ -1,8 +1,9 @@
 // src/domains/vastu/components/VastuPanel.tsx
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppStore } from '@/store';
-import type { VastuRecommendation } from '../services/scoring';
+import { VASTU_RULES_LIST, DIR_NAME, type VastuRecommendation } from '../services/scoring';
+import type { VastuDirection } from '../services/zones';
 
 /** Severity → icon + label, so meaning never relies on color alone (accessibility). */
 const SEVERITY_META: Record<VastuRecommendation['severity'], { icon: string; label: string; color: string }> = {
@@ -35,9 +36,10 @@ export const VastuPanel: React.FC = () => {
     return (
       <div style={panelStyle}>
         <h3 style={titleStyle}>🧭 Vastu Analysis</h3>
-        <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>
+        <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '0 0 1rem' }}>
           Draw a closed loop of walls (and assign rooms) to see a Vastu score here.
         </p>
+        <VastuRulesReference />
       </div>
     );
   }
@@ -106,9 +108,86 @@ export const VastuPanel: React.FC = () => {
           </ul>
         </div>
       )}
+
+      <VastuRulesReference />
     </div>
   );
 };
+
+/** Short direction codes (e.g. "NE") for compact rule rows. */
+function dirCodes(dirs: VastuDirection[]): string {
+  return dirs.length ? dirs.join(', ') : '—';
+}
+
+/**
+ * Always-visible reference of the authentic Vastu placement rules, so users can see the
+ * ideal direction for every room type without first drawing a plan. Collapsible to keep
+ * the panel compact.
+ */
+const VastuRulesReference: React.FC = () => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div style={{ marginTop: '1rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem' }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: 0,
+          font: 'inherit',
+        }}
+        aria-expanded={open}
+      >
+        <span style={subHeadingStyle}>📖 Vastu Rules Reference</span>
+        <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{open ? '▲ Hide' : '▼ Show'}</span>
+      </button>
+
+      {open && (
+        <>
+          <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '6px 0 8px' }}>
+            Traditional placements (Vastu Purusha Mandala). The centre (Brahmasthan) should stay open.
+          </p>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+            <thead>
+              <tr style={{ textAlign: 'left', color: '#94a3b8' }}>
+                <th style={thStyle}>Room</th>
+                <th style={thStyle}>Ideal</th>
+                <th style={thStyle}>OK</th>
+                <th style={thStyle}>Avoid</th>
+              </tr>
+            </thead>
+            <tbody>
+              {VASTU_RULES_LIST.map(({ roomType, roomName, rule }) => (
+                <tr key={roomType} style={{ borderTop: '1px solid #f1f5f9' }} title={rule.note}>
+                  <td style={{ ...tdStyle, color: '#334155', fontWeight: 600 }}>{roomName}</td>
+                  <td style={{ ...tdStyle, color: '#16a34a', fontWeight: 600 }}>{dirCodes(rule.ideal)}</td>
+                  <td style={{ ...tdStyle, color: '#d97706' }}>{dirCodes(rule.acceptable)}</td>
+                  <td style={{ ...tdStyle, color: '#dc2626' }}>{dirCodes(rule.adverse)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '8px', lineHeight: 1.5 }}>
+            {Object.entries(DIR_NAME).map(([code, name]) => (
+              <span key={code} style={{ marginRight: '8px', whiteSpace: 'nowrap' }}>
+                <strong>{code}</strong>= {name.replace(/\s*\(.*\)/, '')}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+const thStyle: React.CSSProperties = { padding: '4px 6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', fontSize: '0.68rem' };
+const tdStyle: React.CSSProperties = { padding: '4px 6px', verticalAlign: 'top' };
 
 const panelStyle: React.CSSProperties = {
   padding: '1rem',
