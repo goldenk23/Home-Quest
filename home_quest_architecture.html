@@ -850,7 +850,7 @@
           <div class="arch-module" onclick="showDetail('drawing')">
             <div class="module-icon">✏️</div>
             <div class="module-name">Drawing Engine</div>
-            <div class="module-tech">useDrawing.ts</div>
+            <div class="module-tech">useWallDrawing.ts</div>
             <div class="module-desc">Step-by-step wall drawing: click to start → preview line follows mouse → click to finish. Supports chain-drawing for continuous walls.</div>
           </div>
           <div class="arch-module" onclick="showDetail('snapping')">
@@ -862,8 +862,8 @@
           <div class="arch-module" onclick="showDetail('selection')">
             <div class="module-icon">🎯</div>
             <div class="module-name">Selection</div>
-            <div class="module-tech">useSelection.ts</div>
-            <div class="module-desc">Click to select walls, rooms, or furniture. Highlights them and opens the property panel for editing.</div>
+            <div class="module-tech">EditorCanvas.tsx · hit-testing</div>
+            <div class="module-desc">Click to select a wall, room, or furniture piece. Hit-testing lives in the canvas; the selected id is stored and highlighted.</div>
           </div>
           <div class="arch-module" onclick="showDetail('panzoom')">
             <div class="module-icon">🔍</div>
@@ -902,7 +902,7 @@
             <div class="module-icon">⏪</div>
             <div class="module-name">Undo / Redo History</div>
             <div class="module-tech">historySlice.ts</div>
-            <div class="module-desc">Records every action you take (add wall, move furniture, etc.) so you can undo with Ctrl+Z. Stores up to 100 steps.</div>
+            <div class="module-desc">Snapshots the floor-plan before each action so you can undo with Ctrl+Z. Stores up to 100 steps.</div>
           </div>
         </div>
       </div>
@@ -923,7 +923,7 @@
             <div class="module-icon">🏠</div>
             <div class="module-name">3D House Viewer</div>
             <div class="module-tech">React Three Fiber · Three.js</div>
-            <div class="module-desc">Walls become 3D boxes, rooms get floors, furniture becomes 3D models. Walk through in first-person or orbit around.</div>
+            <div class="module-desc">Walls become extruded 3D solids, rooms get floors, furniture becomes procedural boxes. Walk through in first-person or orbit around.</div>
           </div>
           <div class="arch-module" onclick="showDetail('vastuOverlay')">
             <div class="module-icon">🔮</div>
@@ -934,7 +934,7 @@
           <div class="arch-module" onclick="showDetail('vastuPanel')">
             <div class="module-icon">📊</div>
             <div class="module-name">Score Dashboard</div>
-            <div class="module-tech">VastuPanel.tsx · ScoreCard.tsx</div>
+            <div class="module-tech">VastuPanel.tsx · VastuLegend.tsx</div>
             <div class="module-desc">Shows an overall Vastu score (0-100), per-room scores, and specific recommendations like "Move kitchen to SE corner."</div>
           </div>
         </div>
@@ -949,7 +949,7 @@
           <div class="arch-module" onclick="showDetail('geometry')">
             <div class="module-icon">📏</div>
             <div class="module-name">Geometry Math</div>
-            <div class="module-tech">geometry.ts · math.ts</div>
+            <div class="module-tech">geometry.ts · wallOps.ts</div>
             <div class="module-desc">Screen pixels → world coordinates, wall thickness quads, point-in-polygon tests, line intersections.</div>
           </div>
           <div class="arch-module" onclick="showDetail('roomDetection')">
@@ -968,7 +968,7 @@
             <div class="module-icon">🧮</div>
             <div class="module-name">Vastu Analysis</div>
             <div class="module-tech">brahmasthan.ts · zones.ts · scoring.ts</div>
-            <div class="module-desc">Calculates center point (Brahmasthan), divides plan into 8 compass zones, scores each room's placement against Vastu rules.</div>
+            <div class="module-desc">Calculates the center point (Brahmasthan), lays a 3×3 grid (8 directions + center) over the plan's bounding box, and scores each room's placement against Vastu rules.</div>
           </div>
           <div class="arch-module" onclick="showDetail('collision')">
             <div class="module-icon">💥</div>
@@ -987,21 +987,21 @@
         <div class="arch-modules">
           <div class="arch-module" onclick="showDetail('gltf')">
             <div class="module-icon">🪑</div>
-            <div class="module-name">3D Model Loader</div>
-            <div class="module-tech">GLTF / GLB · useAssetLoader.ts</div>
-            <div class="module-desc">Loads furniture models (sofa, bed, table) on demand. Each piece is cloned so multiple instances stay independent.</div>
+            <div class="module-name">Furniture Renderer</div>
+            <div class="module-tech">Procedural boxes · useAssetLoader.ts</div>
+            <div class="module-desc">Furniture is drawn as procedural boxes sized to real-world cm and colored per type, from a catalog. (Intended GLTF/GLB assets were never shipped, so boxes stand in — swappable later.)</div>
           </div>
           <div class="arch-module" onclick="showDetail('materials')">
             <div class="module-icon">🎨</div>
             <div class="module-name">Material System</div>
             <div class="module-tech">materials.ts · shared cache</div>
-            <div class="module-desc">Wall colors, floor textures, roughness/metalness. Materials are shared across walls to save GPU memory.</div>
+            <div class="module-desc">Wall/floor materials with roughness & metalness. The brick wall texture + bump map are generated procedurally on a canvas. Materials are cached and shared to save GPU memory.</div>
           </div>
           <div class="arch-module" onclick="showDetail('textures')">
             <div class="module-icon">🖼️</div>
-            <div class="module-name">Texture Pipeline</div>
-            <div class="module-tech">KTX2 · Draco compression</div>
-            <div class="module-desc">Compressed textures for walls and floors. Models use Draco compression (80-90% smaller files, faster loading).</div>
+            <div class="module-name">Procedural Textures</div>
+            <div class="module-tech">CanvasTexture (runtime)</div>
+            <div class="module-desc">Brick color + bump maps are painted onto an in-memory canvas at runtime (no image files, no Draco/KTX2). Generated once and reused via the material cache.</div>
           </div>
         </div>
       </div>
@@ -1027,14 +1027,14 @@
           <div class="arch-module" onclick="showDetail('monitoring')">
             <div class="module-icon">📡</div>
             <div class="module-name">Error Tracking</div>
-            <div class="module-tech">Sentry · Performance marks</div>
-            <div class="module-desc">Reports crashes with full context (which wall caused it, what the user was doing). Tracks loading speed.</div>
+            <div class="module-tech">monitoring.ts (console shim)</div>
+            <div class="module-desc">A dependency-free monitoring shim: logs errors + performance marks to the console in dev, no-ops in production. Ready to swap in Sentry later without changing call sites.</div>
           </div>
           <div class="arch-module" onclick="showDetail('deploy')">
             <div class="module-icon">🚀</div>
             <div class="module-name">Deployment</div>
-            <div class="module-tech">Vercel · CDN · Code Splitting</div>
-            <div class="module-desc">Auto-deploys on git push. 3D libraries loaded separately from UI code for fast initial page load.</div>
+            <div class="module-tech">Vite build · code splitting</div>
+            <div class="module-desc">Production build via <code>tsc -b &amp;&amp; vite build</code>, with lazy-loaded domains so 3D code is split from the UI. (Hosting/CDN is not wired up yet; repo lives on GitLab.)</div>
           </div>
         </div>
       </div>
@@ -1280,7 +1280,7 @@
         <div class="tech-tags">
           <span class="tag">dev server</span>
           <span class="tag">code splitting</span>
-          <span class="tag">GLB/GLTF support</span>
+          <span class="tag">path alias @/</span>
         </div>
       </div>
 
@@ -1328,12 +1328,12 @@
             <div class="tech-version">v10.7</div>
           </div>
         </div>
-        <div class="tech-role">Helper library for R3F. Provides OrbitControls (rotate camera), Environment maps (realistic lighting), GLTF loader, and LOD (level-of-detail) switching.</div>
+        <div class="tech-role">Helper library for R3F. Provides OrbitControls (rotate camera), Environment (lighting), Preload (warm up assets), and an FPS Stats overlay.</div>
         <div class="tech-tags">
           <span class="tag">OrbitControls</span>
           <span class="tag">Environment</span>
-          <span class="tag">useGLTF</span>
-          <span class="tag">ContactShadows</span>
+          <span class="tag">Preload</span>
+          <span class="tag">Stats</span>
         </div>
       </div>
 
@@ -1403,10 +1403,10 @@
             <div class="tech-version">Custom pure math</div>
           </div>
         </div>
-        <div class="tech-role">No library needed — pure TypeScript math. Calculates the Brahmasthan (center), projects 8 compass zones, scores each room (0-100) against traditional Vastu Shastra rules.</div>
+        <div class="tech-role">No library needed — pure TypeScript math. Calculates the Brahmasthan (center), lays a 3×3 grid (8 directions + center) over the plan's bounding box, and scores each room (0-100) against traditional Vastu Shastra rules.</div>
         <div class="tech-tags">
           <span class="tag">polygon centroid</span>
-          <span class="tag">angular zones</span>
+          <span class="tag">3×3 mandala grid</span>
           <span class="tag">room scoring</span>
           <span class="tag">recommendations</span>
         </div>
@@ -1458,27 +1458,27 @@
             <div class="tech-version">Testing framework</div>
           </div>
         </div>
-        <div class="tech-role">Unit & integration testing focused on geometry math and state transitions. Tests ensure wall quads, room detection, and Vastu scores calculate correctly.</div>
+        <div class="tech-role">Unit & integration testing focused on geometry math and state transitions (Testing Library + jsdom). Playwright handles visual-regression tests; Storybook is used for component development.</div>
         <div class="tech-tags">
           <span class="tag">unit tests</span>
-          <span class="tag">integration tests</span>
-          <span class="tag">80%+ coverage</span>
+          <span class="tag">Playwright visual</span>
+          <span class="tag">Storybook</span>
         </div>
       </div>
 
       <div class="tech-card tc-vercel">
         <div class="tech-header">
-          <div class="tech-logo">▲</div>
+          <div class="tech-logo">📦</div>
           <div>
-            <div class="tech-name">Vercel</div>
-            <div class="tech-version">Deployment platform</div>
+            <div class="tech-name">Vite Build</div>
+            <div class="tech-version">Build output</div>
           </div>
         </div>
-        <div class="tech-role">One-click deployment. Pushes to git auto-deploy. CDN for 3D model files with year-long cache headers. SPA routing handles all client-side navigation.</div>
+        <div class="tech-role">Production build via <code>tsc -b &amp;&amp; vite build</code>. Domains are lazy-loaded so 3D code splits from the initial UI. No hosting/CDN platform is wired up yet; the repo is on GitLab.</div>
         <div class="tech-tags">
-          <span class="tag">auto-deploy</span>
-          <span class="tag">CDN caching</span>
-          <span class="tag">SPA rewrites</span>
+          <span class="tag">tsc + vite build</span>
+          <span class="tag">code splitting</span>
+          <span class="tag">lazy domains</span>
         </div>
       </div>
 
@@ -1540,24 +1540,23 @@ const details = {
   },
   panels: {
     title: '📋 UI Panels & Controls',
-    tech: 'Toolbar.tsx · PropertyPanel.tsx · StatusBar.tsx',
+    tech: 'Toolbar.tsx · RoomAssignmentPanel.tsx · VastuPanel.tsx',
     body: `<p>The UI surrounding the canvas. Built with React components and styled with Tailwind CSS.</p>
     <ul>
-      <li><strong>Toolbar:</strong> Tool buttons (wall draw, select, furniture, delete)</li>
-      <li><strong>Property Panel:</strong> Edit selected item — wall thickness, room type, material</li>
-      <li><strong>Status Bar:</strong> Mouse coordinates, snap indicator, zoom level</li>
-      <li><strong>Vastu Toggle:</strong> Show/hide the compass zone overlay</li>
+      <li><strong>Toolbar:</strong> Tool buttons (select, wall, furniture, door/window/vent), undo/redo, dimension toggle</li>
+      <li><strong>Room Assignment Panel:</strong> Pick a selected room's type/label (kitchen, bedroom, puja…)</li>
+      <li><strong>Vastu Panel:</strong> Overall score, per-room scores, and recommendations</li>
+      <li><strong>DevTools Panel:</strong> Load the sample house, toggle views, dev helpers</li>
     </ul>
     <div class="file-list">
-      <span>src/domains/shared/components/</span> Toolbar.tsx<br>
-      <span>src/domains/shared/components/</span> PropertyPanel.tsx<br>
-      <span>src/domains/shared/components/</span> StatusBar.tsx<br>
-      <span>src/domains/shared/ui/</span> Button, Dialog, Select, Slider...
+      <span>src/domains/shared/components/</span> Toolbar.tsx, DevToolsPanel.tsx<br>
+      <span>src/domains/editor/components/</span> RoomAssignmentPanel.tsx<br>
+      <span>src/domains/vastu/components/</span> VastuPanel.tsx, VastuLegend.tsx
     </div>`
   },
   drawing: {
     title: '✏️ Drawing Engine',
-    tech: 'useDrawing.ts — Finite State Machine',
+    tech: 'useWallDrawing.ts — click-to-click + chain mode',
     body: `<p>The drawing engine works like a <strong>step-by-step state machine</strong>:</p>
     <ul>
       <li><strong>IDLE →</strong> You click: "Ok, that's the start of a new wall." Moves to DRAWING.</li>
@@ -1580,13 +1579,13 @@ const details = {
   },
   selection: {
     title: '🎯 Selection System',
-    tech: 'useSelection.ts — Hit testing & highlights',
-    body: `<p>Click any wall, room, or furniture piece to select it. The selection system:</p>
+    tech: 'EditorCanvas.tsx — hit testing + store.select()',
+    body: `<p>Click any wall, room, or furniture piece to select it. Hit-testing happens in the canvas:</p>
     <ul>
-      <li>Highlights the selected item with a colored outline</li>
-      <li>Opens the Property Panel with editable settings</li>
-      <li>Supports multi-select (Shift+click)</li>
-      <li>Click empty space to deselect everything</li>
+      <li>Priority order: gizmo handle → furniture → wall → room (smallest containing room wins)</li>
+      <li>The selected id is stored in <code>selectedIds</code> and highlighted by the SelectionLayer</li>
+      <li>Furniture uses a point-in-rotated-rectangle test; rooms use ray-casting point-in-polygon</li>
+      <li>Click empty space to deselect</li>
     </ul>`
   },
   panzoom: {
@@ -1621,8 +1620,9 @@ const details = {
       <li><strong>cameraMode:</strong> "orbit" (bird's eye) or "firstPerson" (walk through)</li>
       <li><strong>renderQuality:</strong> Low/medium/high (affects shadow resolution, antialiasing)</li>
       <li><strong>showWireframe:</strong> Debug toggle to see mesh edges</li>
-      <li><strong>showVastuOverlay3D:</strong> Toggle the 3D colored zone mesh</li>
-    </ul>`
+      <li><strong>planCentroid3D:</strong> the 3D center the orbit camera targets</li>
+    </ul>
+    <p><em>Note:</em> the 3D Vastu overlay toggle (<code>showVastuOverlay3D</code>) actually lives in the Vastu slice, not here.</p>`
   },
   vastuSlice: {
     title: '🧭 Vastu Results Slice',
@@ -1637,15 +1637,16 @@ const details = {
   },
   historySlice: {
     title: '⏪ Undo / Redo History',
-    tech: 'historySlice.ts → HistoryManager → Command pattern',
-    body: `<p>Every action is recorded as a <strong>reversible command</strong> that knows how to undo itself:</p>
+    tech: 'historySlice.ts → snapshot-based (Immer structural sharing)',
+    body: `<p>The live system records a <strong>snapshot</strong> of the floor-plan data at each action boundary:</p>
     <ul>
-      <li><strong>AddWallCommand:</strong> undo = remove the wall and its vertices</li>
-      <li><strong>MoveVertexCommand:</strong> undo = move it back to the old position</li>
-      <li><strong>BatchCommand:</strong> Groups related operations (wall split = 3 operations, undone as one)</li>
-      <li>Stack is bounded to <strong>100 commands</strong> to prevent memory leaks</li>
-      <li>Adding a new action <strong>clears the redo stack</strong> (standard behavior)</li>
-    </ul>`
+      <li><strong>recordHistory(label, fn):</strong> captures the plan before <code>fn</code> runs; if nothing changed, it's skipped.</li>
+      <li><strong>Two stacks:</strong> <code>past</code> (undo) and <code>future</code> (redo). A new action clears <code>future</code>.</li>
+      <li><strong>Transactions:</strong> a continuous gesture (like a furniture drag) is grouped into one undo step.</li>
+      <li><strong>Cheap snapshots:</strong> because every mutation goes through Immer, unchanged objects keep the same reference — so taking and comparing snapshots is O(1).</li>
+      <li>Bounded to <strong>100 steps</strong>.</li>
+    </ul>
+    <p><em>Note:</em> a separate command-pattern implementation exists in <code>store/history/</code> but is <strong>not wired in</strong> — the snapshot slice is what runs.</p>`
   },
   editor2d: {
     title: '🗺️ 2D Floor Plan Editor',
@@ -1666,10 +1667,10 @@ const details = {
     tech: 'ViewerCanvas.tsx → R3F Canvas → Three.js',
     body: `<p>Transforms the flat floor plan into a walkable 3D environment.</p>
     <ul>
-      <li><strong>Walls:</strong> Each wall becomes a 3D box (custom BufferGeometry, not rotated BoxGeometry, for perfect corner alignment)</li>
+      <li><strong>Walls:</strong> Each wall becomes an extruded 3D solid (THREE.ExtrudeGeometry) with doors notched and windows/vents punched as holes</li>
       <li><strong>Floors:</strong> Room polygons become flat mesh planes with material textures</li>
-      <li><strong>Furniture:</strong> GLTF/GLB 3D models loaded on demand, positioned using the 2D plan coordinates</li>
-      <li><strong>Lighting:</strong> HDRI environment map + directional sun light + hemisphere fill + contact shadows</li>
+      <li><strong>Furniture:</strong> Procedural boxes sized to real cm, positioned using the 2D plan coordinates (GLTF models were never shipped)</li>
+      <li><strong>Lighting:</strong> environment + directional light + shadows via React Three Fiber</li>
       <li><strong>Cameras:</strong> Orbit mode for design review, first-person for client walkthrough</li>
     </ul>`
   },
@@ -1686,18 +1687,18 @@ const details = {
   },
   vastuPanel: {
     title: '📊 Vastu Score Dashboard',
-    tech: 'VastuPanel.tsx · ScoreCard.tsx',
+    tech: 'VastuPanel.tsx · VastuLegend.tsx',
     body: `<p>Displays Vastu compliance analysis in a readable panel:</p>
     <ul>
-      <li><strong>Overall score:</strong> 0-100 with color indicator (green=good, red=needs improvement)</li>
-      <li><strong>Per-room scores:</strong> Each room shows its compass direction, score, and ideal placement</li>
+      <li><strong>Overall score:</strong> 0-100 with an icon + text band (Excellent / Fair / Needs work — never colour alone)</li>
+      <li><strong>Per-room cards:</strong> Each expands to show what's correct, what's wrong, and how to fix it</li>
       <li><strong>Recommendations:</strong> Actionable tips sorted by severity (critical → warning → suggestion)</li>
-      <li>Example: "Kitchen is in NE (adverse). Should be in SE for proper fire element alignment."</li>
+      <li><strong>Rules reference:</strong> A collapsible table of ideal/acceptable/avoid directions for every room type</li>
     </ul>`
   },
   geometry: {
     title: '📏 Geometry Math Engine',
-    tech: 'geometry.ts · math.ts — Pure functions, zero dependencies',
+    tech: 'geometry.ts · wallOps.ts — Pure functions, zero dependencies',
     body: `<p>The mathematical foundation that everything else builds on:</p>
     <ul>
       <li><strong>screenToWorld():</strong> Converts mouse pixels → floor plan centimeters (handles pan, zoom, Y-flip)</li>
@@ -1722,45 +1723,44 @@ const details = {
   extrusion: {
     title: '🧱 Wall Extrusion Engine',
     tech: 'extrusion.ts · transform.ts — 2D → 3D conversion',
-    body: `<p>Converts flat 2D walls into 3D box geometry:</p>
+    body: `<p>Converts flat 2D walls into 3D solids with doors and windows cut out:</p>
     <ul>
-      <li><strong>Step 1:</strong> Compute 4 corners of wall cross-section (centerline ± half-thickness along perpendicular)</li>
-      <li><strong>Step 2:</strong> Convert cm → meters, map 2D-Y → 3D-(-Z)</li>
-      <li><strong>Step 3:</strong> Extrude from floor (Y=0) to ceiling (Y=height)</li>
-      <li><strong>Step 4:</strong> Build 6 faces (24 vertices) with correct normals and UV coordinates for texturing</li>
+      <li><strong>Step 1:</strong> Build a flat 2D outline of the wall (length × height) in meters.</li>
+      <li><strong>Step 2:</strong> Doors become <em>notches</em> in the bottom edge; windows/vents become <em>holes</em> inset from the edges.</li>
+      <li><strong>Step 3:</strong> <code>THREE.ExtrudeGeometry</code> pushes the shape out to the wall's thickness.</li>
+      <li><strong>Step 4:</strong> A Matrix4 rotates the wall by atan2(dy, dx) and moves it to its start point; cm → meters, plan-Y → 3D-(−Z).</li>
     </ul>
-    <p><strong>Why not THREE.BoxGeometry?</strong> Box is axis-aligned — rotating it causes floating-point gaps at corners. Custom geometry guarantees perfect alignment.</p>`
+    <p><strong>Why ExtrudeGeometry (not BoxGeometry)?</strong> A plain box can't have door/window openings punched through it; extruding a shape-with-holes can.</p>`
   },
   vastuMath: {
     title: '🧮 Vastu Analysis Engine',
     tech: 'brahmasthan.ts · zones.ts · scoring.ts',
     body: `<p>Three-step analysis pipeline:</p>
     <ul>
-      <li><strong>1. Find Brahmasthan:</strong> Polygon centroid of the plan boundary (area-weighted, not vertex average)</li>
-      <li><strong>2. Assign zones:</strong> Divide space into 8 compass sectors (45° each). Each room's centroid determines its sector.</li>
-      <li><strong>3. Score rooms:</strong> Compare actual placement vs. ideal Vastu rules. Kitchen in SE = 100 (ideal). Kitchen in NE = 20 (adverse).</li>
+      <li><strong>1. Find Brahmasthan:</strong> Area-weighted polygon centroid of the plan boundary (not a vertex average).</li>
+      <li><strong>2. Assign a cell:</strong> Lay a 3×3 grid over the plan's bounding box. A room's centroid falls into one of 9 cells — the 8 outer cells are compass directions, the middle is the center (Brahmasthan).</li>
+      <li><strong>3. Score rooms:</strong> Compare the cell vs. that room type's rules. Kitchen in SE = 100 (ideal); kitchen in NE = 22 (adverse).</li>
     </ul>
-    <p><strong>Scoring:</strong> Ideal direction = 100, Acceptable = 70, Neutral = 50, Adverse = 20. Overall score = average of all rooms.</p>`
+    <p><strong>Scoring:</strong> Ideal = 100, Acceptable = 78, Neutral = 55, Center/Brahmasthan = 35, Adverse = 22, Unset = 50. The overall score is a <em>weighted</em> average (kitchen/bedroom/puja/entrance count 3×).</p>`
   },
   collision: {
     title: '💥 Collision Detection',
     tech: 'collision.ts — Spatial hash grid + SAT (Separating Axis Theorem)',
     body: `<p>Two-phase system to prevent furniture from overlapping:</p>
     <ul>
-      <li><strong>Broad phase:</strong> Spatial hash grid divides the floor into 1m cells. Only items in the same/neighboring cells are checked. Eliminates 90%+ of pairs.</li>
+      <li><strong>Broad phase:</strong> Spatial hash grid divides the floor into 3m cells (larger than the biggest item, so overlapping pieces always share a cell). Only items in the same cell are checked.</li>
       <li><strong>Narrow phase:</strong> Separating Axis Theorem (SAT) on Oriented Bounding Boxes (OBBs). Tests 4 axes — if any axis shows separation, no collision. ~40 math operations per pair.</li>
     </ul>`
   },
   gltf: {
-    title: '🪑 3D Model Loader',
-    tech: 'useAssetLoader.ts · useGLTF (Drei)',
-    body: `<p>Handles loading and displaying 3D furniture models:</p>
+    title: '🪑 Furniture Renderer',
+    tech: 'useAssetLoader.ts — procedural box catalog',
+    body: `<p>Handles how furniture appears in the 3D view:</p>
     <ul>
-      <li><strong>Format:</strong> GLTF/GLB (industry standard for web 3D)</li>
-      <li><strong>Lazy loading:</strong> Models only download when that furniture type is first placed</li>
-      <li><strong>Cloning:</strong> Each placed furniture gets its own clone (Three.js objects can only have one parent)</li>
-      <li><strong>Shadows:</strong> All meshes in loaded models are auto-configured for casting and receiving shadows</li>
-      <li><strong>Catalog:</strong> Sofa, dining table, bed, office chair, toilet, kitchen counter</li>
+      <li><strong>Procedural boxes:</strong> Each item renders as a box sized to real-world centimeters and tinted per type — no external model files required.</li>
+      <li><strong>Catalog:</strong> <code>FURNITURE_CATALOG</code> is the single source of truth for both the 2D footprint and the 3D box (sofa, bed, wardrobe, fridge, toilet, plant, rug, and more).</li>
+      <li><strong>Why boxes?</strong> The intended GLTF/GLB models were never shipped to <code>/public/models</code>, so the box renderer makes the feature work with zero assets.</li>
+      <li><strong>Swappable:</strong> Switching back to real models later only means changing <code>FurnitureModel</code> — nothing else.</li>
     </ul>`
   },
   materials: {
@@ -1768,20 +1768,20 @@ const details = {
     tech: 'materials.ts — Global cache, MeshStandardMaterial',
     body: `<p>Manages the appearance of surfaces in the 3D view:</p>
     <ul>
-      <li><strong>Cache:</strong> Materials are created once and shared across all walls/floors with the same type (saves GPU memory)</li>
-      <li><strong>Types:</strong> default-wall (cream plaster), brick-wall (red), default-floor (warm stone), tile-floor (smooth)</li>
-      <li><strong>PBR properties:</strong> Roughness (0=mirror, 1=matte), metalness (0=non-metal, 1=metal)</li>
+      <li><strong>Procedural brick:</strong> The wall texture and its bump map are painted on an in-memory canvas at runtime (no image files).</li>
+      <li><strong>Cache:</strong> Materials are created once and shared across all walls/floors with the same id (saves GPU memory).</li>
+      <li><strong>Types:</strong> default-wall &amp; brick-wall (procedural brick), default-floor (warm stone), tile-floor (smooth).</li>
+      <li><strong>PBR properties:</strong> Roughness (0=mirror, 1=matte), metalness (0=non-metal, 1=metal).</li>
     </ul>`
   },
   textures: {
-    title: '🖼️ Texture & Model Compression',
-    tech: 'Draco · KTX2/Basis Universal · LOD',
-    body: `<p>Production optimization pipeline for fast loading:</p>
+    title: '🖼️ Procedural Textures',
+    tech: 'THREE.CanvasTexture — generated at runtime',
+    body: `<p>Textures are generated in code, not loaded from files:</p>
     <ul>
-      <li><strong>Draco compression:</strong> Shrinks 3D model geometry files by 80-90%</li>
-      <li><strong>KTX2 textures:</strong> GPU-native compressed format — decompresses directly on the graphics card</li>
-      <li><strong>LOD (Level of Detail):</strong> Full model close-up, simplified mesh at distance, billboard sprite far away</li>
-      <li><strong>CDN caching:</strong> Models and textures get year-long cache headers on Vercel CDN</li>
+      <li><strong>Canvas painting:</strong> Brick color and a matching bump map are drawn onto a 512×512 canvas (base color, noise, mortar lines), then wrapped as repeating textures.</li>
+      <li><strong>No compression pipeline:</strong> There is no Draco/KTX2/LOD step — those were part of the original plan but aren't in the current code.</li>
+      <li><strong>Reuse:</strong> The generated textures are created once and shared through the material cache.</li>
     </ul>`
   },
   errorHandling: {
@@ -1794,7 +1794,7 @@ const details = {
       <li><strong>Viewer boundary:</strong> If WebGL crashes, shows error — 2D editor keeps working.</li>
       <li><strong>Vastu boundary:</strong> If math fails, shows subtle warning — everything else is fine.</li>
     </ul>
-    <p>All errors are reported to <strong>Sentry</strong> with full context (which component, what data was being processed).</p>`
+    <p>Errors are routed to a lightweight <strong>monitoring shim</strong> (<code>monitoring.ts</code>) — in dev it logs full context to the console; in production it no-ops. (Sentry is intentionally not wired up, but the shim has the same surface so it can be swapped in later.)</p>`
   },
   persistence: {
     title: '💾 Save & Load',
@@ -1808,24 +1808,22 @@ const details = {
   },
   monitoring: {
     title: '📡 Error Tracking & Performance',
-    tech: 'Sentry · Performance API marks',
-    body: `<p>Production monitoring for catching issues users encounter:</p>
+    tech: 'monitoring.ts — dependency-free console shim',
+    body: `<p>A self-contained monitoring layer (no external service wired up):</p>
     <ul>
-      <li><strong>Sentry:</strong> Captures crashes with component stack, error codes, and context data</li>
-      <li><strong>Performance marks:</strong> Measures time for critical flows (wall drawing, room detection, 3D rebuild)</li>
-      <li><strong>Session replay:</strong> Records user sessions where errors occur (1% normal, 100% on error)</li>
+      <li><strong>captureException:</strong> logs the error + context to the console in dev; no-ops in production.</li>
+      <li><strong>Performance marks:</strong> <code>markFlowStart/End</code> use the browser Performance API to measure critical flows.</li>
+      <li><strong>Drop-in ready:</strong> the four functions (init, capture, markStart, markEnd) match Sentry's surface, so adding <code>@sentry/react</code> later needs no call-site changes.</li>
     </ul>`
   },
   deploy: {
-    title: '🚀 Deployment',
-    tech: 'Vercel · Code splitting · CDN',
-    body: `<p>Production deployment setup:</p>
+    title: '🚀 Build & Deployment',
+    tech: 'Vite build · code splitting',
+    body: `<p>Current build setup:</p>
     <ul>
-      <li><strong>Auto-deploy:</strong> Push to git → Vercel builds and deploys automatically</li>
-      <li><strong>Code splitting:</strong> React, Three.js, R3F, and UI libraries load as separate chunks — initial page load is fast</li>
-      <li><strong>CDN caching:</strong> 3D models and textures are served from edge CDN with immutable cache headers</li>
-      <li><strong>SPA routing:</strong> All routes redirect to index.html (client-side routing)</li>
-      <li><strong>Target:</strong> &lt;3 second load time, Lighthouse performance &gt;80</li>
+      <li><strong>Build:</strong> <code>tsc -b &amp;&amp; vite build</code> produces the production bundle.</li>
+      <li><strong>Code splitting:</strong> the editor, viewer, and Vastu panels are lazy-loaded, so heavy 3D code is split from the initial UI.</li>
+      <li><strong>Hosting:</strong> no deploy platform (e.g. Vercel) or CDN is configured yet; the repository is hosted on GitLab.</li>
     </ul>`
   }
 };
