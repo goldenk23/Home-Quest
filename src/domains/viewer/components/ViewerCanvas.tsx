@@ -2,6 +2,7 @@
 
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
+import * as THREE from 'three';
 import { Preload, Stats } from '@react-three/drei';
 import { SceneEnvironment } from './SceneEnvironment';
 import { SceneContent } from './SceneContent';
@@ -39,6 +40,13 @@ export const ViewerCanvas: React.FC = () => {
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false }}
         camera={{ fov: 60, near: 0.1, far: 1000, position: [10, 10, 10] }}
+        onCreated={({ gl }) => {
+          // Filmic tone mapping + a hair of extra exposure turns the flat, video-game
+          // look into a softer, photographed one. Free — it's just how the final image is
+          // mapped to the screen, no extra GPU passes.
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 1.05;
+        }}
       >
         <Suspense fallback={null}>
           <SceneEnvironment />

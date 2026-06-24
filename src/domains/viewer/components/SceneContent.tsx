@@ -19,10 +19,11 @@ export const SceneContent: React.FC = () => {
 
   return (
     <group>
-      {/* Infinite ground plane */}
+      {/* Infinite ground plane — neutral matte so it reads as a render surface, not a
+          game lawn, and fades softly into the fog/background at distance. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
         <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#3a5a40" />
+        <meshStandardMaterial color="#c4cad1" roughness={1} metalness={0} />
       </mesh>
 
       {rooms.map((room) => (

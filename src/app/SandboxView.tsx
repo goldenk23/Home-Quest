@@ -7,6 +7,7 @@ import { VastuPanel } from '../domains/vastu/components/VastuPanel';
 import { VastuLegend } from '../domains/vastu/components/VastuLegend';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { FURNITURE_CATALOG_IDS, getCatalogEntry } from '../domains/viewer/hooks/useAssetLoader';
+import { WALL_FINISHES, FLOOR_FINISHES, categoryOf } from '../domains/shared/materials/finishPalette';
 import { loadSampleHouse } from '../domains/editor/services/samplePlan';
 import { exportFloorPlan, importFloorPlan } from '../store/persistence/fileIO';
 import type { RoomType } from '../types/editor';
@@ -46,6 +47,40 @@ const Row: React.FC<{ children: React.ReactNode; label?: string }> = ({ children
     {children}
   </div>
 );
+
+// A color swatch button for the Paint tool's palette. Shows the finish color with a ring
+// when selected; labels the finish name. Border adapts to light/dark swatches for contrast.
+const Swatch: React.FC<{
+  finish: { id: string; name: string; swatch: string };
+  selected: boolean;
+  onClick: () => void;
+}> = ({ finish, selected, onClick }) => {
+  // Light swatches need a dark border so they don't vanish on the white card.
+  const isLight = finish.swatch.toLowerCase() > '#b0b0b0';
+  return (
+    <button
+      onClick={onClick}
+      title={finish.name}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '3px 8px 3px 3px',
+        background: selected ? '#fef3c7' : '#f1f5f9',
+        border: selected ? '2px solid #f59e0b' : `1px solid ${isLight ? '#cbd5e1' : 'transparent'}`,
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontSize: '0.78rem',
+        color: '#334155',
+        fontWeight: selected ? 600 : 500,
+        transition: 'border 0.12s, background 0.12s',
+      }}
+    >
+      <span style={{ width: '18px', height: '18px', borderRadius: '4px', background: finish.swatch, border: '1px solid rgba(0,0,0,0.15)', flexShrink: 0 }} />
+      {finish.name}
+    </button>
+  );
+};
 
 // ---- Rooms panel: assign room types so Vastu scoring is meaningful ---------
 
@@ -125,6 +160,25 @@ export const SandboxView: React.FC = () => {
   const scalePlan = useAppStore((s) => s.scalePlan);
   const furnitureCatalogId = useAppStore((s) => s.furnitureCatalogId);
   const setFurnitureCatalogId = useAppStore((s) => s.setFurnitureCatalogId);
+  const paintFinishId = useAppStore((s) => s.paintFinishId);
+  const setPaintFinishId = useAppStore((s) => s.setPaintFinishId);
+
+  // Picking a finish swatch sets it as the active paint, AND immediately applies it to any
+  // compatible surface that's already selected. This enables the "select the floor, then
+  // pick a tile" flow: click a room (selects it), then click a floor-tile swatch to apply.
+  // Wall paints behave the same way for a selected wall.
+  const pickFinish = (finishId: string) => {
+    setPaintFinishId(finishId);
+    const state = useAppStore.getState();
+    const category = categoryOf(finishId);
+    state.selectedIds.forEach((id) => {
+      if (category === 'wall' && state.walls[id]) {
+        state.recordHistory('Paint Wall', () => state.updateWall(id, { materialId: finishId }));
+      } else if (category === 'floor' && state.rooms[id]) {
+        state.recordHistory('Paint Floor', () => state.updateRoom(id, { floorMaterialId: finishId }));
+      }
+    });
+  };
   const showVastuOverlay2D = useAppStore((s) => s.showVastuOverlay2D);
   const showVastuOverlay3D = useAppStore((s) => s.showVastuOverlay3D);
   const toggleVastuOverlay2D = useAppStore((s) => s.toggleVastuOverlay2D);
@@ -222,6 +276,8 @@ export const SandboxView: React.FC = () => {
           <button style={btn(activeTool === 'door')} onClick={() => setActiveTool('door')}>🚪 Door</button>
           <button style={btn(activeTool === 'window')} onClick={() => setActiveTool('window')}>🪟 Window</button>
           <button style={btn(activeTool === 'vent')} onClick={() => setActiveTool('vent')}>💨 Vent</button>
+          <button style={btn(activeTool === 'paint')} onClick={() => setActiveTool('paint')}>🎨 Paint</button>
+          <button style={btn(activeTool === 'room')} onClick={() => setActiveTool('room')}>🏷️ Name Room</button>
           <label style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', fontSize: '0.82rem', color: '#374151', cursor: 'pointer' }}>
             <input type="checkbox" checked={isChainModeEnabled} onChange={(e) => setChainMode(e.target.checked)} />
             Chain mode
@@ -240,6 +296,34 @@ export const SandboxView: React.FC = () => {
               </button>
             ))}
           </Row>
+        )}
+
+        {activeTool === 'room' && (
+          <Row label="Name Room">
+            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+              Click a room in the 2D editor to select it, then set its type and name in the popup.
+            </span>
+          </Row>
+        )}
+
+        {activeTool === 'paint' && (
+          <>
+            <Row label="Wall paint">
+              {WALL_FINISHES.map((f) => (
+                <Swatch key={f.id} finish={f} selected={paintFinishId === f.id} onClick={() => pickFinish(f.id)} />
+              ))}
+            </Row>
+            <Row label="Floor tile">
+              {FLOOR_FINISHES.map((f) => (
+                <Swatch key={f.id} finish={f} selected={paintFinishId === f.id} onClick={() => pickFinish(f.id)} />
+              ))}
+            </Row>
+            <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>
+              Two ways to paint: pick a finish then click a <strong>wall</strong> (wall paint) or a
+              {' '}<strong>room floor</strong> (floor tile) in the 2D editor — or click the surface first
+              to select it, then pick a swatch to apply.
+            </p>
+          </>
         )}
 
         <Row label="Selection">

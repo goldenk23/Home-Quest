@@ -8,6 +8,7 @@ import { applySnapping } from '../hooks/useSnapping';
 import { usePanZoom } from '../hooks/usePan';
 import { useWallDrawing } from '../hooks/useWallDrawing';
 import { toWallSegments } from '../services/wallGuides';
+import { categoryOf } from '@/domains/shared/materials/finishPalette';
 import { getCatalogEntry } from '@/domains/viewer/hooks/useAssetLoader';
 import type { Point2D } from '@/types/geometry';
 import type { AppStore } from '@/store';
@@ -489,6 +490,50 @@ export const EditorCanvas: React.FC = () => {
         return;
       }
 
+      if (activeTool === 'paint') {
+        // Apply the selected finish to whatever surface is under the cursor. The category
+        // of the finish decides what we hit: wall paints target a wall, floor tiles target
+        // a room's floor. Reuses the existing hit-testers so no new geometry math is needed.
+        //
+        // If the surface under the cursor doesn't match the active finish (e.g. a floor
+        // tile is selected but the user clicked a wall, or nothing is selected yet), we
+        // still SELECT that surface so the user can then pick a compatible finish — i.e.
+        // "click the floor, then pick a tile, then it's applied" works as well as the
+        // one-click "pick finish, then click surface" flow.
+        const finishId = state.paintFinishId;
+        const category = categoryOf(finishId);
+        const wallId = hitTestWall(cursor, state);
+
+        if (category === 'wall' && wallId) {
+          state.recordHistory('Paint Wall', () => state.updateWall(wallId, { materialId: finishId }));
+          state.select([wallId]);
+          return;
+        }
+
+        const roomId = hitTestRoom(cursor, state);
+        if (category === 'floor' && roomId) {
+          state.recordHistory('Paint Floor', () => state.updateRoom(roomId, { floorMaterialId: finishId }));
+          state.select([roomId]);
+          return;
+        }
+
+        // No finish/surface match: select the surface under the cursor (wall takes
+        // priority since it sits on top), so a compatible swatch can be applied next.
+        if (wallId) state.select([wallId]);
+        else if (roomId) state.select([roomId]);
+        else state.clearSelection();
+        return;
+      }
+
+      if (activeTool === 'room') {
+        // Dedicated room-naming tool: clicking inside a room selects it so the
+        // RoomAssignmentPanel appears for naming / type assignment.
+        const roomId = hitTestRoom(cursor, state);
+        if (roomId) state.select([roomId]);
+        else state.clearSelection();
+        return;
+      }
+
       if (activeTool === 'select') {
         const furnitureId = hitTestFurniture(cursor, state.furniture, GRAB_MARGIN);
         if (furnitureId) {
@@ -551,7 +596,9 @@ export const EditorCanvas: React.FC = () => {
   }, [cancel]);
 
   const cursorClass =
-    activeTool === 'wall' || activeTool === 'furniture' ? 'cursor-crosshair' : 'cursor-grab';
+    activeTool === 'wall' || activeTool === 'furniture' || activeTool === 'paint'
+      ? 'cursor-crosshair'
+      : 'cursor-grab';
 
   return (
     <svg

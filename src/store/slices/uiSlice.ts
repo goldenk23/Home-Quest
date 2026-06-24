@@ -24,7 +24,7 @@ import type { StateCreator } from 'zustand';
 import type  { AppStore } from '..';
 
 /** What the user is currently holding in their cursor (e.g. wall tool, select tool) */
-export type Tool = 'select' | 'wall' | 'furniture' | 'pan' | 'measure' | 'door' | 'window' | 'vent';
+export type Tool = 'select' | 'wall' | 'furniture' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'paint' | 'room';
 
 /** The different side-menus the user can open and close */
 export type PanelId = 'properties' | 'vastu' | 'catalog' | 'layers';
@@ -38,6 +38,8 @@ export interface UISlice {
   showDimensions: boolean;
   /** The catalog id that the furniture tool will place on the next click. */
   furnitureCatalogId: string;
+  /** The finish id (wall paint or floor tile) the Paint tool applies on the next click. */
+  paintFinishId: string;
 
   // Controls (How we change the memory)
   setActiveTool: (tool: Tool) => void;
@@ -46,6 +48,7 @@ export interface UISlice {
   setChainMode: (enabled: boolean) => void;
   toggleDimensions: () => void;
   setFurnitureCatalogId: (catalogId: string) => void;
+  setPaintFinishId: (finishId: string) => void;
 }
 
 export const createUISlice: StateCreator<
@@ -64,6 +67,7 @@ export const createUISlice: StateCreator<
   isChainModeEnabled: false,
   furnitureCatalogId: 'sofa-3seat',
   showDimensions: true,
+  paintFinishId: 'paint-white',
 
   setActiveTool: (tool) => {
     set((state) => {
@@ -98,6 +102,12 @@ export const createUISlice: StateCreator<
   setFurnitureCatalogId: (catalogId) => {
     set((state) => {
       state.furnitureCatalogId = catalogId;
+    });
+  },
+
+  setPaintFinishId: (finishId) => {
+    set((state) => {
+      state.paintFinishId = finishId;
     });
   },
 });

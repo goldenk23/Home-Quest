@@ -4,7 +4,33 @@ import React from 'react';
 import { useAppStore } from '@/store';
 import { ROOM_FILL_COLORS } from '../constants';
 import { computeSignedArea } from '../services/roomDetection';
+import { getFinishSwatch, isDefaultFinish } from '@/domains/shared/materials/finishPalette';
 import type { Point2D } from '@/types/geometry';
+
+/**
+ * Fill for a room in the 2D editor. A painted room (one whose `floorMaterialId` is a
+ * registered finish) shows its finish swatch at ~0.55 alpha so the chosen tile reads at a
+ * glance while labels/walls stay legible. Unpainted rooms keep their room-type tint.
+ * The hex is converted to an rgba string via the hexToRgba helper below.
+ */
+function roomFill(floorMaterialId: string, roomType: keyof typeof ROOM_FILL_COLORS): string {
+  if (isDefaultFinish(floorMaterialId)) {
+    return ROOM_FILL_COLORS[roomType];
+  }
+  const hex = getFinishSwatch(floorMaterialId, '#d4c5a9');
+  return hexToRgba(hex, 0.55);
+}
+
+/** #rrggbb → rgba(r,g,b,a). Falls back to the input on anything it can't parse. */
+function hexToRgba(hex: string, alpha: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 /** Convert an ordered list of world points into a closed SVG polygon path (Y‑flipped). */
 function polygonPath(points: Point2D[]): string {
@@ -46,7 +72,7 @@ export const RoomLayer: React.FC = React.memo(() => {
           <g key={room.id}>
             <path
               d={polygonPath(points)}
-              fill={ROOM_FILL_COLORS[room.roomType]}
+              fill={roomFill(room.floorMaterialId, room.roomType)}
               stroke={isSelected ? '#f59e0b' : 'rgba(255,255,255,0.08)'}
               strokeWidth={isSelected ? 4 : 1}
               data-entity-id={room.id}

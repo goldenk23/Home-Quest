@@ -118,16 +118,16 @@ export function loadSampleHouse(): void {
   const detected = detectRooms(fresh.vertices, fresh.walls);
 
   const roomMappings: { cx: number; cy: number; label: string; type: RoomType; floor: string }[] = [
-    { cx: 95, cy: 200, label: 'Balcony', type: 'balcony', floor: 'concrete' },
-    { cx: 305, cy: 200, label: 'Kitchen', type: 'kitchen', floor: 'tile' },
-    { cx: 685, cy: 200, label: 'Living Room', type: 'living', floor: 'wood' },
-    { cx: 210, cy: 510, label: 'Bedroom', type: 'bedroom', floor: 'wood' },
-    { cx: 470, cy: 510, label: 'Corridor', type: 'corridor', floor: 'wood' },
-    { cx: 735, cy: 510, label: 'Bedroom 2', type: 'bedroom', floor: 'wood' },
-    { cx: 110, cy: 710, label: 'Bathroom', type: 'bathroom', floor: 'tile' },
-    { cx: 110, cy: 860, label: 'Walk-in Closet', type: 'storage', floor: 'wood' },
-    { cx: 370, cy: 770, label: 'Entrance', type: 'entrance', floor: 'tile' },
-    { cx: 735, cy: 770, label: 'Master Bedroom', type: 'bedroom', floor: 'wood' },
+    { cx: 95, cy: 200, label: 'Balcony', type: 'balcony', floor: 'default-floor' },
+    { cx: 305, cy: 200, label: 'Kitchen', type: 'kitchen', floor: 'floor-vitrified' },
+    { cx: 685, cy: 200, label: 'Living Room', type: 'living', floor: 'floor-wood' },
+    { cx: 210, cy: 510, label: 'Bedroom', type: 'bedroom', floor: 'floor-wood' },
+    { cx: 470, cy: 510, label: 'Corridor', type: 'corridor', floor: 'floor-wood' },
+    { cx: 735, cy: 510, label: 'Bedroom 2', type: 'bedroom', floor: 'floor-wood' },
+    { cx: 110, cy: 710, label: 'Bathroom', type: 'bathroom', floor: 'floor-vitrified' },
+    { cx: 110, cy: 860, label: 'Walk-in Closet', type: 'storage', floor: 'floor-wood' },
+    { cx: 370, cy: 770, label: 'Entrance', type: 'entrance', floor: 'floor-vitrified' },
+    { cx: 735, cy: 770, label: 'Master Bedroom', type: 'bedroom', floor: 'floor-wood' },
   ];
 
   const nextRooms: Record<string, typeof detected[number]> = {};

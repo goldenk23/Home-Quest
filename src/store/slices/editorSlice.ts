@@ -21,6 +21,8 @@ export interface EditorSlice {
     // Actions
     addWall: (start: Point2D, end: Point2D, thickness?: number, height?: number) => EntityId;
     removeWall: (wallId: EntityId) => void;
+    /** Patch a wall's mutable attributes (e.g. paint its `materialId`). Mirrors updateRoom. */
+    updateWall: (id: EntityId, patch: Partial<Pick<Wall, 'materialId'>>) => void;
     moveVertex: (vertexId: EntityId, newPosition: Point2D) => void;
     addFurniture: (item: Omit<FurnitureItem, 'id'>) => EntityId;
     removeFurniture: (id: EntityId) => void;
@@ -164,6 +166,14 @@ export const createEditorSlice: StateCreator<
             }
 
             delete state.walls[wallId];
+        });
+    },
+    updateWall: (id, patch) => {
+        set((state) => {
+            const wall = state.walls[id];
+            if (wall) {
+                Object.assign(wall, patch);
+            }
         });
     },
 

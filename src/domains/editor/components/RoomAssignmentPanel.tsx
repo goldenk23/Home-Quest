@@ -21,10 +21,13 @@ export const RoomAssignmentPanel: React.FC = () => {
   const selectedIds = useAppStore((s) => s.selectedIds);
   const rooms = useAppStore((s) => s.rooms);
   const updateRoom = useAppStore((s) => s.updateRoom);
+  const activeTool = useAppStore((s) => s.activeTool);
 
   const selectedRoomId = selectedIds.find((id) => rooms[id]);
   const room = selectedRoomId ? rooms[selectedRoomId] : null;
-  if (!room) return null;
+  // Only offer room naming/assignment with the dedicated "Name Room" tool, so selecting a
+  // room while painting (or with any other tool) doesn't pop this panel open.
+  if (activeTool !== 'room' || !room) return null;
 
   return (
     <div style={panel}>

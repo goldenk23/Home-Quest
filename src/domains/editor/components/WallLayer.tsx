@@ -5,6 +5,7 @@ import { useWallSegments } from '@/store/selectors/editorSelectors';
 import { useAppStore } from '@/store';
 import { computeWallQuad } from '../services/geometry';
 import { computeOpeningGeometry } from '../services/openingGeometry';
+import { getFinishSwatch } from '@/domains/shared/materials/finishPalette';
 import { EDITOR_STYLE } from '../constants';
 import type { Point2D } from '@/types/geometry';
 
@@ -78,11 +79,14 @@ export const WallLayer: React.FC = React.memo(() => {
       <g mask={hasGaps ? `url(#${DOOR_MASK_ID})` : undefined}>
         {walls.map((wall) => {
           const quad = computeWallQuad(wall.start, wall.end, wall.thickness, wall.offsets);
+          // Painted wall → its finish swatch; unpainted (legacy/default) wall → the editor
+          // default grey, so nothing changes until the user paints it.
+          const fill = getFinishSwatch(wallMap[wall.id]?.materialId, EDITOR_STYLE.wallFill);
           return (
             <path
               key={wall.id}
               d={quadPath(quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft)}
-              fill={EDITOR_STYLE.wallFill}
+              fill={fill}
               stroke={EDITOR_STYLE.wallStroke}
               strokeWidth={EDITOR_STYLE.wallStrokeWidth}
               // data-id lets selection / hit‑testing identify the wall later.
