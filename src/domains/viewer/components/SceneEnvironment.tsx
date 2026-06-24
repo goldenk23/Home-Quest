@@ -1,57 +1,97 @@
 // src/domains/viewer/components/SceneEnvironment.tsx
 
-import React from 'react';
-import { ContactShadows, Environment, Lightformer } from '@react-three/drei';
+import React, { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { ContactShadows, Environment, Lightformer, Sky } from '@react-three/drei';
+import * as THREE from 'three';
+import { useAppStore } from '@/store';
+import { computeSun } from '../services/sun';
 
 /**
- * All the lighting + atmosphere for the 3D view, in one place. Tuned to look like a soft
- * studio render rather than a flat game scene, while staying cheap enough to run on any
- * machine: no HDRI files, no post-processing passes, no soft-shadow sampling.
+ * All the lighting + atmosphere for the 3D view, in one place.
  *
- * - A warm directional light is the "sun" / key light and casts the shadows. It sits in
- *   the east/high position (positive X, high Y) — the Vastu-ideal morning-sun direction.
- * - A small PROCEDURAL environment (a few glowing panels rendered ONCE to a 128px cube)
- *   gives every surface soft image-based fill light and gentle reflections. This is the
- *   single biggest "looks real" win and costs almost nothing at runtime — it's just an
- *   env-map texture lookup in the standard material shader. `background={false}` keeps it
- *   for lighting only; the visible backdrop is the solid colour below.
- * - Hemisphere + a low ambient lift the shadows so they never go pure black.
- * - A soft background colour + matching fog replace the old black void and let the ground
- *   fade into the horizon, which reads as depth/atmosphere instead of a flat plane.
- * - ContactShadows draws soft contact darkening under objects so they feel grounded.
+ * The centrepiece is a REAL moving sun. Its position, colour and intensity come from a pure
+ * sun model (services/sun.ts) driven by a wall-clock time-of-day (and an optional manual
+ * compass direction). Because the wall geometry already has genuine holes cut for every
+ * window (see extrusion.ts), the sun's beam and its shadow physically stream through those
+ * openings into the rooms — and as the time changes the shadows lengthen/shorten and the
+ * light shifts warm↔white, just like a real house through the day.
+ *
+ * Cost notes: no HDRI files, no post-processing passes, no soft-shadow sampling. The sky is
+ * a single fullscreen shader (drei <Sky>); everything else is the existing IBL + standard
+ * lights. This is deliberately cheap.
  */
 export const SceneEnvironment: React.FC = () => {
+  const sunTimeHours = useAppStore((s) => s.sunTimeHours);
+  const sunAzimuthDeg = useAppStore((s) => s.sunAzimuthDeg);
+  const sunDirectionOverride = useAppStore((s) => s.sunDirectionOverride);
+  const planCentroid3D = useAppStore((s) => s.planCentroid3D);
+
+  // Compute the sun from current store values. Pure + trivial cost, so safe each render.
+  const sun = useMemo(
+    () => computeSun({ timeHours: sunTimeHours, azimuthDeg: sunAzimuthDeg, directionOverride: sunDirectionOverride }),
+    [sunTimeHours, sunAzimuthDeg, sunDirectionOverride]
+  );
+
+  // The directional light's shadow camera is centred on its target. We move that target onto
+  // the plan centroid every frame (cheap) so the shadow frustum always covers the house —
+  // otherwise a house drawn away from the origin would fall outside the shadow bounds and
+  // cast no shadow at all.
+  const lightRef = useRef<THREE.DirectionalLight>(null);
+  const targetRef = useRef<THREE.Object3D>(null);
+  useFrame(() => {
+    const light = lightRef.current;
+    const target = targetRef.current;
+    if (!light || !target) return;
+    const cx = planCentroid3D?.x ?? 0;
+    const cz = planCentroid3D?.z ?? 0;
+    target.position.set(cx, 0, cz);
+    // Position the light relative to the target so the sun stays at its modelled direction
+    // no matter where the house sits.
+    light.position.set(cx + sun.position[0], sun.position[1], cz + sun.position[2]);
+    light.target = target;
+  });
+
+  // Ambient/hemisphere dim toward night so the day/night arc actually reads.
+  const ambientIntensity = sun.isNight ? 0.06 : 0.18 + 0.12 * (sun.intensity / 3.2);
+  const hemiIntensity = sun.isNight ? 0.12 : 0.4;
+
   return (
     <>
-      {/* Soft, neutral "studio" backdrop + matching fog so distance reads as depth. */}
-      <color attach="background" args={['#dfe4ea']} />
-      <fog attach="fog" args={['#dfe4ea', 30, 85]} />
+      {/* Sky dome — the sun's position drives its colour/gradient, so the sky and the light
+          always agree. Replaces the old flat background colour with a real gradient. */}
+      <Sky sunPosition={sun.position} turbidity={8} rayleigh={2} mieCoefficient={0.005} mieDirectionalG={0.8} />
 
-      {/* Warm key light (the sun) — casts the scene's shadows. */}
+      {/* Fog tracks the horizon colour so dusk feels warm/hazy and night feels deep. */}
+      <fog attach="fog" args={[sun.skyHorizonColor, 40, 120]} />
+
+      {/* Warm key light (the sun) — casts the scene's shadows and streams through windows. */}
+      <object3D ref={targetRef} />
       <directionalLight
-        position={[15, 20, 10]}
-        intensity={2.0}
-        color="#fff4e6"
+        ref={lightRef}
+        intensity={sun.intensity}
+        color={sun.color}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
-        shadow-camera-far={50}
-        shadow-camera-left={-20}
-        shadow-camera-right={20}
-        shadow-camera-top={20}
-        shadow-camera-bottom={-20}
+        shadow-camera-near={0.5}
+        shadow-camera-far={120}
+        shadow-camera-left={-25}
+        shadow-camera-right={25}
+        shadow-camera-top={25}
+        shadow-camera-bottom={-25}
         shadow-bias={-0.0001}
       />
 
       {/* Sky/ground bounce + a gentle ambient floor so nothing is crushed to black. */}
-      <hemisphereLight args={['#cfe6ff', '#9a8366', 0.45]} />
-      <ambientLight intensity={0.22} />
+      <hemisphereLight args={[sun.skyTopColor, '#9a8366', hemiIntensity]} />
+      <ambientLight intensity={ambientIntensity} />
 
       {/*
        * Procedural image-based lighting. Rendered a single time (frames={1}) at a tiny
        * resolution, then reused — negligible ongoing cost. The panels act like softboxes:
        * a big neutral one overhead, a cool one on one side and a warm one on the other,
-       * which is what gives surfaces a believable, slightly directional sheen.
+       * which gives surfaces a believable, slightly directional sheen.
        */}
       <Environment resolution={128} frames={1} background={false}>
         <Lightformer
@@ -80,7 +120,7 @@ export const SceneEnvironment: React.FC = () => {
         />
       </Environment>
 
-      <ContactShadows position={[0, 0.01, 0]} opacity={0.45} scale={40} blur={2.4} far={4} />
+      <ContactShadows position={[0, 0.01, 0]} opacity={sun.isNight ? 0.2 : 0.45} scale={40} blur={2.4} far={4} />
     </>
   );
 };

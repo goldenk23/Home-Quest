@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { useAppStore } from '@/store';
 import { createWallGeometry } from '../services/extrusion';
 import { useMaterial } from '../hooks/useMaterial';
+import { furnitureMaterialProps } from '../services/furnitureMaterials';
 import type { Point2D } from '@/types/geometry';
 import type { MiterOffsets } from '@/domains/editor/services/wallOps';
 
@@ -49,11 +50,22 @@ const OpeningFrames: React.FC<{ wallId: string; thickness: number; start: Point2
         const isWindow = opening.type === 'window';
         const frameDepth = thickM * 0.8;
         const border = 0.05; // 5cm frame border
-        
-        // Materials
-        const frameMaterial = <meshStandardMaterial color="#f8fafc" roughness={0.3} metalness={0.1} />;
-        const glassMaterial = <meshStandardMaterial color="#bae6fd" transparent opacity={0.4} roughness={0.05} metalness={0.8} />;
-        const louvreMaterial = <meshStandardMaterial color="#cbd5e1" roughness={0.6} metalness={0.4} />;
+
+        // Tuned materials (env-map response so frames/louvres catch the sky, glass reads as
+        // real glass). Glass casts/receives NO shadow so sunlight + its shadow pass cleanly
+        // through the opening into the room instead of landing on a dark pane.
+        const frameProps = furnitureMaterialProps('white', '#f8fafc');
+        const frameMaterial = (
+          <meshStandardMaterial {...frameProps} color="#f8fafc" />
+        );
+        const glassProps = furnitureMaterialProps('glass', '#cde4f5');
+        const glassMaterial = (
+          <meshStandardMaterial {...glassProps} color="#cde4f5" />
+        );
+        const louvreProps = furnitureMaterialProps('matteBlack', '#cbd5e1');
+        const louvreMaterial = (
+          <meshStandardMaterial {...louvreProps} color="#cbd5e1" />
+        );
 
         return (
           <group key={opening.id} position={[ox, oy + oh / 2, 0]}>
@@ -84,12 +96,12 @@ const OpeningFrames: React.FC<{ wallId: string; thickness: number; start: Point2
                   {frameMaterial}
                 </mesh>
                 {/* Left Glass */}
-                <mesh position={[-(ow - border) / 4, 0, 0]}>
+                <mesh position={[-(ow - border) / 4, 0, 0]} castShadow={false} receiveShadow={false}>
                   <boxGeometry args={[(ow - 3 * border) / 2, oh - 2 * border, 0.02]} />
                   {glassMaterial}
                 </mesh>
                 {/* Right Glass */}
-                <mesh position={[(ow - border) / 4, 0, 0]}>
+                <mesh position={[(ow - border) / 4, 0, 0]} castShadow={false} receiveShadow={false}>
                   <boxGeometry args={[(ow - 3 * border) / 2, oh - 2 * border, 0.02]} />
                   {glassMaterial}
                 </mesh>

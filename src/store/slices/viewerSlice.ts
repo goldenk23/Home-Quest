@@ -48,11 +48,24 @@ export interface ViewerSlice {
    */
   planCentroid3D: Point3D | null;
 
+  /**
+   * Sun controls. Wall-clock hours drive a realistic day arc (low warm sun at the edges,
+   * high white sun at noon, night outside ~6–18h). With `sunDirectionOverride` on, the
+   * user's `sunAzimuthDeg` aims the sun from a chosen compass direction instead.
+   * See viewer/services/sun.ts.
+   */
+  sunTimeHours: number;
+  sunAzimuthDeg: number;
+  sunDirectionOverride: boolean;
+
   // Controls (How we change the memory)
   setCameraMode: (mode: CameraMode) => void;
   setRenderQuality: (quality: RenderQuality) => void;
   toggleWireframe: () => void;
   setPlanCentroid3D: (centroid: Point3D | null) => void;
+  setSunTime: (hours: number) => void;
+  setSunAzimuth: (azimuthDeg: number) => void;
+  setSunDirectionOverride: (override: boolean) => void;
   resetCameraTick: number;
   triggerCameraReset: () => void;
 }
@@ -67,6 +80,9 @@ export const createViewerSlice: StateCreator<
   renderQuality: 'high',
   showWireframe: false,
   planCentroid3D: null,
+  sunTimeHours: 12,
+  sunAzimuthDeg: 120,
+  sunDirectionOverride: false,
   resetCameraTick: 0,
 
   setCameraMode: (mode) => {
@@ -90,6 +106,24 @@ export const createViewerSlice: StateCreator<
   setPlanCentroid3D: (centroid) => {
     set((state) => {
       state.planCentroid3D = centroid;
+    });
+  },
+
+  setSunTime: (hours) => {
+    set((state) => {
+      state.sunTimeHours = hours;
+    });
+  },
+
+  setSunAzimuth: (azimuthDeg) => {
+    set((state) => {
+      state.sunAzimuthDeg = azimuthDeg;
+    });
+  },
+
+  setSunDirectionOverride: (override) => {
+    set((state) => {
+      state.sunDirectionOverride = override;
     });
   },
 

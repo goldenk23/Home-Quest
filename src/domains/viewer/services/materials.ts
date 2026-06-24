@@ -235,6 +235,21 @@ function getTexture(kind: FinishTexture): THREE.CanvasTexture {
   return tex;
 }
 
+/**
+ * Returns the shared procedural texture for a kind, CLONED and re-tinted to a neutral base
+ * so callers (e.g. furniture tabletops) can apply their own material colour over it. Reuses
+ * the cached texture data, so this adds no new GPU memory per call. `repeatMeters` sets the
+ * physical tile/plank size on the surface.
+ */
+export function getProceduralTexture(kind: FinishTexture, repeatMeters: number): THREE.CanvasTexture {
+  const base = getTexture(kind);
+  const tex = base.clone();
+  tex.needsUpdate = true;
+  const r = repeatMeters > 0 ? 1 / repeatMeters : 1;
+  tex.repeat.set(r, r);
+  return tex;
+}
+
 // Brick is shared with the legacy 'default-wall'/'brick-wall' ids, so it has its own cache.
 let sharedBrickTexture: THREE.CanvasTexture | null = null;
 let sharedBrickBumpMap: THREE.CanvasTexture | null = null;

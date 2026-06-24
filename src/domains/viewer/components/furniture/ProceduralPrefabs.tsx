@@ -7,6 +7,10 @@
 // read as modern furniture (legs, cushions, frames, hardware) rather than plain boxes.
 
 import React from 'react';
+import {
+  furnitureMaterialProps,
+  type FurniturePartKind,
+} from '../../services/furnitureMaterials';
 
 interface PrefabProps {
   w: number;
@@ -17,31 +21,32 @@ interface PrefabProps {
 }
 
 // ---- shared materials (modern palette) ------------------------------------
+// Each helper resolves tuned PBR params (roughness/metalness + env-map response, and a
+// procedural texture where it helps) from furnitureMaterials, then forces the colour to red
+// when the piece is colliding. The texture prop is dropped in collision mode so a red piece
+// reads as a flat warning rather than a textured one.
 const RED = '#ef4444';
-const fabric = (color: string, c: boolean) => (
-  <meshStandardMaterial color={c ? RED : color} roughness={0.95} metalness={0} />
-);
-const lightWood = (c: boolean) => (
-  <meshStandardMaterial color={c ? RED : '#c8a27c'} roughness={0.6} metalness={0.04} />
-);
-const darkWood = (c: boolean) => (
-  <meshStandardMaterial color={c ? RED : '#6f5641'} roughness={0.7} metalness={0.04} />
-);
-const white = (c: boolean) => (
-  <meshStandardMaterial color={c ? RED : '#f5f5f4'} roughness={0.5} metalness={0.04} />
-);
-const metal = (c: boolean) => (
-  <meshStandardMaterial color={c ? RED : '#b8bcc4'} roughness={0.3} metalness={0.85} />
-);
-const matteBlack = (c: boolean) => (
-  <meshStandardMaterial color={c ? RED : '#15171c'} roughness={0.35} metalness={0.5} />
-);
-const glass = (c: boolean) => (
-  <meshStandardMaterial color={c ? RED : '#cfe8f5'} transparent opacity={0.22} roughness={0.05} metalness={0.3} />
-);
-const quartz = (c: boolean) => (
-  <meshStandardMaterial color={c ? RED : '#e7e5e4'} roughness={0.4} metalness={0.1} />
-);
+function mat(kind: FurniturePartKind, c: boolean, colorOverride?: string) {
+  const { texture, ...props } = furnitureMaterialProps(kind, colorOverride);
+  return (
+    <meshStandardMaterial
+      color={c ? RED : props.color}
+      roughness={props.roughness}
+      metalness={props.metalness}
+      envMapIntensity={props.envMapIntensity}
+      transparent={props.transparent}
+      opacity={props.opacity}
+    />
+  );
+}
+const fabric = (color: string, c: boolean) => mat('fabric', c, color);
+const lightWood = (c: boolean) => mat('lightWood', c);
+const darkWood = (c: boolean) => mat('darkWood', c);
+const white = (c: boolean) => mat('white', c);
+const metal = (c: boolean) => mat('metal', c);
+const matteBlack = (c: boolean) => mat('matteBlack', c);
+const glass = (c: boolean) => mat('glass', c);
+const quartz = (c: boolean) => mat('quartz', c);
 
 /** Four slim tapered legs at the corners of a w×d footprint, of the given height. */
 const Legs: React.FC<{ w: number; d: number; legH: number; baseY: number; colliding: boolean; inset?: number; r?: number }> = ({ w, d, legH, baseY, colliding, inset = 0.06, r = 0.022 }) => {

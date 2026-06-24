@@ -8,6 +8,7 @@ import { VastuLegend } from '../domains/vastu/components/VastuLegend';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { FURNITURE_CATALOG_IDS, getCatalogEntry } from '../domains/viewer/hooks/useAssetLoader';
 import { WALL_FINISHES, FLOOR_FINISHES, categoryOf } from '../domains/shared/materials/finishPalette';
+import { formatClock, azimuthLabel } from '../domains/viewer/services/sun';
 import { loadSampleHouse } from '../domains/editor/services/samplePlan';
 import { exportFloorPlan, importFloorPlan } from '../store/persistence/fileIO';
 import type { RoomType } from '../types/editor';
@@ -187,6 +188,15 @@ export const SandboxView: React.FC = () => {
   const setCameraMode = useAppStore((s) => s.setCameraMode);
   const triggerCameraReset = useAppStore((s) => s.triggerCameraReset);
 
+  // Sun controls (real-time day arc). time-of-day drives the whole arc; the manual direction
+  // toggle + slider let the user aim the sun from a chosen compass direction instead.
+  const sunTimeHours = useAppStore((s) => s.sunTimeHours);
+  const setSunTime = useAppStore((s) => s.setSunTime);
+  const sunAzimuthDeg = useAppStore((s) => s.sunAzimuthDeg);
+  const setSunAzimuth = useAppStore((s) => s.setSunAzimuth);
+  const sunDirectionOverride = useAppStore((s) => s.sunDirectionOverride);
+  const setSunDirectionOverride = useAppStore((s) => s.setSunDirectionOverride);
+
   const selectedIds = useAppStore((s) => s.selectedIds);
   const furniture = useAppStore((s) => s.furniture);
   const walls = useAppStore((s) => s.walls);
@@ -354,6 +364,38 @@ export const SandboxView: React.FC = () => {
           <button style={btn(cameraMode === 'orbit', '#f59e0b')} onClick={() => setCameraMode('orbit')}>🚁 Orbit</button>
           <button style={btn(cameraMode === 'firstPerson', '#f59e0b')} onClick={() => setCameraMode('firstPerson')}>🚶 First-Person (WASD)</button>
           <button style={btn(false, '#64748b')} onClick={triggerCameraReset}>🔄 Reset View</button>
+        </Row>
+
+        <Row label="Sun">
+          <input
+            type="range" min={0} max={24} step={0.25}
+            value={sunTimeHours}
+            onChange={(e) => setSunTime(parseFloat(e.target.value))}
+            style={{ width: '160px' }}
+            aria-label="Time of day"
+          />
+          <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '44px', fontWeight: 600 }}>
+            ☀️ {formatClock(sunTimeHours)}
+          </span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', fontSize: '0.82rem', color: '#374151', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={sunDirectionOverride}
+              onChange={(e) => setSunDirectionOverride(e.target.checked)}
+            />
+            Manual direction
+          </label>
+          <input
+            type="range" min={0} max={360} step={5}
+            value={sunAzimuthDeg}
+            onChange={(e) => setSunAzimuth(parseFloat(e.target.value))}
+            disabled={!sunDirectionOverride}
+            style={{ width: '120px', opacity: sunDirectionOverride ? 1 : 0.4 }}
+            aria-label="Sun compass direction"
+          />
+          <span style={{ fontSize: '0.8rem', color: '#64748b', minWidth: '28px' }}>
+            {sunDirectionOverride ? azimuthLabel(sunAzimuthDeg) : 'auto'}
+          </span>
         </Row>
 
         <Row label="Plan">
