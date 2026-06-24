@@ -76,13 +76,19 @@ export interface FurnitureItem {
   readonly bounds: { width: number; depth: number };
 }
 
-export type OpeningType = 'door' | 'window' | 'vent';
+export type OpeningType = 'door' | 'window' | 'vent' | 'ac';
 
-/** A punched hole in a wall (door, window, or vent) */
+/** A wall opening or wall-mounted element (door, window, vent, or AC) */
 export interface Opening {
   readonly id: EntityId;
   readonly wallId: EntityId;
   readonly type: OpeningType;
+  /**
+   * Specific kind id from the opening catalog (e.g. 'window-sliding', 'door-main-gate',
+   * 'vent-kitchen', 'ac-split'). Optional for backward compatibility with plans saved
+   * before kinds existed — renderers fall back to a default for the base `type`.
+   */
+  readonly kind?: string;
   /** Distance from the wall's startVertex in cm */
   readonly offsetCm: number;
   /** Width of the hole in cm */

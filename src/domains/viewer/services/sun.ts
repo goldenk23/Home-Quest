@@ -132,13 +132,15 @@ function sphericalToCartesian(azimuthDeg: number, elevationDeg: number, radius: 
  * - In the default (time-driven) mode, azimuth AND elevation both derive from `timeHours`,
  *   so a single slider produces a believable day arc: low warm sun at the edges, high white
  *   sun at noon, dark night outside 6–18h.
- * - With `directionOverride`, the caller's `azimuthDeg` is honoured and a fixed pleasant
- *   elevation (55°) is used, so the user can aim sunlight from a chosen compass direction.
+ * - With `directionOverride`, only the compass azimuth is taken from the caller's
+ *   `azimuthDeg`; elevation (and therefore brightness/colour) still tracks `timeHours`, so
+ *   the user can aim sunlight from a chosen direction AND still scrub the time-of-day to
+ *   adjust how bright/high the sun is.
  */
 export function computeSun(input: SunInput): SunState {
   const radius = input.radius ?? SUN_RADIUS;
 
-  const elevation = input.directionOverride ? 55 : elevationForTime(input.timeHours);
+  const elevation = elevationForTime(input.timeHours);
   const azimuth = input.directionOverride ? input.azimuthDeg : azimuthForTime(input.timeHours);
 
   const position = sphericalToCartesian(azimuth, elevation, radius);

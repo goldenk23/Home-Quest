@@ -8,6 +8,7 @@ import { VastuLegend } from '../domains/vastu/components/VastuLegend';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { FURNITURE_CATALOG_IDS, getCatalogEntry } from '../domains/viewer/hooks/useAssetLoader';
 import { WALL_FINISHES, FLOOR_FINISHES, categoryOf } from '../domains/shared/materials/finishPalette';
+import { kindsForFamily, type OpeningFamily } from '../domains/shared/openings/openingCatalog';
 import { formatClock, azimuthLabel } from '../domains/viewer/services/sun';
 import { loadSampleHouse } from '../domains/editor/services/samplePlan';
 import { exportFloorPlan, importFloorPlan } from '../store/persistence/fileIO';
@@ -182,6 +183,8 @@ export const SandboxView: React.FC = () => {
   };
   const showVastuOverlay2D = useAppStore((s) => s.showVastuOverlay2D);
   const showVastuOverlay3D = useAppStore((s) => s.showVastuOverlay3D);
+  const selectedOpeningKinds = useAppStore((s) => s.selectedOpeningKinds);
+  const setOpeningKind = useAppStore((s) => s.setOpeningKind);
   const toggleVastuOverlay2D = useAppStore((s) => s.toggleVastuOverlay2D);
   const toggleVastuOverlay3D = useAppStore((s) => s.toggleVastuOverlay3D);
   const cameraMode = useAppStore((s) => s.cameraMode);
@@ -286,6 +289,7 @@ export const SandboxView: React.FC = () => {
           <button style={btn(activeTool === 'door')} onClick={() => setActiveTool('door')}>🚪 Door</button>
           <button style={btn(activeTool === 'window')} onClick={() => setActiveTool('window')}>🪟 Window</button>
           <button style={btn(activeTool === 'vent')} onClick={() => setActiveTool('vent')}>💨 Vent</button>
+          <button style={btn(activeTool === 'ac')} onClick={() => setActiveTool('ac')}>❄️ AC</button>
           <button style={btn(activeTool === 'paint')} onClick={() => setActiveTool('paint')}>🎨 Paint</button>
           <button style={btn(activeTool === 'room')} onClick={() => setActiveTool('room')}>🏷️ Name Room</button>
           <label style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', fontSize: '0.82rem', color: '#374151', cursor: 'pointer' }}>
@@ -293,6 +297,28 @@ export const SandboxView: React.FC = () => {
             Chain mode
           </label>
         </Row>
+
+        {(activeTool === 'door' || activeTool === 'window' || activeTool === 'vent' || activeTool === 'ac') && (
+          <Row label={`${activeTool[0].toUpperCase()}${activeTool.slice(1)} type`}>
+            {kindsForFamily(activeTool as OpeningFamily).map((k) => (
+              <button
+                key={k.id}
+                style={btn(selectedOpeningKinds[activeTool as OpeningFamily] === k.id, '#0ea5e9')}
+                onClick={() => setOpeningKind(activeTool as OpeningFamily, k.id)}
+                title={`${k.width}×${k.height} cm`}
+              >
+                {k.icon} {k.label}
+              </button>
+            ))}
+            <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+              {activeTool === 'ac'
+                ? 'Click a wall to mount the AC (any wall).'
+                : activeTool === 'door'
+                  ? 'Click a wall to place. Doors/gates can go on any wall.'
+                  : 'Click a perimeter wall to place.'}
+            </span>
+          </Row>
+        )}
 
         {activeTool === 'furniture' && (
           <Row label="Catalog">

@@ -54,6 +54,8 @@ export function createWallGeometry(
       for (const oid of wall.openingIds) {
         const opening = state.openings[oid];
         if (!opening) continue;
+        // ACs are surface-mounted units, not holes — never cut the wall for them.
+        if (opening.type === 'ac') continue;
         const ox = opening.offsetCm * CM_TO_M;
         const oy = opening.elevation * CM_TO_M;
         const ow = opening.width * CM_TO_M;

@@ -39,6 +39,8 @@ export const FURNITURE_CATALOG: Record<string, FurnitureCatalogEntry> = {
   // Kitchen
   'kitchen-counter': { label: 'Kitchen Counter', color: '#3b4654', bounds: { width: 240, depth: 62, height: 90 } },
   'fridge': { label: 'Fridge', color: '#c7ccd1', bounds: { width: 72, depth: 70, height: 182 } },
+  // Climate
+  'ac-split': { label: 'AC (Split Unit)', color: '#ffffff', bounds: { width: 90, depth: 22, height: 30 } },
   // Bathroom / Utility
   'toilet': { label: 'Toilet', color: '#f5f5f4', bounds: { width: 42, depth: 68, height: 80 } },
   'shower': { label: 'Shower', color: '#bcd4df', bounds: { width: 95, depth: 95, height: 210 } },

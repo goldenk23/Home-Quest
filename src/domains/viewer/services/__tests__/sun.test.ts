@@ -34,12 +34,24 @@ describe('computeSun', () => {
     }
   });
 
-  it('directionOverride honours the supplied azimuth with a fixed high sun', () => {
-    const s = computeSun({ ...base, directionOverride: true, azimuthDeg: 90 });
+  it('directionOverride honours the supplied azimuth while time still drives brightness', () => {
+    const s = computeSun({ ...base, timeHours: 12, directionOverride: true, azimuthDeg: 90 });
     expect(s.isNight).toBe(false);
-    expect(s.intensity).toBeGreaterThan(2); // high elevation → bright
+    expect(s.intensity).toBeGreaterThan(2); // noon → bright
     // azimuth 90 (N): position should lean +Z
     expect(s.position[2]).toBeGreaterThan(s.position[0]);
+  });
+
+  it('directionOverride still lets time-of-day scrub brightness (dawn dimmer than noon)', () => {
+    const azimuthDeg = 90;
+    const dawn = computeSun({ ...base, timeHours: 6, directionOverride: true, azimuthDeg });
+    const noon = computeSun({ ...base, timeHours: 12, directionOverride: true, azimuthDeg });
+    const night = computeSun({ ...base, timeHours: 22, directionOverride: true, azimuthDeg });
+    expect(dawn.intensity).toBeLessThan(noon.intensity);
+    expect(night.intensity).toBe(0);
+    expect(night.isNight).toBe(true);
+    // azimuth stays fixed regardless of time
+    expect(noon.position[2]).toBeGreaterThan(noon.position[0]);
   });
 
   it('sun position is always at roughly the configured radius', () => {

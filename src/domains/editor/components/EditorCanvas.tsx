@@ -9,6 +9,7 @@ import { usePanZoom } from '../hooks/usePan';
 import { useWallDrawing } from '../hooks/useWallDrawing';
 import { toWallSegments } from '../services/wallGuides';
 import { categoryOf } from '@/domains/shared/materials/finishPalette';
+import { getOpeningKind, resolveKind } from '@/domains/shared/openings/openingCatalog';
 import { getCatalogEntry } from '@/domains/viewer/hooks/useAssetLoader';
 import type { Point2D } from '@/types/geometry';
 import type { AppStore } from '@/store';
@@ -446,14 +447,20 @@ export const EditorCanvas: React.FC = () => {
         return;
       }
 
-      if (activeTool === 'door' || activeTool === 'window' || activeTool === 'vent') {
+      if (activeTool === 'door' || activeTool === 'window' || activeTool === 'vent' || activeTool === 'ac') {
         const wallId = hitTestWall(cursor, state);
         if (wallId) {
           const wall = state.walls[wallId];
           const start = state.vertices[wall.startVertexId]?.position;
           if (!start) return;
 
-          if (activeTool === 'window' || activeTool === 'vent') {
+          // Resolve the specific kind the user picked for this tool's family.
+          const kindId = state.selectedOpeningKinds[activeTool];
+          const kind = getOpeningKind(kindId) ?? resolveKind(kindId, activeTool === 'ac' ? 'ac' : activeTool);
+
+          // Windows and ventilation belong on perimeter walls only. Doors and ACs can go
+          // on any wall (interior partitions, etc.).
+          if (kind.type === 'window' || kind.type === 'vent') {
             if (!isPerimeterWall(wallId, state)) {
               alert('Windows and ventilation can only be placed on perimeter walls.');
               return;
@@ -461,29 +468,16 @@ export const EditorCanvas: React.FC = () => {
           }
 
           const offsetCm = Math.hypot(cursor.x - start.x, cursor.y - start.y);
-          
-          let width = 120;
-          let height = 210;
-          let elevation = 0;
 
-          if (activeTool === 'window') {
-            width = 120;
-            height = 120;
-            elevation = 90;
-          } else if (activeTool === 'vent') {
-            width = 60;
-            height = 30;
-            elevation = 220;
-          }
-
-          state.recordHistory(`Add ${activeTool}`, () => {
+          state.recordHistory(`Add ${kind.label}`, () => {
             state.addOpening({
               wallId,
-              type: activeTool,
+              type: kind.type,
+              kind: kind.id,
               offsetCm,
-              width,
-              height,
-              elevation
+              width: kind.width,
+              height: kind.height,
+              elevation: kind.elevation,
             });
           });
         }

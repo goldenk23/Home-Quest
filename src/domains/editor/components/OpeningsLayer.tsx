@@ -3,6 +3,7 @@
 import React from 'react';
 import { useAppStore } from '@/store';
 import { computeOpeningGeometry } from '../services/openingGeometry';
+import { resolveKind } from '@/domains/shared/openings/openingCatalog';
 import type { Point2D } from '@/types/geometry';
 
 /** Ray-casting point-in-polygon test (polygon points in world cm). */
@@ -143,10 +144,18 @@ export const OpeningsLayer: React.FC = React.memo(() => {
         let fill = '#93c5fd'; // window blue
         let stroke = '#2563eb';
         let strokeDasharray = 'none';
+        const kind = resolveKind(opening.kind, opening.type);
         if (opening.type === 'vent') {
-          fill = '#ccfbf1';
+          fill = kind.color;
           stroke = '#0d9488';
           strokeDasharray = '4 2';
+        } else if (opening.type === 'ac') {
+          fill = '#e2e8f0';
+          stroke = '#475569';
+        } else {
+          // windows: use the kind colour, kept blue-ish
+          fill = kind.color;
+          stroke = '#2563eb';
         }
 
         return (

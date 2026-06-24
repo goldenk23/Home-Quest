@@ -412,12 +412,12 @@ const TVUnitPrefab: React.FC<PrefabProps> = ({ w, h, d, colliding }) => {
   );
 };
 
-// --- Fridge (modern stainless, double door) --------------------------------
+// --- Fridge (modern white, double door) ------------------------------------
 const FridgePrefab: React.FC<PrefabProps> = ({ w, h, d, colliding }) => (
   <group>
     <mesh position={[0, 0, 0]} castShadow receiveShadow>
       <boxGeometry args={[w, h, d]} />
-      {metal(colliding)}
+      {white(colliding)}
     </mesh>
     <mesh position={[0, h * 0.12, d / 2 + 0.004]}>
       <boxGeometry args={[w - 0.02, 0.015, 0.008]} />
@@ -541,6 +541,32 @@ const RugPrefab: React.FC<PrefabProps> = ({ w, h, d, color, colliding }) => (
   </mesh>
 );
 
+// --- Air Conditioner (white split-unit, wall-style) ------------------------
+const ACPrefab: React.FC<PrefabProps> = ({ w, h, d, colliding }) => (
+  <group>
+    {/* Main body */}
+    <mesh position={[0, 0, 0]} castShadow receiveShadow>
+      <boxGeometry args={[w, h, d]} />
+      {white(colliding)}
+    </mesh>
+    {/* Rounded front fascia, very slightly proud of the body */}
+    <mesh position={[0, h * 0.08, d / 2 + 0.003]}>
+      <boxGeometry args={[w * 0.98, h * 0.66, 0.012]} />
+      {white(colliding)}
+    </mesh>
+    {/* Angled bottom air-outlet louvre (dark recessed slot) */}
+    <mesh position={[0, -h / 2 + h * 0.16, d / 2 - 0.012]} rotation={[Math.PI / 7, 0, 0]}>
+      <boxGeometry args={[w * 0.9, 0.02, d * 0.55]} />
+      {matteBlack(colliding)}
+    </mesh>
+    {/* Status LED strip on the lower-right */}
+    <mesh position={[w * 0.3, -h / 2 + h * 0.34, d / 2 + 0.008]}>
+      <boxGeometry args={[w * 0.16, 0.008, 0.005]} />
+      {matteBlack(colliding)}
+    </mesh>
+  </group>
+);
+
 // --- Router ----------------------------------------------------------------
 export const renderProceduralPrefab = (
   catalogId: string,
@@ -554,6 +580,7 @@ export const renderProceduralPrefab = (
 
   if (catalogId.includes('sofa')) return <SofaPrefab {...props} />;
   if (catalogId.includes('armchair')) return <ArmchairPrefab {...props} />;
+  if (catalogId.startsWith('ac')) return <ACPrefab {...props} />;
   if (catalogId.includes('bed')) return <BedPrefab {...props} />;
   if (catalogId.includes('coffee')) return <CoffeeTablePrefab {...props} />;
   if (catalogId.includes('table')) return <TablePrefab {...props} />;

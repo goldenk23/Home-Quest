@@ -22,9 +22,11 @@
  */
 import type { StateCreator } from 'zustand';
 import type  { AppStore } from '..';
+import type { OpeningFamily } from '@/domains/shared/openings/openingCatalog';
+import { defaultKindForFamily } from '@/domains/shared/openings/openingCatalog';
 
 /** What the user is currently holding in their cursor (e.g. wall tool, select tool) */
-export type Tool = 'select' | 'wall' | 'furniture' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'paint' | 'room';
+export type Tool = 'select' | 'wall' | 'furniture' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'ac' | 'paint' | 'room';
 
 /** The different side-menus the user can open and close */
 export type PanelId = 'properties' | 'vastu' | 'catalog' | 'layers';
@@ -40,6 +42,8 @@ export interface UISlice {
   furnitureCatalogId: string;
   /** The finish id (wall paint or floor tile) the Paint tool applies on the next click. */
   paintFinishId: string;
+  /** The selected opening kind id per family, used by the door/window/vent/ac tools. */
+  selectedOpeningKinds: Record<OpeningFamily, string>;
 
   // Controls (How we change the memory)
   setActiveTool: (tool: Tool) => void;
@@ -49,6 +53,8 @@ export interface UISlice {
   toggleDimensions: () => void;
   setFurnitureCatalogId: (catalogId: string) => void;
   setPaintFinishId: (finishId: string) => void;
+  /** Choose which opening kind a family's tool will place next. */
+  setOpeningKind: (family: OpeningFamily, kindId: string) => void;
 }
 
 export const createUISlice: StateCreator<
@@ -68,6 +74,12 @@ export const createUISlice: StateCreator<
   furnitureCatalogId: 'sofa-3seat',
   showDimensions: true,
   paintFinishId: 'paint-white',
+  selectedOpeningKinds: {
+    door: defaultKindForFamily('door'),
+    window: defaultKindForFamily('window'),
+    vent: defaultKindForFamily('vent'),
+    ac: defaultKindForFamily('ac'),
+  },
 
   setActiveTool: (tool) => {
     set((state) => {
@@ -108,6 +120,12 @@ export const createUISlice: StateCreator<
   setPaintFinishId: (finishId) => {
     set((state) => {
       state.paintFinishId = finishId;
+    });
+  },
+
+  setOpeningKind: (family, kindId) => {
+    set((state) => {
+      state.selectedOpeningKinds[family] = kindId;
     });
   },
 });
