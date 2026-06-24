@@ -8,10 +8,11 @@ import { VastuLegend } from '../domains/vastu/components/VastuLegend';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { FURNITURE_CATALOG_IDS, getCatalogEntry } from '../domains/viewer/hooks/useAssetLoader';
 import { WALL_FINISHES, FLOOR_FINISHES, categoryOf } from '../domains/shared/materials/finishPalette';
-import { kindsForFamily, type OpeningFamily } from '../domains/shared/openings/openingCatalog';
-import { formatClock, azimuthLabel } from '../domains/viewer/services/sun';
+import { kindsForFamily, getOpeningKind, type OpeningFamily } from '../domains/shared/openings/openingCatalog';
+import { formatClock, azimuthLabel, dayPhase } from '../domains/viewer/services/sun';
 import { loadSampleHouse } from '../domains/editor/services/samplePlan';
 import { exportFloorPlan, importFloorPlan } from '../store/persistence/fileIO';
+import { exportEditor2D, exportViewer3D, type ImageExportFormat } from '../store/persistence/imageExport';
 import type { RoomType } from '../types/editor';
 
 const ROOM_TYPES: RoomType[] = [
@@ -83,6 +84,35 @@ const Swatch: React.FC<{
     </button>
   );
 };
+
+// A compact labelled number input (cm) for opening size overrides. Blank = use preset.
+const NumInput: React.FC<{
+  label: string;
+  value: number | undefined;
+  placeholder: number | undefined;
+  onChange: (v: number | undefined) => void;
+}> = ({ label, value, placeholder, onChange }) => (
+  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: '#475569' }}>
+    {label}
+    <input
+      type="number"
+      min={1}
+      value={value ?? ''}
+      placeholder={placeholder != null ? String(placeholder) : ''}
+      onChange={(e) => {
+        const t = e.target.value.trim();
+        onChange(t === '' ? undefined : Math.max(1, Number(t)));
+      }}
+      style={{
+        width: '64px',
+        padding: '3px 6px',
+        border: '1px solid #cbd5e1',
+        borderRadius: '5px',
+        fontSize: '0.78rem',
+      }}
+    />
+  </label>
+);
 
 // ---- Rooms panel: assign room types so Vastu scoring is meaningful ---------
 
@@ -162,6 +192,8 @@ export const SandboxView: React.FC = () => {
   const scalePlan = useAppStore((s) => s.scalePlan);
   const furnitureCatalogId = useAppStore((s) => s.furnitureCatalogId);
   const setFurnitureCatalogId = useAppStore((s) => s.setFurnitureCatalogId);
+  const roadWidth = useAppStore((s) => s.roadWidth);
+  const setRoadWidth = useAppStore((s) => s.setRoadWidth);
   const paintFinishId = useAppStore((s) => s.paintFinishId);
   const setPaintFinishId = useAppStore((s) => s.setPaintFinishId);
 
@@ -185,11 +217,16 @@ export const SandboxView: React.FC = () => {
   const showVastuOverlay3D = useAppStore((s) => s.showVastuOverlay3D);
   const selectedOpeningKinds = useAppStore((s) => s.selectedOpeningKinds);
   const setOpeningKind = useAppStore((s) => s.setOpeningKind);
+  const openingSizeOverrides = useAppStore((s) => s.openingSizeOverrides);
+  const setOpeningSize = useAppStore((s) => s.setOpeningSize);
+  const resetOpeningSize = useAppStore((s) => s.resetOpeningSize);
   const toggleVastuOverlay2D = useAppStore((s) => s.toggleVastuOverlay2D);
   const toggleVastuOverlay3D = useAppStore((s) => s.toggleVastuOverlay3D);
   const cameraMode = useAppStore((s) => s.cameraMode);
   const setCameraMode = useAppStore((s) => s.setCameraMode);
   const triggerCameraReset = useAppStore((s) => s.triggerCameraReset);
+  const renderQuality = useAppStore((s) => s.renderQuality);
+  const setRenderQuality = useAppStore((s) => s.setRenderQuality);
 
   // Sun controls (real-time day arc). time-of-day drives the whole arc; the manual direction
   // toggle + slider let the user aim the sun from a chosen compass direction instead.
@@ -218,6 +255,7 @@ export const SandboxView: React.FC = () => {
   const [showSnapTest, setShowSnapTest] = useState(false);
   const [isWalking, setIsWalking] = useState(false);
   const [ioMessage, setIoMessage] = useState<string | null>(null);
+  const [exportFormat, setExportFormat] = useState<ImageExportFormat>('png');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -226,6 +264,16 @@ export const SandboxView: React.FC = () => {
     const result = await importFloorPlan(file);
     setIoMessage(result.success ? `Loaded “${file.name}”.` : `Import failed: ${result.error}`);
     e.target.value = ''; // allow re-importing the same file
+  };
+
+  const handleExportImage = async (which: '2d' | '3d') => {
+    setIoMessage(`Exporting ${which.toUpperCase()} as ${exportFormat.toUpperCase()}…`);
+    const result = which === '2d' ? await exportEditor2D(exportFormat) : await exportViewer3D(exportFormat);
+    setIoMessage(
+      result.success
+        ? `Exported ${which.toUpperCase()} as ${exportFormat.toUpperCase()}.`
+        : `Export failed: ${result.error}`
+    );
   };
 
   // Track pointer-lock so we can show/hide the "click to walk" prompt.
@@ -285,6 +333,7 @@ export const SandboxView: React.FC = () => {
         <Row label="Tool">
           <button style={btn(activeTool === 'select')} onClick={() => setActiveTool('select')}>🖱️ Select</button>
           <button style={btn(activeTool === 'wall')} onClick={() => setActiveTool('wall')}>📏 Draw Wall</button>
+          <button style={btn(activeTool === 'road')} onClick={() => setActiveTool('road')}>🛣️ Road</button>
           <button style={btn(activeTool === 'furniture')} onClick={() => setActiveTool('furniture')}>🛋️ Furniture</button>
           <button style={btn(activeTool === 'door')} onClick={() => setActiveTool('door')}>🚪 Door</button>
           <button style={btn(activeTool === 'window')} onClick={() => setActiveTool('window')}>🪟 Window</button>
@@ -316,6 +365,46 @@ export const SandboxView: React.FC = () => {
                 : activeTool === 'door'
                   ? 'Click a wall to place. Doors/gates can go on any wall.'
                   : 'Click a perimeter wall to place.'}
+            </span>
+          </Row>
+        )}
+
+        {(activeTool === 'door' || activeTool === 'window' || activeTool === 'vent') && (() => {
+          const family = activeTool as OpeningFamily;
+          const kind = getOpeningKind(selectedOpeningKinds[family]);
+          const ov = openingSizeOverrides[family];
+          const hasOverride = ov && (ov.width != null || ov.height != null || ov.elevation != null);
+          return (
+            <Row label="Custom size">
+              <NumInput label="Width" value={ov?.width} placeholder={kind?.width} onChange={(v) => setOpeningSize(family, { width: v })} />
+              <NumInput label="Height" value={ov?.height} placeholder={kind?.height} onChange={(v) => setOpeningSize(family, { height: v })} />
+              {family !== 'door' && (
+                <NumInput label="Sill" value={ov?.elevation} placeholder={kind?.elevation} onChange={(v) => setOpeningSize(family, { elevation: v })} />
+              )}
+              <button style={{ ...btn(false), opacity: hasOverride ? 1 : 0.5 }} disabled={!hasOverride} onClick={() => resetOpeningSize(family)}>
+                ↺ Reset
+              </button>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                cm. Blank = preset. {family !== 'door' ? 'Sill = height from floor to opening bottom. ' : ''}Applies to the next placed {family}.
+              </span>
+            </Row>
+          );
+        })()}
+
+        {activeTool === 'road' && (
+          <Row label="Road width">
+            <input
+              type="range" min={60} max={1000} step={10}
+              value={roadWidth}
+              onChange={(e) => setRoadWidth(parseFloat(e.target.value))}
+              style={{ width: '180px' }}
+              aria-label="Road width"
+            />
+            <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '70px', fontWeight: 600 }}>
+              {(roadWidth / 100).toFixed(2)} m
+            </span>
+            <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+              Click to start, click to end. Hold <kbd>Shift</kbd> for angle snap. Chain mode keeps paving. <kbd>Esc</kbd> cancels.
             </span>
           </Row>
         )}
@@ -392,6 +481,16 @@ export const SandboxView: React.FC = () => {
           <button style={btn(false, '#64748b')} onClick={triggerCameraReset}>🔄 Reset View</button>
         </Row>
 
+        <Row label="Graphics">
+          <button style={btn(renderQuality === 'high', '#8b5cf6')} onClick={() => setRenderQuality('high')}>✨ High</button>
+          <button style={btn(renderQuality === 'medium', '#8b5cf6')} onClick={() => setRenderQuality('medium')}>⚖️ Balanced</button>
+          <button style={btn(renderQuality === 'low', '#8b5cf6')} onClick={() => setRenderQuality('low')}>🪶 Low</button>
+          <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+            High = ambient occlusion + bloom (best looking). Balanced drops bloom. Low turns off
+            post-processing for older/slower computers.
+          </span>
+        </Row>
+
         <Row label="Sun">
           <input
             type="range" min={0} max={24} step={0.25}
@@ -401,7 +500,19 @@ export const SandboxView: React.FC = () => {
             aria-label="Time of day"
           />
           <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '44px', fontWeight: 600 }}>
-            ☀️ {formatClock(sunTimeHours)}
+            {dayPhase(sunTimeHours).icon} {formatClock(sunTimeHours)}
+          </span>
+          <span
+            style={{
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              color: dayPhase(sunTimeHours).isDay ? '#92400e' : '#1e3a8a',
+              background: dayPhase(sunTimeHours).isDay ? '#fef3c7' : '#dbeafe',
+              padding: '2px 8px',
+              borderRadius: '999px',
+            }}
+          >
+            {dayPhase(sunTimeHours).label}
           </span>
           <label style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', fontSize: '0.82rem', color: '#374151', cursor: 'pointer' }}>
             <input
@@ -450,6 +561,24 @@ export const SandboxView: React.FC = () => {
           {ioMessage && <span style={{ fontSize: '0.78rem', color: '#64748b' }}>{ioMessage}</span>}
           <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
             Plans also auto-save to your browser (IndexedDB) and reload on refresh.
+          </span>
+        </Row>
+
+        <Row label="Export">
+          <select
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as ImageExportFormat)}
+            style={{ padding: '0.4rem 0.5rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.82rem', color: '#1f2937', fontWeight: 600 }}
+            aria-label="Image export format"
+          >
+            <option value="png">PNG</option>
+            <option value="jpg">JPG</option>
+            <option value="pdf">PDF</option>
+          </select>
+          <button style={btn(false, '#0ea5e9')} onClick={() => handleExportImage('2d')}>🖼️ Export 2D Plan</button>
+          <button style={btn(false, '#0ea5e9')} onClick={() => handleExportImage('3d')}>🏗️ Export 3D View</button>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+            Saves the current 2D plan or 3D scene as an image or PDF.
           </span>
         </Row>
       </Card>

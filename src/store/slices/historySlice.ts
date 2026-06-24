@@ -71,6 +71,7 @@ export const createHistorySlice: StateCreator<
       state.rooms = castDraft(snap.rooms);
       state.furniture = castDraft(snap.furniture);
       state.openings = castDraft(snap.openings);
+      state.roads = castDraft(snap.roads);
       // Selection may point at entities that no longer exist after a restore — clear it.
       state.selectedIds = [];
     });

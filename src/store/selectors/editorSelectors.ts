@@ -57,6 +57,8 @@ export function useViewerWalls() {
       thickness: w.thickness,
       height: w.height,
       materialId: w.materialId,
+      materialSideA: w.materialSideA,
+      materialSideB: w.materialSideB,
       offsets: computeMiterOffsets(w.id, walls, vertices),
     }));
   }, [walls, vertices]);

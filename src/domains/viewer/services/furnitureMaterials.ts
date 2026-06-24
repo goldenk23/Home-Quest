@@ -13,7 +13,7 @@
 // per-pixel cost — deliberately avoided to keep the GPU load negligible.
 
 import * as THREE from 'three';
-import { getProceduralTexture } from './materials';
+import { getProceduralTexture, getSharedProceduralBump, bumpScaleFor } from './materials';
 import type { FinishTexture } from '@/domains/shared/materials/finishPalette';
 
 export type FurniturePartKind =
@@ -26,6 +26,9 @@ export type FurniturePartKind =
   | 'glass'
   | 'quartz'
   | 'foliage'
+  | 'carPaint'
+  | 'tyre'
+  | 'chrome'
   | 'screen';
 
 export interface FurnitureMaterialProps {
@@ -55,6 +58,12 @@ const PART_DEFAULTS: Record<FurniturePartKind, Omit<FurnitureMaterialProps, 'col
   glass: { roughness: 0.06, metalness: 0.0, envMapIntensity: 1.0, transparent: true, opacity: 0.28 },
   quartz: { roughness: 0.32, metalness: 0.12, envMapIntensity: 0.85, texture: { kind: 'marble', repeatMeters: 1.2 } },
   foliage: { roughness: 0.8, metalness: 0.0, envMapIntensity: 0.4 }, // plant leaves
+  // Automotive clear-coat: low roughness + metallic flake read → glossy, reflective paint.
+  carPaint: { roughness: 0.18, metalness: 0.65, envMapIntensity: 1.4 },
+  // Rubber tyre: very matte, non-metallic, soaks up light.
+  tyre: { roughness: 0.95, metalness: 0.0, envMapIntensity: 0.15 },
+  // Polished chrome/alloy trim: mirror-like.
+  chrome: { roughness: 0.12, metalness: 1.0, envMapIntensity: 1.6 },
   screen: { roughness: 0.2, metalness: 0.6, envMapIntensity: 0.9 }, // TV/monitor panel
 };
 
@@ -68,6 +77,9 @@ const DEFAULT_COLOR: Record<FurniturePartKind, string> = {
   glass: '#cfe8f5',
   quartz: '#e7e5e4',
   foliage: '#3f9d57',
+  carPaint: '#b91c1c',
+  tyre: '#0e0f12',
+  chrome: '#cdd2d8',
   screen: '#0b0d12',
 };
 
@@ -111,6 +123,11 @@ export function getFurnitureMaterial(kind: FurniturePartKind, colorOverride?: st
   });
   if (props.texture) {
     mat.map = getProceduralTexture(props.texture.kind, props.texture.repeatMeters);
+    const bump = getSharedProceduralBump(props.texture.kind, props.texture.repeatMeters);
+    if (bump) {
+      mat.bumpMap = bump;
+      mat.bumpScale = bumpScaleFor(props.texture.kind);
+    }
   }
   materialInstanceCache.set(key, mat);
   return mat;

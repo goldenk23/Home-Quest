@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AppStore } from '../index';
-import type { EntityId, Vertex, Wall, Room, FurnitureItem } from '@/types/editor';
+import type { EntityId, Vertex, Wall, Room, FurnitureItem, Road } from '@/types/editor';
 import type { Point2D } from '@/types/geometry';
 import { generateId } from '@/utils/id';
 import type { SnapConfig } from '@/domains/editor/hooks/useSnapping';
@@ -14,6 +14,7 @@ export interface EditorSlice {
     rooms: Record<EntityId, Room>;
     furniture: Record<EntityId, FurnitureItem>;
     openings: Record<EntityId, import('@/types/editor').Opening>;
+    roads: Record<EntityId, Road>;
     selectedIds: EntityId[];
     snapConfig: SnapConfig;
     currentMouseWorld: Point2D | null;
@@ -21,8 +22,8 @@ export interface EditorSlice {
     // Actions
     addWall: (start: Point2D, end: Point2D, thickness?: number, height?: number) => EntityId;
     removeWall: (wallId: EntityId) => void;
-    /** Patch a wall's mutable attributes (e.g. paint its `materialId`). Mirrors updateRoom. */
-    updateWall: (id: EntityId, patch: Partial<Pick<Wall, 'materialId'>>) => void;
+    /** Patch a wall's mutable attributes (paint, per-face finish, or geometry like height/thickness). Mirrors updateRoom. */
+    updateWall: (id: EntityId, patch: Partial<Pick<Wall, 'materialId' | 'materialSideA' | 'materialSideB' | 'height' | 'thickness' | 'isLoadBearing'>>) => void;
     moveVertex: (vertexId: EntityId, newPosition: Point2D) => void;
     addFurniture: (item: Omit<FurnitureItem, 'id'>) => EntityId;
     removeFurniture: (id: EntityId) => void;
@@ -32,6 +33,10 @@ export interface EditorSlice {
     
     addOpening: (opening: Omit<import('@/types/editor').Opening, 'id'>) => EntityId;
     removeOpening: (id: EntityId) => void;
+
+    /** Add a road segment (standalone; not part of the wall/vertex graph). */
+    addRoad: (start: Point2D, end: Point2D, width?: number) => EntityId;
+    removeRoad: (id: EntityId) => void;
 
     setRooms: (rooms: Record<EntityId, Room>) => void;
     updateRoom: (id: EntityId, patch: Partial<Pick<Room, 'roomType' | 'label' | 'floorMaterialId'>>) => void;
@@ -80,6 +85,7 @@ export const createEditorSlice: StateCreator<
     rooms: {},
     furniture: {},
     openings: {},
+    roads: {},
     selectedIds: [],
     snapConfig: {
         gridSize: 10,
@@ -258,6 +264,24 @@ export const createEditorSlice: StateCreator<
         });
     },
 
+    addRoad: (start, end, width = 300) => {
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        // Ignore zero/sub-cm roads (squared length < 1 cm²).
+        if (!Number.isFinite(dx) || !Number.isFinite(dy) || dx * dx + dy * dy < 1) return '';
+        const roadId = generateId('road');
+        set((state) => {
+            state.roads[roadId] = { id: roadId, start, end, width };
+        });
+        return roadId;
+    },
+
+    removeRoad: (id) => {
+        set((state) => {
+            delete state.roads[id];
+        });
+    },
+
     setRooms: (rooms) => {
         set((state) => {
             state.rooms = castDraft(rooms);
@@ -316,6 +340,11 @@ export const createEditorSlice: StateCreator<
             for (const o of Object.values(state.openings)) {
                 o.offsetCm = o.offsetCm * factor;
             }
+            // Scale road endpoints about the same centre so paving moves with the plan.
+            for (const r of Object.values(state.roads)) {
+                r.start = { x: cx + (r.start.x - cx) * factor, y: cy + (r.start.y - cy) * factor };
+                r.end = { x: cx + (r.end.x - cx) * factor, y: cy + (r.end.y - cy) * factor };
+            }
         });
     },
     clearAll: () => {
@@ -325,6 +354,7 @@ export const createEditorSlice: StateCreator<
             state.rooms = {};
             state.furniture = {};
             state.openings = {};
+            state.roads = {};
             state.selectedIds = [];
         });
     },

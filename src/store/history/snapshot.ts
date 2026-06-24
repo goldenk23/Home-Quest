@@ -10,7 +10,7 @@
 // has only hundreds of entities and Immer gives us cheap structural sharing, so storing
 // whole-plan snapshots is both simple and correct.
 
-import type { EntityId, Vertex, Wall, Room, FurnitureItem, Opening } from '@/types/editor';
+import type { EntityId, Vertex, Wall, Room, FurnitureItem, Opening, Road } from '@/types/editor';
 
 export interface FloorPlanSnapshot {
   readonly vertices: Record<EntityId, Vertex>;
@@ -18,6 +18,7 @@ export interface FloorPlanSnapshot {
   readonly rooms: Record<EntityId, Room>;
   readonly furniture: Record<EntityId, FurnitureItem>;
   readonly openings: Record<EntityId, Opening>;
+  readonly roads: Record<EntityId, Road>;
 }
 
 /** The subset of the store that a snapshot reads from. */
@@ -27,6 +28,7 @@ export interface SnapshotSource {
   rooms: Record<EntityId, Room>;
   furniture: Record<EntityId, FurnitureItem>;
   openings: Record<EntityId, Opening>;
+  roads: Record<EntityId, Road>;
 }
 
 /**
@@ -41,6 +43,7 @@ export function captureSnapshot(src: SnapshotSource): FloorPlanSnapshot {
     rooms: src.rooms,
     furniture: src.furniture,
     openings: src.openings,
+    roads: src.roads,
   };
 }
 
@@ -55,6 +58,7 @@ export function snapshotsEqual(a: FloorPlanSnapshot, b: FloorPlanSnapshot): bool
     a.walls === b.walls &&
     a.rooms === b.rooms &&
     a.furniture === b.furniture &&
-    a.openings === b.openings
+    a.openings === b.openings &&
+    a.roads === b.roads
   );
 }

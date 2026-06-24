@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { ContactShadows, Environment, Lightformer, Sky } from '@react-three/drei';
+import { Environment, Lightformer, Sky } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore } from '@/store';
 import { computeSun } from '../services/sun';
@@ -52,9 +52,14 @@ export const SceneEnvironment: React.FC = () => {
     light.target = target;
   });
 
-  // Ambient/hemisphere dim toward night so the day/night arc actually reads.
-  const ambientIntensity = sun.isNight ? 0.06 : 0.18 + 0.12 * (sun.intensity / 3.2);
-  const hemiIntensity = sun.isNight ? 0.12 : 0.4;
+  // Ambient/hemisphere dim toward night so the day/night arc actually reads. At night we
+  // keep a soft moonlit floor (cool blue) instead of crushing to black, so the scene stays
+  // navigable and clearly reads as "night" rather than "lights off".
+  const ambientIntensity = sun.isNight ? 0.12 : 0.18 + 0.12 * (sun.intensity / 3.2);
+  const hemiIntensity = sun.isNight ? 0.22 : 0.4;
+  // A faint cool "moon" key light at night gives surfaces some shape/shadow after sunset.
+  const moonIntensity = sun.isNight ? 0.35 : 0;
+  const hemiSkyColor = sun.isNight ? '#3a4a78' : sun.skyTopColor;
 
   return (
     <>
@@ -76,16 +81,23 @@ export const SceneEnvironment: React.FC = () => {
         shadow-mapSize-height={2048}
         shadow-camera-near={0.5}
         shadow-camera-far={120}
-        shadow-camera-left={-25}
-        shadow-camera-right={25}
-        shadow-camera-top={25}
-        shadow-camera-bottom={-25}
+        shadow-camera-left={-40}
+        shadow-camera-right={40}
+        shadow-camera-top={40}
+        shadow-camera-bottom={-40}
         shadow-bias={-0.0001}
       />
 
       {/* Sky/ground bounce + a gentle ambient floor so nothing is crushed to black. */}
-      <hemisphereLight args={[sun.skyTopColor, '#9a8366', hemiIntensity]} />
+      <hemisphereLight args={[hemiSkyColor, '#9a8366', hemiIntensity]} />
       <ambientLight intensity={ambientIntensity} />
+
+      {/* Cool moonlight after sunset — high and soft, so night has shape without daylight. */}
+      <directionalLight
+        intensity={moonIntensity}
+        color="#aebfd9"
+        position={[12, 30, -18]}
+      />
 
       {/*
        * Procedural image-based lighting. Rendered a single time (frames={1}) at a tiny
@@ -119,8 +131,6 @@ export const SceneEnvironment: React.FC = () => {
           scale={[7, 7, 1]}
         />
       </Environment>
-
-      <ContactShadows position={[0, 0.01, 0]} opacity={sun.isNight ? 0.2 : 0.45} scale={40} blur={2.4} far={4} />
     </>
   );
 };

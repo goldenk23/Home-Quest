@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeSun, lerpColor, clamp, azimuthLabel, formatClock, type SunInput } from '../sun';
+import { computeSun, lerpColor, clamp, azimuthLabel, formatClock, dayPhase, type SunInput } from '../sun';
 
 const base: SunInput = { timeHours: 12, directionOverride: false, azimuthDeg: 120 };
 
@@ -13,9 +13,9 @@ describe('computeSun', () => {
     expect(s.color).toMatch(/^#[0-9a-f]{6}$/i);
   });
 
-  it('dawn (6h) and dusk (18h) are low, warm and dim compared to noon', () => {
+  it('dawn (6h) and dusk (21h) are low, warm and dim compared to noon', () => {
     const dawn = computeSun({ ...base, timeHours: 6 });
-    const dusk = computeSun({ ...base, timeHours: 18 });
+    const dusk = computeSun({ ...base, timeHours: 21 });
     const noon = computeSun({ ...base, timeHours: 12 });
     for (const edge of [dawn, dusk]) {
       expect(edge.intensity).toBeLessThan(noon.intensity);
@@ -26,8 +26,16 @@ describe('computeSun', () => {
     }
   });
 
-  it('times outside 6..18h are night (no sun contribution)', () => {
-    for (const t of [0, 3, 5.9, 18.1, 22]) {
+  it('the evening (18–21h) still has a low, lit sun before night falls', () => {
+    const evening = computeSun({ ...base, timeHours: 19 });
+    const noon = computeSun({ ...base, timeHours: 12 });
+    expect(evening.isNight).toBe(false);
+    expect(evening.intensity).toBeGreaterThan(0);
+    expect(evening.position[1]).toBeLessThan(noon.position[1]); // lower than midday
+  });
+
+  it('times outside 6..21h are night (no sun contribution)', () => {
+    for (const t of [0, 3, 5.9, 21.1, 23]) {
       const s = computeSun({ ...base, timeHours: t });
       expect(s.isNight, `time ${t} should be night`).toBe(true);
       expect(s.intensity, `time ${t} intensity`).toBe(0);
@@ -98,6 +106,44 @@ describe('helpers', () => {
     expect(formatClock(12)).toBe('12:00');
     expect(formatClock(14.5)).toBe('14:30');
     expect(formatClock(9.25)).toBe('09:15');
+  });
+});
+
+describe('dayPhase', () => {
+  it('classifies the named parts of the day by their boundaries', () => {
+    expect(dayPhase(2).phase).toBe('night'); // before sunrise
+    expect(dayPhase(6).phase).toBe('morning'); // sunrise
+    expect(dayPhase(9).phase).toBe('morning');
+    expect(dayPhase(11.99).phase).toBe('morning');
+    expect(dayPhase(12).phase).toBe('noon');
+    expect(dayPhase(13).phase).toBe('afternoon');
+    expect(dayPhase(17).phase).toBe('afternoon');
+    expect(dayPhase(18).phase).toBe('evening');
+    expect(dayPhase(20.5).phase).toBe('evening');
+    expect(dayPhase(21).phase).toBe('night'); // sunset
+    expect(dayPhase(23.5).phase).toBe('night');
+  });
+
+  it('reports isDay for morning…evening and not at night, with a label + icon', () => {
+    expect(dayPhase(8).isDay).toBe(true);
+    expect(dayPhase(19).isDay).toBe(true);
+    expect(dayPhase(3).isDay).toBe(false);
+    expect(dayPhase(8).label).toBe('Morning');
+    expect(dayPhase(8).icon.length).toBeGreaterThan(0);
+  });
+
+  it('wraps hours outside 0..24 into a valid phase', () => {
+    expect(dayPhase(25).phase).toBe('night'); // 25 → 1h → night
+    expect(dayPhase(-2).phase).toBe('night'); // -2 → 22h → night
+    expect(dayPhase(31).phase).toBe('morning'); // 31 → 7h → morning
+  });
+
+  it('computeSun exposes the matching phase fields', () => {
+    const noon = computeSun({ ...base, timeHours: 12 });
+    expect(noon.phase).toBe('noon');
+    expect(noon.phaseLabel).toBe('Noon');
+    const night = computeSun({ ...base, timeHours: 23 });
+    expect(night.phase).toBe('night');
   });
 });
 

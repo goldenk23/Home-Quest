@@ -14,6 +14,24 @@
 // (West), 270° = -Z (South). Elevation 0° = horizon, 90° = overhead. This matches the
 // right-handed XZ ground plane where +Z is "north on the plan" (plan +Y → 3D −Z).
 
+/**
+ * The named part of the day the clock currently sits in. Drives the UI label and lets the
+ * scene treat each phase distinctly (warm low sun in the morning/evening, bright overhead
+ * sun around noon, a moonlit blue at night).
+ */
+export type DayPhase = 'night' | 'morning' | 'noon' | 'afternoon' | 'evening';
+
+export interface DayPhaseInfo {
+  /** Machine-readable phase key. */
+  phase: DayPhase;
+  /** Human label, e.g. "Morning". */
+  label: string;
+  /** A small emoji that reads at a glance, e.g. 🌅. */
+  icon: string;
+  /** True for morning…evening (the sun is up); false at night. */
+  isDay: boolean;
+}
+
 export interface SunState {
   /** Sun position in 3D world units (meters), well outside the shadow frustum. */
   position: [number, number, number];
@@ -27,10 +45,16 @@ export interface SunState {
   skyHorizonColor: string;
   /** True when the sun is below the horizon — caller may treat this as "night". */
   isNight: boolean;
+  /** Which named part of the day the current time falls in (morning/noon/…/night). */
+  phase: DayPhase;
+  /** Human label for {@link phase}, e.g. "Evening". */
+  phaseLabel: string;
+  /** A small emoji for {@link phase}, e.g. 🌆. */
+  phaseIcon: string;
 }
 
 export interface SunInput {
-  /** Wall-clock hours, 6 (dawn) .. 18 (dusk). Outside this range is clamped to night. */
+  /** Wall-clock hours, 6 (dawn) .. 21 (dusk). Outside this range is treated as night. */
   timeHours: number;
   /** When true, `azimuthDeg` overrides the time-derived compass direction. */
   directionOverride: boolean;
@@ -84,13 +108,20 @@ const SKY_DUSK_HORIZON = '#e8a06a'; // warm glow band
 const SKY_NIGHT_TOP = '#0a1020';
 const SKY_NIGHT_HORIZON = '#1a2030';
 
+// The sun is above the horizon between these wall-clock hours. Outside this window it's
+// night. Sunrise at 6:00, sunset at 21:00 — a long arc so the evening (18–21h) still gets a
+// believable low, warm sun rather than snapping straight to darkness at 18:00.
+const SUNRISE_HOUR = 6;
+const SUNSET_HOUR = 21;
+const DAY_SPAN = SUNSET_HOUR - SUNRISE_HOUR; // 15 daylight hours
+
 /**
- * Map a time-of-day (6..18h) to a sun elevation (0..~75°). The sun arcs from the horizon
- * at dawn (6h) up to a high point near noon (12h) and back to the horizon at dusk (18h).
+ * Map a time-of-day (6..21h) to a sun elevation (0..~75°). The sun arcs from the horizon
+ * at sunrise (6h) up to a high point around midday and back to the horizon at sunset (21h).
  * sin gives a smooth, natural-feeling arc rather than a linear sawtooth.
  */
 function elevationForTime(timeHours: number): number {
-  const t = clamp((timeHours - 6) / 12, 0, 1); // 0 at dawn, 1 at dusk
+  const t = clamp((timeHours - SUNRISE_HOUR) / DAY_SPAN, 0, 1); // 0 at sunrise, 1 at sunset
   return Math.sin(t * Math.PI) * 75; // 0 → 75° → 0
 }
 
@@ -99,8 +130,28 @@ function elevationForTime(timeHours: number): number {
  * and sets in the west (≈225°, SW→W), sweeping across the southern sky over the day.
  */
 function azimuthForTime(timeHours: number): number {
-  const t = clamp((timeHours - 6) / 12, 0, 1); // 0 at dawn, 1 at dusk
+  const t = clamp((timeHours - SUNRISE_HOUR) / DAY_SPAN, 0, 1); // 0 at sunrise, 1 at sunset
   return 45 + t * 180; // 45° (NE) → 225° (SW)
+}
+
+/**
+ * Classify a wall-clock hour into a named part of the day. The boundaries are:
+ *   night     21:00 – 06:00
+ *   morning   06:00 – 12:00
+ *   noon      12:00 – 13:00
+ *   afternoon 13:00 – 18:00
+ *   evening   18:00 – 21:00
+ *
+ * This is the single source of truth for "what time of day is it" — the UI label and any
+ * phase-specific scene behaviour both read from here.
+ */
+export function dayPhase(timeHours: number): DayPhaseInfo {
+  const h = ((timeHours % 24) + 24) % 24; // normalise into [0, 24)
+  if (h < SUNRISE_HOUR || h >= SUNSET_HOUR) return { phase: 'night', label: 'Night', icon: '🌙', isDay: false };
+  if (h < 12) return { phase: 'morning', label: 'Morning', icon: '🌅', isDay: true };
+  if (h < 13) return { phase: 'noon', label: 'Noon', icon: '☀️', isDay: true };
+  if (h < 18) return { phase: 'afternoon', label: 'Afternoon', icon: '🌤️', isDay: true };
+  return { phase: 'evening', label: 'Evening', icon: '🌆', isDay: true };
 }
 
 /**
@@ -162,7 +213,19 @@ export function computeSun(input: SunInput): SunState {
     ? SKY_NIGHT_HORIZON
     : lerpColor(SKY_DAY_HORIZON, SKY_DUSK_HORIZON, horizonness);
 
-  return { position, intensity, color, skyTopColor, skyHorizonColor, isNight };
+  const phase = dayPhase(input.timeHours);
+
+  return {
+    position,
+    intensity,
+    color,
+    skyTopColor,
+    skyHorizonColor,
+    isNight,
+    phase: phase.phase,
+    phaseLabel: phase.label,
+    phaseIcon: phase.icon,
+  };
 }
 
 /** Human label for the compass azimuth, e.g. 120 → 'SE'. */

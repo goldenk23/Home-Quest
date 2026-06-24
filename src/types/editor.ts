@@ -20,12 +20,34 @@ export interface Wall {
   readonly thickness: number;
   /** Wall height in centimeters */
   readonly height: number;
-  /** Material identifier for 3D rendering */
+  /** Material identifier for 3D rendering. Acts as the base/fallback finish for the whole
+   *  wall and for any face that hasn't been painted individually. */
   readonly materialId: string;
+  /**
+   * Optional per-face paint. A wall has two large faces; painting from inside a room only
+   * colours the face toward that room. Side A is the wall's +normal face (plan direction
+   * (dy,-dx), i.e. local +z in 3D); side B is the −normal face. When unset, the face falls
+   * back to `materialId` so legacy plans and unpainted faces render exactly as before.
+   */
+  readonly materialSideA?: string;
+  readonly materialSideB?: string;
   /** Whether this is a load-bearing wall (affects Vastu) */
   readonly isLoadBearing: boolean;
   /** IDs of openings (doors, windows, vents) on this wall */
   readonly openingIds: EntityId[];
+}
+
+/** 
+ * A road / paved path for exterior landscaping. Unlike walls, a road is a standalone
+ * segment (not part of the vertex graph): a centerline from `start` to `end` with a width,
+ * rendered as flat paving on the ground.
+ */
+export interface Road {
+  readonly id: EntityId;
+  readonly start: Point2D;
+  readonly end: Point2D;
+  /** Road width in centimeters. */
+  readonly width: number;
 }
 
 /** 

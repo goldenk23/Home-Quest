@@ -19,8 +19,10 @@
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
+    "@react-three/postprocessing": "3.0.4",
     "idb-keyval": "^6.2.5",
     "immer": "^11.1.8",
+    "jspdf": "2.5.2",
     "lucide-react": "^1.20.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

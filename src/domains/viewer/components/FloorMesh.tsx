@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { polygonToShape } from '../services/transform';
-import { useMaterial } from '../hooks/useMaterial';
+import { useFloorMaterial } from '../hooks/useMaterial';
 import type { Point2D } from '@/types/geometry';
 
 interface FloorMeshProps {
@@ -20,13 +20,14 @@ export const FloorMesh: React.FC<FloorMeshProps> = React.memo(({ polygon, materi
     return new THREE.ShapeGeometry(polygonToShape(polygon));
   }, [polygon.map((p) => `${p.x},${p.y}`).join(';')]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const material = useMaterial(materialId);
+  const material = useFloorMaterial(materialId);
   if (polygon.length < 3) return null;
 
-  // Rotate the XY shape flat onto the ground; sit a hair above 0 to avoid z‑fighting
-  // with the ground plane.
+  // Rotate the XY shape flat onto the ground; sit clearly above the grass plane (which is at
+  // y=-0.06 and depth-biased behind) so a top-down orbit view always shows the floor finish,
+  // never the green lawn bleeding through.
   return (
-    <mesh geometry={geometry} material={material} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]} receiveShadow />
+    <mesh geometry={geometry} material={material} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow />
   );
 });
 

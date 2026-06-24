@@ -13,6 +13,8 @@ interface FirstPersonConfig {
   lookSpeed: number; // radians / pixel
   eyeHeight: number; // meters
   collisionRadius: number; // meters — how far to stay clear of wall faces
+  acceleration: number; // 1/s — how quickly velocity ramps toward the target (higher = snappier)
+  lookSmoothing: number; // 1/s — how quickly the view eases toward the mouse target (higher = tighter)
 }
 
 const DEFAULT_CONFIG: FirstPersonConfig = {
@@ -21,6 +23,8 @@ const DEFAULT_CONFIG: FirstPersonConfig = {
   lookSpeed: 0.0022,
   eyeHeight: 1.6,
   collisionRadius: 0.3,
+  acceleration: 9,
+  lookSmoothing: 22,
 };
 
 const CM_PER_M = 100;
@@ -57,7 +61,9 @@ function pointToSegmentDistanceCm(
  */
 export function useFirstPersonControls(config = DEFAULT_CONFIG) {
   const { camera, gl } = useThree();
-  const euler = useRef(new THREE.Euler(0, 0, 0, 'YXZ')); // yaw then pitch ⇒ no gimbal lock
+  const euler = useRef(new THREE.Euler(0, 0, 0, 'YXZ')); // TARGET orientation (driven by mouse)
+  const smoothEuler = useRef(new THREE.Euler(0, 0, 0, 'YXZ')); // RENDERED orientation (eased toward target)
+  const velocity = useRef(new THREE.Vector3()); // current horizontal velocity (m/s) in world x,z
   const keys = useRef(new Set<string>());
   const isLocked = useRef(false);
   const mouseMove = useRef(0); // +1 = forward (LMB), -1 = backward (RMB), 0 = none
@@ -123,6 +129,8 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
 
     camera.position.set(spawnX, config.eyeHeight, spawnZ);
     euler.current.set(0, 0, 0, 'YXZ');
+    smoothEuler.current.set(0, 0, 0, 'YXZ');
+    velocity.current.set(0, 0, 0);
     camera.quaternion.setFromEuler(euler.current);
     if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
       (camera as THREE.PerspectiveCamera).fov = DEFAULT_FOV;
@@ -138,15 +146,17 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
         keys.current.clear();
         mouseMove.current = 0;
         sprinting.current = false;
+        velocity.current.set(0, 0, 0);
       }
     };
     const onMouseMove = (e: MouseEvent) => {
       if (!isLocked.current) return;
+      // Update only the TARGET orientation here. The frame loop eases the camera toward it,
+      // which removes the raw per-event jitter and gives a smooth, settled look feel.
       euler.current.y -= e.movementX * config.lookSpeed;
       euler.current.x -= e.movementY * config.lookSpeed;
       // Clamp pitch so you can't flip over backwards.
       euler.current.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, euler.current.x));
-      camera.quaternion.setFromEuler(euler.current);
     };
     const onMouseDown = (e: MouseEvent) => {
       if (!isLocked.current) return; // the initial lock-click shouldn't trigger movement
@@ -270,8 +280,21 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
 
   useFrame((_, delta) => {
     if (!isLocked.current) return;
-    const direction = new THREE.Vector3();
 
+    // Prevent massive jumps if the tab was backgrounded.
+    const clampedDelta = Math.min(delta, 0.1);
+
+    // --- 1. Smooth look ------------------------------------------------------
+    // Ease the rendered orientation toward the mouse target. Exponential smoothing makes it
+    // frame-rate independent: the same feel at 30fps or 144fps. High lookSmoothing keeps it
+    // tight and responsive while shaving off raw per-event jitter.
+    const lookT = 1 - Math.exp(-config.lookSmoothing * clampedDelta);
+    smoothEuler.current.y += (euler.current.y - smoothEuler.current.y) * lookT;
+    smoothEuler.current.x += (euler.current.x - smoothEuler.current.x) * lookT;
+    camera.quaternion.setFromEuler(smoothEuler.current);
+
+    // --- 2. Desired movement direction (relative to facing) ------------------
+    const direction = new THREE.Vector3();
     const fwd = keys.current.has('KeyW') || keys.current.has('ArrowUp');
     const back = keys.current.has('KeyS') || keys.current.has('ArrowDown');
     const left = keys.current.has('KeyA') || keys.current.has('ArrowLeft');
@@ -286,31 +309,44 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
     if (mouseMove.current === 1) direction.z -= 1;
     else if (mouseMove.current === -1) direction.z += 1;
 
-    if (direction.lengthSq() === 0) {
+    // Build the target velocity in world space. When there's no input the target is zero, so
+    // the velocity smoothly decays and the player glides to a stop instead of stopping dead.
+    const target = new THREE.Vector3();
+    if (direction.lengthSq() > 0) {
+      direction.normalize();
+      // Move relative to where you're facing, but ignore pitch so you don't fly.
+      const moveQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, smoothEuler.current.y, 0));
+      direction.applyQuaternion(moveQuat);
+      const speed = config.moveSpeed * (sprinting.current ? config.sprintMultiplier : 1);
+      target.set(direction.x * speed, 0, direction.z * speed);
+    }
+
+    // --- 3. Accelerate / decelerate toward the target velocity ---------------
+    const accelT = 1 - Math.exp(-config.acceleration * clampedDelta);
+    velocity.current.x += (target.x - velocity.current.x) * accelT;
+    velocity.current.z += (target.z - velocity.current.z) * accelT;
+
+    // Below a tiny threshold, snap to rest so we don't integrate microscopic drift forever.
+    if (velocity.current.lengthSq() < 1e-6) {
+      velocity.current.set(0, 0, 0);
       camera.position.y = config.eyeHeight;
       return;
     }
-    direction.normalize();
 
-    // Move relative to where you're facing, but ignore pitch so you don't fly.
-    const moveQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, euler.current.y, 0));
-    direction.applyQuaternion(moveQuat);
-
-    // Prevent massive physics jumps if the browser tab was backgrounded
-    const clampedDelta = Math.min(delta, 0.1);
-    const speed = config.moveSpeed * (sprinting.current ? config.sprintMultiplier : 1) * clampedDelta;
-    const stepX = direction.x * speed;
-    const stepZ = direction.z * speed;
+    // --- 4. Integrate position with wall collision + sliding -----------------
+    const stepX = velocity.current.x * clampedDelta;
+    const stepZ = velocity.current.z * clampedDelta;
     const cur = camera.position;
 
     // NaN safety net: if camera somehow broke, reset it to origin
     if (isNaN(cur.x) || isNaN(cur.z)) {
       cur.set(0, config.eyeHeight, 0);
+      velocity.current.set(0, 0, 0);
       return;
     }
 
-    // ESCAPE HATCH: If the player is somehow already stuck inside a wall 
-    // (e.g. clipped the edge of a door frame), allow free movement so they can walk out 
+    // ESCAPE HATCH: If the player is somehow already stuck inside a wall
+    // (e.g. clipped the edge of a door frame), allow free movement so they can walk out
     // rather than permanently freezing their position.
     if (collidesWithWall(cur.x, cur.z)) {
       cur.x += stepX;
@@ -335,13 +371,20 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
         if ((sx !== 0 || sz !== 0) && !collidesWithWall(cur.x + sx, cur.z + sz)) {
           cur.x += sx;
           cur.z += sz;
+          // Re-project velocity onto the wall too, so we keep gliding along it next frame
+          // instead of fighting the wall and stalling.
+          const vDot = velocity.current.x * tan.x + velocity.current.z * tan.z;
+          velocity.current.x = tan.x * vDot;
+          velocity.current.z = tan.z * vDot;
           slid = true;
         }
       }
       if (!slid) {
         // Fallback: axis-separated sliding (handles corners / axis-aligned walls).
         if (!collidesWithWall(cur.x + stepX, cur.z)) cur.x += stepX;
+        else velocity.current.x = 0;
         if (!collidesWithWall(cur.x, cur.z + stepZ)) cur.z += stepZ;
+        else velocity.current.z = 0;
       }
     }
 

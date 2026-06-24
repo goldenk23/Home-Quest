@@ -28,7 +28,7 @@ export const CompassRose: React.FC<{ size?: number; margin?: number }> = ({ size
   ];
 
   return (
-    <g pointerEvents="none" aria-label="Compass: North is up">
+    <g pointerEvents="none" aria-label="Compass: North is up" data-export-exclude="true">
       {/* Dial background */}
       <circle cx={cx} cy={cy} r={r} fill="rgba(15,23,42,0.78)" stroke="#94a3b8" strokeWidth={1.5} />
       <circle cx={cx} cy={cy} r={r - 6} fill="none" stroke="rgba(148,163,184,0.35)" strokeWidth={1} />

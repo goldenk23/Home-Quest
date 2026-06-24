@@ -1,10 +1,10 @@
 // src/domains/viewer/components/WallMesh.tsx
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { useAppStore } from '@/store';
 import { createWallGeometry } from '../services/extrusion';
-import { useMaterial } from '../hooks/useMaterial';
+import { getMaterial } from '../services/materials';
 import { furnitureMaterialProps, getFurnitureMaterial } from '../services/furnitureMaterials';
 import { resolveKind } from '@/domains/shared/openings/openingCatalog';
 import type { Point2D } from '@/types/geometry';
@@ -17,11 +17,34 @@ interface WallMeshProps {
   thickness: number;
   height: number;
   materialId: string;
+  /** Optional per-face paints (side A = +z face, side B = −z face). Fall back to materialId. */
+  materialSideA?: string;
+  materialSideB?: string;
   offsets?: MiterOffsets;
 }
 import { useShallow } from 'zustand/react/shallow';
 
 const CM_TO_M = 0.01;
+
+/**
+ * A small, deterministic depth-offset "slot" for a wall, derived from its id.
+ *
+ * Adjacent walls interpenetrate at a mitred corner: one wall's end cap crosses through the
+ * neighbour's face. Where those two surfaces reach the same depth they z-fight, which on the
+ * low tier (no anti-aliasing to smooth it) shows up as the radial "fan" streaks across the
+ * walls. Two walls of the same finish share one cached material, so a per-finish bias can't
+ * separate them — but giving each wall instance a distinct `polygonOffsetUnits` makes one
+ * consistently win the depth test at the seam, so the corner renders clean.
+ *
+ * Integer steps spread symmetrically around 0: small enough to never shove a wall through
+ * distant geometry, but a ≥1-unit gap between neighbours reliably resolves on the depth
+ * buffer. `factor` is kept at 0 elsewhere so the ordering never changes with camera angle.
+ */
+function wallDepthOffsetSlot(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return (h % 16) - 8; // integer units in [-8, +7]
+}
 
 // A row of nested-square lattice motifs (the geometric "grille" bands at the top and bottom
 // of each gate leaf). Each motif is a raised square outline with a small square at its centre.
@@ -160,12 +183,190 @@ const MainGate: React.FC<{ ow: number; oh: number; frameDepth: number }> = ({ ow
 };
 
 
+/**
+ * Sectional garage shutter: a panel that fills the whole opening, divided into horizontal
+ * ribbed sections (the classic "garage door" look), with a row of small windows near the
+ * top and a centred lift handle. Light powder-coated metal. Fills the opening like the gate
+ * does, so the DoorFrame is rendered with no leaves and this supplies the panel.
+ */
+const GarageShutter: React.FC<{ ow: number; oh: number; frameDepth: number }> = ({ ow, oh, frameDepth }) => {
+  const panelMat = getFurnitureMaterial('white', '#cbd5e1');
+  const grooveMat = getFurnitureMaterial('matteBlack', '#94a3b8');
+  const glassMat = getFurnitureMaterial('glass', '#cde4f5');
+  const handleMat = getFurnitureMaterial('metal', '#475569');
+
+  const inset = 0.06; // sits just inside the jambs
+  const pw = ow - inset * 2;
+  const ph = oh - inset * 2;
+  const depth = frameDepth * 0.5;
+  const frontZ = frameDepth / 2;
+
+  const sections = Math.max(3, Math.round(ph / 0.5)); // ~50cm tall sections
+  const secH = ph / sections;
+  // Windows live in the second section from the top.
+  const winRow = sections - 2;
+  const winCount = Math.max(3, Math.floor(pw / 0.5));
+
+  return (
+    <group position={[0, -oh / 2, 0]}>
+      <group position={[0, oh / 2, 0]}>
+        {/* main slab */}
+        <mesh material={panelMat} castShadow receiveShadow position={[0, 0, frontZ - depth / 2]}>
+          <boxGeometry args={[pw, ph, depth]} />
+        </mesh>
+        {/* horizontal groove lines between sections */}
+        {Array.from({ length: sections - 1 }).map((_, i) => {
+          const y = -ph / 2 + secH * (i + 1);
+          return (
+            <mesh key={`g${i}`} material={grooveMat} position={[0, y, frontZ + 0.004]}>
+              <boxGeometry args={[pw, 0.02, 0.02]} />
+            </mesh>
+          );
+        })}
+        {/* a row of small windows near the top */}
+        {Array.from({ length: winCount }).map((_, i) => {
+          const x = -pw / 2 + (pw * (i + 0.5)) / winCount;
+          const y = -ph / 2 + secH * (winRow + 0.5);
+          return (
+            <mesh key={`w${i}`} material={glassMat} position={[x, y, frontZ + 0.006]}>
+              <boxGeometry args={[(pw / winCount) * 0.6, secH * 0.5, 0.02]} />
+            </mesh>
+          );
+        })}
+        {/* centred lift handle near the bottom */}
+        <mesh material={handleMat} castShadow position={[0, -ph / 2 + secH * 0.5, frontZ + 0.03]}>
+          <boxGeometry args={[pw * 0.16, 0.05, 0.04]} />
+        </mesh>
+      </group>
+    </group>
+  );
+};
+
+
+/**
+ * A realistic door assembly used for standard and double doors (and as the surround for the
+ * main gate). Renders a deep timber casing (two jambs + head), a proud architrave trim on
+ * BOTH faces, and one or two solid door leaves with raised stiles/rails, recessed panels and
+ * a lever handle. The leaf sits centred in the wall thickness; the floor stays open (the wall
+ * is cut as a notch), so the doorway is walkable while the frame reads as a real door.
+ */
+const DoorFrame: React.FC<{ ow: number; oh: number; frameDepth: number; variant: 'single' | 'double' | 'gate' | 'shutter' }> = ({
+  ow,
+  oh,
+  frameDepth,
+  variant,
+}) => {
+  const casingMat = variant === 'gate' || variant === 'shutter' ? getFurnitureMaterial('matteBlack', '#2f343d') : getFurnitureMaterial('darkWood', '#6f5135');
+  const leafMat = getFurnitureMaterial('lightWood', '#b3884f');
+  const railMat = getFurnitureMaterial('darkWood', '#9a6f3e');
+  const handleMat = getFurnitureMaterial('metal', '#c9b079');
+
+  const jamb = Math.min(0.08, ow * 0.07); // casing width
+  const depth = frameDepth;
+  const archProud = depth * 0.45; // architrave standing proud of the wall face
+  const archW = 0.04;
+  const innerW = ow - 2 * jamb;
+  const innerTop = oh - jamb; // open at the floor, head at the top
+  const leafDepth = Math.min(0.05, depth * 0.6);
+
+  // Architrave (flat trim) on one face: a thin border framing the opening, proud of the wall.
+  const architrave = (z: number) => (
+    <group position={[0, 0, z]}>
+      <mesh material={casingMat}><boxGeometry args={[ow + archW, archW, archProud]} /></mesh>
+      <mesh material={casingMat} position={[0, oh, 0]}><boxGeometry args={[ow + archW, archW, archProud]} /></mesh>
+      <mesh material={casingMat} position={[-ow / 2, oh / 2, 0]}><boxGeometry args={[archW, oh, archProud]} /></mesh>
+      <mesh material={casingMat} position={[ow / 2, oh / 2, 0]}><boxGeometry args={[archW, oh, archProud]} /></mesh>
+    </group>
+  );
+
+  // One leaf: solid body + raised top/bottom rails + two recessed-look panels + a handle.
+  const renderLeaf = (leafW: number, cx: number, handleDir: 1 | -1) => {
+    const stile = Math.min(0.09, leafW * 0.16);
+    const panelW = leafW - 2 * stile;
+    const railH = 0.12;
+    const proud = leafDepth * 0.35;
+    const upperH = innerTop * 0.34;
+    const lowerH = innerTop * 0.44;
+    const upperY = innerTop - jamb - upperH / 2 - railH;
+    const lowerY = lowerH / 2 + railH;
+    const panel = (y: number, h: number, z: number) => (
+      <mesh material={railMat} position={[cx, y, z]}><boxGeometry args={[panelW, h, proud]} /></mesh>
+    );
+    const handleX = cx + handleDir * (leafW / 2 - stile * 0.6);
+    return (
+      <group key={`leaf${cx}`}>
+        <mesh material={leafMat} castShadow receiveShadow position={[cx, innerTop / 2, 0]}>
+          <boxGeometry args={[leafW - 0.01, innerTop, leafDepth]} />
+        </mesh>
+        {/* Raised panels, front + back faces. */}
+        {panel(upperY, upperH, leafDepth / 2)}
+        {panel(lowerY, lowerH, leafDepth / 2)}
+        {panel(upperY, upperH, -leafDepth / 2)}
+        {panel(lowerY, lowerH, -leafDepth / 2)}
+        {/* Lever handles, both faces. */}
+        <mesh material={handleMat} castShadow position={[handleX, innerTop * 0.46, leafDepth / 2 + 0.025]}>
+          <boxGeometry args={[0.11, 0.025, 0.05]} />
+        </mesh>
+        <mesh material={handleMat} castShadow position={[handleX, innerTop * 0.46, -leafDepth / 2 - 0.025]}>
+          <boxGeometry args={[0.11, 0.025, 0.05]} />
+        </mesh>
+      </group>
+    );
+  };
+
+  // The whole frame is positioned by the caller with its CENTRE at the opening centre, so
+  // shift down by oh/2 to work in floor-relative (0..oh) coordinates here.
+  return (
+    <group position={[0, -oh / 2, 0]}>
+      {/* Casing: jambs + head. */}
+      <mesh material={casingMat} castShadow position={[-ow / 2 + jamb / 2, oh / 2, 0]}><boxGeometry args={[jamb, oh, depth]} /></mesh>
+      <mesh material={casingMat} castShadow position={[ow / 2 - jamb / 2, oh / 2, 0]}><boxGeometry args={[jamb, oh, depth]} /></mesh>
+      <mesh material={casingMat} castShadow position={[0, oh - jamb / 2, 0]}><boxGeometry args={[ow, jamb, depth]} /></mesh>
+
+      {architrave(depth / 2 + archProud / 2)}
+      {architrave(-depth / 2 - archProud / 2)}
+
+      {/* Leaves — skipped for the gate (MainGate supplies its own panels). */}
+      {variant === 'double' ? (
+        <>
+          {renderLeaf(innerW / 2 - 0.005, -innerW / 4, -1)}
+          {renderLeaf(innerW / 2 - 0.005, innerW / 4, 1)}
+        </>
+      ) : variant === 'single' ? (
+        renderLeaf(innerW, 0, 1)
+      ) : null}
+    </group>
+  );
+};
+
+/** Ray-casting point-in-polygon test (polygon points in plan cm). */
+function pointInPoly(px: number, py: number, poly: Point2D[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
+    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
 const OpeningFrames: React.FC<{ wallId: string; thickness: number; start: Point2D; end: Point2D }> = React.memo(({ wallId, thickness, start, end }) => {
   const openings = useAppStore(useShallow(s => {
     const wall = s.walls[wallId];
     if (!wall || !wall.openingIds) return [];
     return wall.openingIds.map(oid => s.openings[oid]).filter(Boolean);
   }));
+
+  // Room polygons (plan cm) — used to orient the main gate so its front faces OUTWARD
+  // (the side of the wall that isn't inside any room).
+  const rooms = useAppStore(s => s.rooms);
+  const vertices = useAppStore(s => s.vertices);
+  const roomPolys = useMemo(
+    () =>
+      Object.values(rooms)
+        .map((r) => r.boundaryVertexIds.map((id) => vertices[id]?.position).filter((p): p is Point2D => Boolean(p)))
+        .filter((p) => p.length >= 3),
+    [rooms, vertices]
+  );
 
   if (openings.length === 0) return null;
 
@@ -175,6 +376,12 @@ const OpeningFrames: React.FC<{ wallId: string; thickness: number; start: Point2
   const sx = start.x * CM_TO_M;
   const sz = -start.y * CM_TO_M;
   const thickM = thickness * CM_TO_M;
+
+  // Plan-space direction of the group's local +z axis (the wall's +normal). Used to decide
+  // which side of a wall is "outside" for gate orientation.
+  const wallLen = Math.hypot(dx, dy) || 1;
+  const zDirX = dy / wallLen;
+  const zDirY = -dx / wallLen;
 
   return (
     <group position={[sx, 0, sz]} rotation={[0, angle, 0]}>
@@ -199,13 +406,32 @@ const OpeningFrames: React.FC<{ wallId: string; thickness: number; start: Point2
 
         // ---- Doors --------------------------------------------------------
         if (kind.type === 'door') {
-          if (kind.door !== 'gate') return null; // a plain doorway stays open
+          const variant: 'single' | 'double' | 'gate' | 'shutter' =
+            kind.door === 'shutter' ? 'shutter' : kind.door === 'gate' ? 'gate' : kind.id === 'door-double' ? 'double' : 'single';
 
-          // Main gate: a modern double-leaf villa gate (charcoal panels, lattice bands,
-          // vertical fluting, raised centre panels, gold pull handles + keypad lock).
+          // For the main gate / garage shutter, decide which way it should face. Its
+          // decorated front is on the +z side; we want that pointing OUTWARD (the side not
+          // inside a room). Probe a point just off the +z face at the centre — if it lands
+          // inside a room, +z is the interior, so flip the assembly 180° to face outside.
+          let gateFlip = false;
+          if (variant === 'gate' || variant === 'shutter') {
+            const cxPlan = start.x + (dx / wallLen) * opening.offsetCm;
+            const cyPlan = start.y + (dy / wallLen) * opening.offsetCm;
+            const probe = thickness / 2 + 40; // cm off the face
+            const pX = cxPlan + zDirX * probe;
+            const pY = cyPlan + zDirY * probe;
+            gateFlip = roomPolys.some((poly) => pointInPoly(pX, pY, poly));
+          }
+
           return (
-            <group key={opening.id} position={[ox, oy + oh / 2, 0]}>
-              <MainGate ow={ow} oh={oh} frameDepth={frameDepth} />
+            <group
+              key={opening.id}
+              position={[ox, oy + oh / 2, 0]}
+              rotation={(variant === 'gate' || variant === 'shutter') && gateFlip ? [0, Math.PI, 0] : [0, 0, 0]}
+            >
+              <DoorFrame ow={ow} oh={oh} frameDepth={frameDepth} variant={variant} />
+              {variant === 'gate' && <MainGate ow={ow} oh={oh} frameDepth={frameDepth} />}
+              {variant === 'shutter' && <GarageShutter ow={ow} oh={oh} frameDepth={frameDepth} />}
             </group>
           );
         }
@@ -261,8 +487,16 @@ const OpeningFrames: React.FC<{ wallId: string; thickness: number; start: Point2
         // ---- Ventilation: louvre grille -----------------------------------
         if (kind.type === 'vent') {
           const slats = Math.max(2, Math.floor((oh - 2 * border) / 0.06));
+          const vb = border * 0.7; // surround frame width
           return (
             <group key={opening.id} position={[ox, oy + oh / 2, 0]}>
+              {/* Surround frame so the louvre sits in a proper vent box, not floating slats. */}
+              <mesh position={[-ow / 2 + vb / 2, 0, 0]}><boxGeometry args={[vb, oh, frameDepth]} />{frameMaterial}</mesh>
+              <mesh position={[ow / 2 - vb / 2, 0, 0]}><boxGeometry args={[vb, oh, frameDepth]} />{frameMaterial}</mesh>
+              <mesh position={[0, oh / 2 - vb / 2, 0]}><boxGeometry args={[ow - 2 * vb, vb, frameDepth]} />{frameMaterial}</mesh>
+              <mesh position={[0, -oh / 2 + vb / 2, 0]}><boxGeometry args={[ow - 2 * vb, vb, frameDepth]} />{frameMaterial}</mesh>
+              {/* Mesh insect screen backing (very thin, recessed). */}
+              <mesh position={[0, 0, -frameDepth * 0.35]}><boxGeometry args={[ow - 2 * vb, oh - 2 * vb, 0.004]} />{louvreMaterial}</mesh>
               {Array.from({ length: slats }).map((_, i) => {
                 const spacing = (oh - 2 * border) / slats;
                 const yPos = (oh / 2 - border) - spacing * (i + 0.5);
@@ -284,6 +518,7 @@ const OpeningFrames: React.FC<{ wallId: string; thickness: number; start: Point2
         const innerW = ow - 2 * border;
         const innerH = oh - 2 * border;
         const gap = border * 0.6;
+        const sillProud = frameDepth * 0.5 + 0.04; // window sill ledge depth (each face)
 
         return (
           <group key={opening.id} position={[ox, oy + oh / 2, 0]}>
@@ -292,6 +527,13 @@ const OpeningFrames: React.FC<{ wallId: string; thickness: number; start: Point2
             <mesh position={[ow / 2 - border / 2, 0, 0]}><boxGeometry args={[border, oh, frameDepth]} />{frameMaterial}</mesh>
             <mesh position={[0, oh / 2 - border / 2, 0]}><boxGeometry args={[ow - 2 * border, border, frameDepth]} />{frameMaterial}</mesh>
             <mesh position={[0, -oh / 2 + border / 2, 0]}><boxGeometry args={[ow - 2 * border, border, frameDepth]} />{frameMaterial}</mesh>
+
+            {/* Protruding sill ledge along the bottom (reads as a real window sill on both
+                faces). Slightly wider than the opening and standing proud of the wall. */}
+            <mesh position={[0, -oh / 2 + border * 0.25, 0]} castShadow>
+              <boxGeometry args={[ow + 0.06, border * 0.7, frameDepth + 2 * sillProud]} />
+              {frameMaterial}
+            </mesh>
 
             {Array.from({ length: panels }).map((_, i) => {
               if (horizontal) {
@@ -329,7 +571,7 @@ const OpeningFrames: React.FC<{ wallId: string; thickness: number; start: Point2
 });
 
 export const WallMesh: React.FC<WallMeshProps> = React.memo(
-  ({ id, start, end, thickness, height, materialId, offsets }) => {
+  ({ id, start, end, thickness, height, materialId, materialSideA, materialSideB, offsets }) => {
     // We must subscribe to the openings of this specific wall so the mesh regenerates when an opening is added
     useAppStore(s => s.walls[id]?.openingIds);
     // Deep map the openings so we re-render if any opening dimensions change
@@ -346,10 +588,36 @@ export const WallMesh: React.FC<WallMeshProps> = React.memo(
       () => createWallGeometry(start, end, thickness, height, offsets, id),
       [start.x, start.y, end.x, end.y, thickness, height, offsets?.startLeft, offsets?.startRight, offsets?.endLeft, offsets?.endRight, id, openingsStr]
     );
-    const material = useMaterial(materialId);
+
+    // Material array matches the geometry's groups: [edges/sides, −z face (B), +z face (A)].
+    // Faces that haven't been painted individually fall back to the wall's base material.
+    // We clone the cached materials so this wall can carry its own depth-offset slot (see
+    // wallDepthOffsetSlot): that's what stops same-finish corners from z-fighting into the
+    // "fan" artifacts on the low tier. Clones share the underlying textures, so the only cost
+    // is a few extra lightweight material objects per wall.
+    const materials = useMemo(() => {
+      const units = wallDepthOffsetSlot(id);
+      const clones: THREE.Material[] = [];
+      const make = (mid: string): THREE.Material => {
+        const m = getMaterial(mid).clone() as THREE.MeshStandardMaterial;
+        m.polygonOffset = true;
+        m.polygonOffsetFactor = 0;
+        m.polygonOffsetUnits = units;
+        clones.push(m);
+        return m;
+      };
+      const base = make(materialId);
+      const sideA = materialSideA ? make(materialSideA) : base;
+      const sideB = materialSideB ? make(materialSideB) : base;
+      return { array: [base, sideB, sideA] as THREE.Material[], clones };
+    }, [materialId, materialSideA, materialSideB, id]);
+
+    // Dispose the previous wall's cloned materials when they're replaced or the wall unmounts.
+    useEffect(() => () => materials.clones.forEach((m) => m.dispose()), [materials]);
+
     return (
       <group>
-        <mesh geometry={geometry} material={material} castShadow receiveShadow />
+        <mesh geometry={geometry} material={materials.array} castShadow receiveShadow />
         <OpeningFrames wallId={id} thickness={thickness} start={start} end={end} />
       </group>
     );

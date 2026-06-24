@@ -6,7 +6,9 @@ import { useViewerWalls, useViewerRooms } from '@/store/selectors/editorSelector
 import { WallMesh } from './WallMesh';
 import { FloorMesh } from './FloorMesh';
 import { FurnitureInstances } from './FurnitureModel';
+import { RoadMesh } from './RoadMesh';
 import { VastuOverlay3D } from './VastuOverlay3D';
+import { GroundPlane } from './GroundPlane';
 
 /**
  * Pure orchestrator: maps store geometry to meshes. Each child builds its own geometry,
@@ -19,12 +21,11 @@ export const SceneContent: React.FC = () => {
 
   return (
     <group>
-      {/* Infinite ground plane — neutral matte so it reads as a render surface, not a
-          game lawn, and fades softly into the fog/background at distance. */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
-        <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#c4cad1" roughness={1} metalness={0} />
-      </mesh>
+      {/* Outdoor lawn — real CC0 grass PBR textures with anisotropic filtering. */}
+      <GroundPlane />
+
+      {/* Exterior paving / driveways laid with the Road tool. */}
+      <RoadMesh />
 
       {rooms.map((room) => (
         <FloorMesh key={room.id} polygon={room.polygon} materialId={room.floorMaterialId} />
@@ -40,6 +41,8 @@ export const SceneContent: React.FC = () => {
             thickness={wall.thickness}
             height={wall.height}
             materialId={wall.materialId}
+            materialSideA={wall.materialSideA}
+            materialSideB={wall.materialSideB}
             offsets={wall.offsets}
           />
         ) : null

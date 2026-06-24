@@ -26,7 +26,7 @@ import type { OpeningFamily } from '@/domains/shared/openings/openingCatalog';
 import { defaultKindForFamily } from '@/domains/shared/openings/openingCatalog';
 
 /** What the user is currently holding in their cursor (e.g. wall tool, select tool) */
-export type Tool = 'select' | 'wall' | 'furniture' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'ac' | 'paint' | 'room';
+export type Tool = 'select' | 'wall' | 'road' | 'furniture' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'ac' | 'paint' | 'room';
 
 /** The different side-menus the user can open and close */
 export type PanelId = 'properties' | 'vastu' | 'catalog' | 'layers';
@@ -40,10 +40,18 @@ export interface UISlice {
   showDimensions: boolean;
   /** The catalog id that the furniture tool will place on the next click. */
   furnitureCatalogId: string;
+  /** Width (cm) applied to the next road segment drawn with the Road tool. */
+  roadWidth: number;
   /** The finish id (wall paint or floor tile) the Paint tool applies on the next click. */
   paintFinishId: string;
   /** The selected opening kind id per family, used by the door/window/vent/ac tools. */
   selectedOpeningKinds: Record<OpeningFamily, string>;
+  /**
+   * Optional per-family size overrides applied when placing the next opening. Lets the user
+   * dictate sill height (elevation), opening height, and width for windows/ventilation
+   * instead of always using the kind's catalog defaults. Unset fields fall back to the kind.
+   */
+  openingSizeOverrides: Record<OpeningFamily, { width?: number; height?: number; elevation?: number }>;
 
   // Controls (How we change the memory)
   setActiveTool: (tool: Tool) => void;
@@ -52,9 +60,15 @@ export interface UISlice {
   setChainMode: (enabled: boolean) => void;
   toggleDimensions: () => void;
   setFurnitureCatalogId: (catalogId: string) => void;
+  /** Set the width (cm) used for newly drawn roads. */
+  setRoadWidth: (width: number) => void;
   setPaintFinishId: (finishId: string) => void;
   /** Choose which opening kind a family's tool will place next. */
   setOpeningKind: (family: OpeningFamily, kindId: string) => void;
+  /** Set/merge a size override (width/height/elevation in cm) for a family. */
+  setOpeningSize: (family: OpeningFamily, patch: { width?: number; height?: number; elevation?: number }) => void;
+  /** Clear all size overrides for a family (revert to the kind's catalog defaults). */
+  resetOpeningSize: (family: OpeningFamily) => void;
 }
 
 export const createUISlice: StateCreator<
@@ -72,6 +86,7 @@ export const createUISlice: StateCreator<
   },
   isChainModeEnabled: false,
   furnitureCatalogId: 'sofa-3seat',
+  roadWidth: 300,
   showDimensions: true,
   paintFinishId: 'paint-white',
   selectedOpeningKinds: {
@@ -79,6 +94,12 @@ export const createUISlice: StateCreator<
     window: defaultKindForFamily('window'),
     vent: defaultKindForFamily('vent'),
     ac: defaultKindForFamily('ac'),
+  },
+  openingSizeOverrides: {
+    door: {},
+    window: {},
+    vent: {},
+    ac: {},
   },
 
   setActiveTool: (tool) => {
@@ -113,7 +134,12 @@ export const createUISlice: StateCreator<
 
   setFurnitureCatalogId: (catalogId) => {
     set((state) => {
-      state.furnitureCatalogId = catalogId;
+      state.furnitureCatalogId = catalogId;    });
+  },
+
+  setRoadWidth: (width) => {
+    set((state) => {
+      state.roadWidth = Math.max(30, Math.min(2000, Math.round(width)));
     });
   },
 
@@ -126,6 +152,18 @@ export const createUISlice: StateCreator<
   setOpeningKind: (family, kindId) => {
     set((state) => {
       state.selectedOpeningKinds[family] = kindId;
+    });
+  },
+
+  setOpeningSize: (family, patch) => {
+    set((state) => {
+      state.openingSizeOverrides[family] = { ...state.openingSizeOverrides[family], ...patch };
+    });
+  },
+
+  resetOpeningSize: (family) => {
+    set((state) => {
+      state.openingSizeOverrides[family] = {};
     });
   },
 });

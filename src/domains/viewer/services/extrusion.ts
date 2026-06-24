@@ -160,6 +160,15 @@ export function createWallGeometry(
     posArray[i] = x + shift;
   }
 
+  // Split the geometry into material groups so each big face can be painted independently:
+  //   index 0 = wall sides/edges (jambs, head, sill, top, hole rims) → base material
+  //   index 1 = the −z face  → side B material
+  //   index 2 = the +z face  → side A material
+  // Done now, while caps are still axis-aligned at z = ±thickM/2 (before the world matrix
+  // rotates them off-axis). A face triangle has all three vertices on the same cap plane;
+  // any triangle spanning the thickness is an edge/side.
+  assignWallFaceGroups(geometry, thickM / 2);
+
   // By default, the shape's X is the wall length, Y is wall height, Z is thickness.
   // We want to orient this geometry to match the start->end vector.
   const angle = Math.atan2(dy, dx); // Angle in 2D plan
@@ -183,4 +192,51 @@ export function createWallGeometry(
   geometry.computeVertexNormals();
 
   return geometry;
+}
+
+/**
+ * Assigns three material groups to a freshly-extruded (axis-aligned) wall geometry so the
+ * two large faces can carry different paints:
+ *   group material index 0 → edges/sides (base material)
+ *   group material index 1 → the −z face (side B)
+ *   group material index 2 → the +z face (side A)
+ *
+ * `halfThick` is the wall's half-thickness in meters; the caps sit at z = ±halfThick. A
+ * triangle whose three vertices all sit on +halfThick is the +z face; all on −halfThick is
+ * the −z face; anything spanning the thickness is an edge. Consecutive same-material
+ * triangles are coalesced into a single group to keep draw calls low.
+ */
+function assignWallFaceGroups(geometry: THREE.BufferGeometry, halfThick: number): void {
+  const pos = geometry.getAttribute('position');
+  const index = geometry.getIndex();
+  const triCount = index ? index.count / 3 : pos.count / 3;
+  if (triCount === 0) return;
+
+  const vertexAt = (tri: number, k: number): number =>
+    index ? index.getX(tri * 3 + k) : tri * 3 + k;
+
+  // Tolerance: comfortably inside the cap-to-edge gap so classification is robust.
+  const eps = Math.max(halfThick * 0.5, 1e-4);
+
+  const matOf = (tri: number): number => {
+    const z0 = pos.getZ(vertexAt(tri, 0));
+    const z1 = pos.getZ(vertexAt(tri, 1));
+    const z2 = pos.getZ(vertexAt(tri, 2));
+    if (z0 > eps && z1 > eps && z2 > eps) return 2; // +z face → side A
+    if (z0 < -eps && z1 < -eps && z2 < -eps) return 1; // −z face → side B
+    return 0; // spans the thickness → edge/side
+  };
+
+  geometry.clearGroups();
+  let runStart = 0;
+  let runMat = matOf(0);
+  for (let tri = 1; tri < triCount; tri++) {
+    const mat = matOf(tri);
+    if (mat !== runMat) {
+      geometry.addGroup(runStart * 3, (tri - runStart) * 3, runMat);
+      runStart = tri;
+      runMat = mat;
+    }
+  }
+  geometry.addGroup(runStart * 3, (triCount - runStart) * 3, runMat);
 }

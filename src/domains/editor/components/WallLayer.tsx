@@ -79,20 +79,50 @@ export const WallLayer: React.FC = React.memo(() => {
       <g mask={hasGaps ? `url(#${DOOR_MASK_ID})` : undefined}>
         {walls.map((wall) => {
           const quad = computeWallQuad(wall.start, wall.end, wall.thickness, wall.offsets);
-          // Painted wall → its finish swatch; unpainted (legacy/default) wall → the editor
-          // default grey, so nothing changes until the user paints it.
-          const fill = getFinishSwatch(wallMap[wall.id]?.materialId, EDITOR_STYLE.wallFill);
+          const w = wallMap[wall.id];
+          // Room-aware paint: a wall has two faces. Side A is the −normal (bottom) half,
+          // side B the +normal (top) half. We split the quad along its centreline and fill
+          // each half with that face's finish (falling back to the base material), so paint
+          // applied from inside one room only colours the face toward that room.
+          const fillBase = getFinishSwatch(w?.materialId, EDITOR_STYLE.wallFill);
+          const fillA = getFinishSwatch(w?.materialSideA ?? w?.materialId, EDITOR_STYLE.wallFill);
+          const fillB = getFinishSwatch(w?.materialSideB ?? w?.materialId, EDITOR_STYLE.wallFill);
+
+          const { topLeft, topRight, bottomRight, bottomLeft } = quad;
+          const startMid = { x: (topLeft.x + bottomLeft.x) / 2, y: (topLeft.y + bottomLeft.y) / 2 };
+          const endMid = { x: (topRight.x + bottomRight.x) / 2, y: (topRight.y + bottomRight.y) / 2 };
+
+          // When neither face is painted individually, draw a single quad (unchanged look).
+          const split = Boolean(w?.materialSideA || w?.materialSideB);
+
+          if (!split) {
+            return (
+              <path
+                key={wall.id}
+                d={quadPath(topLeft, topRight, bottomRight, bottomLeft)}
+                fill={fillBase}
+                stroke={EDITOR_STYLE.wallStroke}
+                strokeWidth={EDITOR_STYLE.wallStrokeWidth}
+                data-entity-id={wall.id}
+                data-entity-type="wall"
+              />
+            );
+          }
+
           return (
-            <path
-              key={wall.id}
-              d={quadPath(quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft)}
-              fill={fill}
-              stroke={EDITOR_STYLE.wallStroke}
-              strokeWidth={EDITOR_STYLE.wallStrokeWidth}
-              // data-id lets selection / hit‑testing identify the wall later.
-              data-entity-id={wall.id}
-              data-entity-type="wall"
-            />
+            <g key={wall.id} data-entity-id={wall.id} data-entity-type="wall">
+              {/* Side B (top / +normal half) */}
+              <path d={quadPath(topLeft, topRight, endMid, startMid)} fill={fillB} stroke="none" />
+              {/* Side A (bottom / −normal half) */}
+              <path d={quadPath(startMid, endMid, bottomRight, bottomLeft)} fill={fillA} stroke="none" />
+              {/* Outline on top so the wall edge stays crisp. */}
+              <path
+                d={quadPath(topLeft, topRight, bottomRight, bottomLeft)}
+                fill="none"
+                stroke={EDITOR_STYLE.wallStroke}
+                strokeWidth={EDITOR_STYLE.wallStrokeWidth}
+              />
+            </g>
           );
         })}
       </g>

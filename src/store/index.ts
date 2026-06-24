@@ -46,6 +46,7 @@ export const useAppStore = create<AppStore>()(
           rooms: state.rooms,
           furniture: state.furniture,
           openings: state.openings,
+          roads: state.roads,
         }),
         skipHydration: false,
       }

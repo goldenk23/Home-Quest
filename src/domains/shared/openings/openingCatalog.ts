@@ -47,8 +47,8 @@ export interface OpeningKind {
   readonly window?: WindowStyle;
   /** Vent-only: how it renders in 3D. */
   readonly vent?: 'louvre' | 'exhaust';
-  /** Door-only: 'open' = empty doorway, 'gate' = framed gate panel. */
-  readonly door?: 'open' | 'gate';
+  /** Door-only: 'open' = empty doorway, 'gate' = framed gate panel, 'shutter' = roller/sectional garage shutter. */
+  readonly door?: 'open' | 'gate' | 'shutter';
 }
 
 export const OPENING_KINDS: readonly OpeningKind[] = [
@@ -56,6 +56,7 @@ export const OPENING_KINDS: readonly OpeningKind[] = [
   { id: 'door-standard', family: 'door', type: 'door', label: 'Door', icon: '🚪', width: 90, height: 210, elevation: 0, color: '#ca8a04', door: 'open' },
   { id: 'door-double', family: 'door', type: 'door', label: 'Double Door', icon: '🚪', width: 150, height: 215, elevation: 0, color: '#ca8a04', door: 'open' },
   { id: 'door-main-gate', family: 'door', type: 'door', label: 'Main Gate', icon: '🏛️', width: 160, height: 240, elevation: 0, color: '#92400e', door: 'gate' },
+  { id: 'garage-shutter', family: 'door', type: 'door', label: 'Garage Shutter', icon: '🚧', width: 260, height: 220, elevation: 0, color: '#64748b', door: 'shutter' },
 
   // ---- Windows ------------------------------------------------------------
   { id: 'window-standard', family: 'window', type: 'window', label: 'Standard', icon: '🪟', width: 120, height: 120, elevation: 90, color: '#93c5fd', window: { panels: 2, orientation: 'horizontal' } },

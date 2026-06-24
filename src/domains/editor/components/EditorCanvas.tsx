@@ -7,15 +7,18 @@ import { screenToWorld } from '../services/geometry';
 import { applySnapping } from '../hooks/useSnapping';
 import { usePanZoom } from '../hooks/usePan';
 import { useWallDrawing } from '../hooks/useWallDrawing';
+import { useRoadDrawing } from '../hooks/useRoadDrawing';
 import { toWallSegments } from '../services/wallGuides';
 import { categoryOf } from '@/domains/shared/materials/finishPalette';
 import { getOpeningKind, resolveKind } from '@/domains/shared/openings/openingCatalog';
+import type { OpeningFamily } from '@/domains/shared/openings/openingCatalog';
 import { getCatalogEntry } from '@/domains/viewer/hooks/useAssetLoader';
 import type { Point2D } from '@/types/geometry';
 import type { AppStore } from '@/store';
 import { GridLayer } from './GridLayer';
 import { RoomLayer } from './RoomLayer';
 import { WallLayer } from './WallLayer';
+import { RoadLayer } from './RoadLayer';
 import { DimensionLayer } from './DimensionLayer';
 import { OpeningsLayer } from './OpeningsLayer';
 import { FurnitureLayer } from './FurnitureLayer';
@@ -98,6 +101,24 @@ function hitTestWall(cursor: Point2D, state: AppStore): string | null {
   return null;
 }
 
+/** Distance-based hit test for road centerlines (within half the road width). */
+function hitTestRoad(cursor: Point2D, state: AppStore): string | null {
+  for (const road of Object.values(state.roads)) {
+    const { start, end } = road;
+    const l2 = (end.x - start.x) ** 2 + (end.y - start.y) ** 2;
+    let t = 0;
+    if (l2 > 0) {
+      t = ((cursor.x - start.x) * (end.x - start.x) + (cursor.y - start.y) * (end.y - start.y)) / l2;
+      t = Math.max(0, Math.min(1, t));
+    }
+    const projX = start.x + t * (end.x - start.x);
+    const projY = start.y + t * (end.y - start.y);
+    const dist = Math.sqrt((cursor.x - projX) ** 2 + (cursor.y - projY) ** 2);
+    if (dist <= road.width / 2) return road.id;
+  }
+  return null;
+}
+
 /** Ray-casting point-in-polygon test (polygon points in world cm). */
 function pointInPolygon(p: Point2D, polygon: Point2D[]): boolean {
   let inside = false;
@@ -137,6 +158,27 @@ function hitTestRoom(cursor: Point2D, state: AppStore): string | null {
   return bestId;
 }
 
+/**
+ * Which face of a wall the cursor lies on, used for room-aware paint. Side A is the wall's
+ * +normal face — plan direction (dy,−dx), i.e. the +z face in 3D; side B is the other face.
+ * The user clicks the wall on the side of the room they're standing in, so that face is
+ * painted and the opposite (e.g. exterior) face is left untouched.
+ */
+function wallPaintSide(cursor: Point2D, wallId: string, state: AppStore): 'A' | 'B' {
+  const wall = state.walls[wallId];
+  if (!wall) return 'A';
+  const start = state.vertices[wall.startVertexId]?.position;
+  const end = state.vertices[wall.endVertexId]?.position;
+  if (!start || !end) return 'A';
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const cx = (start.x + end.x) / 2;
+  const cy = (start.y + end.y) / 2;
+  // Signed projection of (cursor − centre) onto the +A normal (dy, −dx).
+  const dot = (cursor.x - cx) * dy + (cursor.y - cy) * -dx;
+  return dot >= 0 ? 'A' : 'B';
+}
+
 function isPerimeterWall(wallId: string, state: AppStore): boolean {
   let count = 0;
   const wall = state.walls[wallId];
@@ -166,6 +208,7 @@ export const EditorCanvas: React.FC = () => {
   const showDimensions = useAppStore((s) => s.showDimensions);
 
   const { drawStart, chainOrigin, handleClick, cancel } = useWallDrawing();
+  const { drawStart: roadStart, handleClick: handleRoadClick, cancel: cancelRoad } = useRoadDrawing();
 
   const viewTransformRef = useRef(viewTransform);
   viewTransformRef.current = viewTransform;
@@ -248,14 +291,14 @@ export const EditorCanvas: React.FC = () => {
       if (!svgRef.current) return null;
       const rect = svgRef.current.getBoundingClientRect();
       const raw = screenToWorld({ px: e.clientX, py: e.clientY }, rect, viewTransformRef.current);
-      const origin = activeTool === 'wall' ? drawStart : null;
+      const origin = activeTool === 'wall' ? drawStart : activeTool === 'road' ? roadStart : null;
       // When drawing, allow snapping onto existing wall centerlines so a wall drawn
       // across a room connects cleanly and splits it. (Not needed for select/furniture.)
       const st = useAppStore.getState();
       const wallSegments = activeTool === 'wall' ? toWallSegments(st.walls, st.vertices) : [];
       return applySnapping(raw, endpoints, snapConfig, origin, e.shiftKey, wallSegments);
     },
-    [activeTool, drawStart, endpoints, snapConfig]
+    [activeTool, drawStart, roadStart, endpoints, snapConfig]
   );
 
   const handleMouseDown = useCallback(
@@ -429,6 +472,11 @@ export const EditorCanvas: React.FC = () => {
         return;
       }
 
+      if (activeTool === 'road') {
+        handleRoadClick(cursor);
+        return;
+      }
+
       if (activeTool === 'furniture') {
         const catalogId = state.furnitureCatalogId;
         const entry = getCatalogEntry(catalogId);
@@ -469,15 +517,23 @@ export const EditorCanvas: React.FC = () => {
 
           const offsetCm = Math.hypot(cursor.x - start.x, cursor.y - start.y);
 
+          // Apply any user-set size overrides for this family (sill height, opening height,
+          // width). Windows/vents expose these in the toolbar; unset values fall back to the
+          // kind's catalog defaults.
+          const ov = state.openingSizeOverrides[activeTool as OpeningFamily];
+          const width = ov?.width ?? kind.width;
+          const height = ov?.height ?? kind.height;
+          const elevation = ov?.elevation ?? kind.elevation;
+
           state.recordHistory(`Add ${kind.label}`, () => {
             state.addOpening({
               wallId,
               type: kind.type,
               kind: kind.id,
               offsetCm,
-              width: kind.width,
-              height: kind.height,
-              elevation: kind.elevation,
+              width,
+              height,
+              elevation,
             });
           });
         }
@@ -499,7 +555,10 @@ export const EditorCanvas: React.FC = () => {
         const wallId = hitTestWall(cursor, state);
 
         if (category === 'wall' && wallId) {
-          state.recordHistory('Paint Wall', () => state.updateWall(wallId, { materialId: finishId }));
+          const side = wallPaintSide(cursor, wallId, state);
+          state.recordHistory('Paint Wall', () =>
+            state.updateWall(wallId, side === 'A' ? { materialSideA: finishId } : { materialSideB: finishId })
+          );
           state.select([wallId]);
           return;
         }
@@ -539,6 +598,11 @@ export const EditorCanvas: React.FC = () => {
           state.select([wallId]);
           return;
         }
+        const roadId = hitTestRoad(cursor, state);
+        if (roadId) {
+          state.select([roadId]);
+          return;
+        }
         // Lowest priority: clicking inside a room selects that room (so it can be assigned).
         const roomId = hitTestRoom(cursor, state);
         if (roomId) {
@@ -548,7 +612,7 @@ export const EditorCanvas: React.FC = () => {
         }
       }
     },
-    [activeTool, handleClick]
+    [activeTool, handleClick, handleRoadClick]
   );
 
   // Keyboard: Escape cancels drawing; Delete/Backspace erases selection; R rotates furniture.
@@ -557,7 +621,7 @@ export const EditorCanvas: React.FC = () => {
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
 
-      if (e.key === 'Escape') cancel();
+      if (e.key === 'Escape') { cancel(); cancelRoad(); }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const state = useAppStore.getState();
@@ -566,6 +630,7 @@ export const EditorCanvas: React.FC = () => {
             state.selectedIds.forEach((id) => {
               if (state.walls[id]) state.removeWall(id);
               if (state.furniture[id]) state.removeFurniture(id);
+              if (state.roads[id]) state.removeRoad(id);
             });
             state.clearSelection();
           });
@@ -587,10 +652,10 @@ export const EditorCanvas: React.FC = () => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [cancel]);
+  }, [cancel, cancelRoad]);
 
   const cursorClass =
-    activeTool === 'wall' || activeTool === 'furniture' || activeTool === 'paint'
+    activeTool === 'wall' || activeTool === 'road' || activeTool === 'furniture' || activeTool === 'paint'
       ? 'cursor-crosshair'
       : 'cursor-grab';
 
@@ -629,6 +694,7 @@ export const EditorCanvas: React.FC = () => {
     >
       <g transform={`translate(${viewTransform.offsetX}, ${viewTransform.offsetY}) scale(${viewTransform.scale})`}>
         <GridLayer gridSize={snapConfig.gridSize} />
+        <RoadLayer />
         <RoomLayer />
         <WallLayer />
         <OpeningsLayer />
@@ -637,6 +703,7 @@ export const EditorCanvas: React.FC = () => {
         {showDimensions && <DimensionLayer />}
         <VastuOverlay2D />
         {activeTool === 'wall' && <DrawingPreview start={drawStart} chainOrigin={chainOrigin} />}
+        {activeTool === 'road' && <DrawingPreview start={roadStart} />}
         {dragHud && <DragReadout {...dragHud} />}
       </g>
       {/* Screen-anchored compass (outside the pan/zoom group) so it never moves or scales. */}

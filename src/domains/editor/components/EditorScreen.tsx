@@ -1,6 +1,7 @@
 import React from 'react';
 import { EditorCanvas } from './EditorCanvas';
 import { RoomAssignmentPanel } from './RoomAssignmentPanel';
+import { WallPropertiesPanel } from './WallPropertiesPanel';
 import { useRoomDetection } from '../hooks/useRoomDetection';
 import { useKeyboardEditor } from '../hooks/useKeyboardEditor';
 import { useVastuAnalysis } from '@/domains/vastu/hooks/useVastuAnalysis';
@@ -19,6 +20,7 @@ export const EditorScreen: React.FC = () => {
       <ScreenReaderAnnouncer />
       <EditorCanvas />
       <RoomAssignmentPanel />
+      <WallPropertiesPanel />
     </div>
   );
 };
