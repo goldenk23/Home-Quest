@@ -1,8 +1,8 @@
 // src/domains/editor/components/EditorCanvas.tsx
 
-import React, { useRef, useCallback, useEffect, useState } from 'react';
+import React, { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import { useAppStore } from '@/store';
-import { useEndpoints } from '@/store/selectors/editorSelectors';
+import { useEndpoints, useFloorBelowGeometry } from '@/store/selectors/editorSelectors';
 import { screenToWorld } from '../services/geometry';
 import { applySnapping } from '../hooks/useSnapping';
 import { usePanZoom } from '../hooks/usePan';
@@ -11,6 +11,7 @@ import { useRoadDrawing } from '../hooks/useRoadDrawing';
 import { toWallSegments } from '../services/wallGuides';
 import { categoryOf } from '@/domains/shared/materials/finishPalette';
 import { getOpeningKind, resolveKind } from '@/domains/shared/openings/openingCatalog';
+import { computeOpeningGeometry } from '../services/openingGeometry';
 import type { OpeningFamily } from '@/domains/shared/openings/openingCatalog';
 import { getCatalogEntry } from '@/domains/viewer/hooks/useAssetLoader';
 import type { Point2D } from '@/types/geometry';
@@ -24,6 +25,7 @@ import { OpeningsLayer } from './OpeningsLayer';
 import { FurnitureLayer } from './FurnitureLayer';
 import { SelectionLayer } from './SelectionLayer';
 import { DrawingPreview } from './DrawingPreview';
+import { GhostFloorLayer } from './GhostFloorLayer';
 import { VastuOverlay2D } from '@/domains/vastu/components/VastuOverlay2D';
 import { CompassRose } from './CompassRose';
 
@@ -119,6 +121,28 @@ function hitTestRoad(cursor: Point2D, state: AppStore): string | null {
   return null;
 }
 
+/** Distance-based hit test for an opening symbol (door/window/vent), within a grab radius. */
+function hitTestOpening(cursor: Point2D, state: AppStore): string | null {
+  let bestId: string | null = null;
+  let bestDist = Infinity;
+  for (const opening of Object.values(state.openings)) {
+    const wall = state.walls[opening.wallId];
+    if (!wall) continue;
+    const start = state.vertices[wall.startVertexId]?.position;
+    const end = state.vertices[wall.endVertexId]?.position;
+    if (!start || !end) continue;
+    const geo = computeOpeningGeometry(opening, start, end, wall.thickness);
+    if (!geo) continue;
+    const dist = Math.hypot(cursor.x - geo.center.x, cursor.y - geo.center.y);
+    // Hit if within the opening's half-width (plus a small grace) of its centre.
+    if (dist <= geo.halfW + 10 && dist < bestDist) {
+      bestDist = dist;
+      bestId = opening.id;
+    }
+  }
+  return bestId;
+}
+
 /** Ray-casting point-in-polygon test (polygon points in world cm). */
 function pointInPolygon(p: Point2D, polygon: Point2D[]): boolean {
   let inside = false;
@@ -203,6 +227,13 @@ export const EditorCanvas: React.FC = () => {
   const svgRef = useRef<SVGSVGElement>(null);
   const { viewTransform, panBy, handlers } = usePanZoom(svgRef);
   const endpoints = useEndpoints();
+  // Corners of the floor below are also snap targets, so a new storey can be drawn aligned
+  // to the one beneath it.
+  const ghostGeo = useFloorBelowGeometry();
+  const snapEndpoints = useMemo(() => {
+    if (!ghostGeo) return endpoints;
+    return [...endpoints, ...Object.values(ghostGeo.vertices).map((v) => v.position)];
+  }, [endpoints, ghostGeo]);
   const snapConfig = useAppStore((s) => s.snapConfig);
   const activeTool = useAppStore((s) => s.activeTool);
   const showDimensions = useAppStore((s) => s.showDimensions);
@@ -296,9 +327,9 @@ export const EditorCanvas: React.FC = () => {
       // across a room connects cleanly and splits it. (Not needed for select/furniture.)
       const st = useAppStore.getState();
       const wallSegments = activeTool === 'wall' ? toWallSegments(st.walls, st.vertices) : [];
-      return applySnapping(raw, endpoints, snapConfig, origin, e.shiftKey, wallSegments);
+      return applySnapping(raw, snapEndpoints, snapConfig, origin, e.shiftKey, wallSegments);
     },
-    [activeTool, drawStart, roadStart, endpoints, snapConfig]
+    [activeTool, drawStart, roadStart, snapEndpoints, snapConfig]
   );
 
   const handleMouseDown = useCallback(
@@ -593,6 +624,12 @@ export const EditorCanvas: React.FC = () => {
           state.select([furnitureId]);
           return;
         }
+        // Openings (doors/gates/windows/vents) sit on walls, so test them before walls.
+        const openingId = hitTestOpening(cursor, state);
+        if (openingId) {
+          state.select([openingId]);
+          return;
+        }
         const wallId = hitTestWall(cursor, state);
         if (wallId) {
           state.select([wallId]);
@@ -631,6 +668,7 @@ export const EditorCanvas: React.FC = () => {
               if (state.walls[id]) state.removeWall(id);
               if (state.furniture[id]) state.removeFurniture(id);
               if (state.roads[id]) state.removeRoad(id);
+              if (state.openings[id]) state.removeOpening(id);
             });
             state.clearSelection();
           });
@@ -694,6 +732,7 @@ export const EditorCanvas: React.FC = () => {
     >
       <g transform={`translate(${viewTransform.offsetX}, ${viewTransform.offsetY}) scale(${viewTransform.scale})`}>
         <GridLayer gridSize={snapConfig.gridSize} />
+        <GhostFloorLayer />
         <RoadLayer />
         <RoomLayer />
         <WallLayer />

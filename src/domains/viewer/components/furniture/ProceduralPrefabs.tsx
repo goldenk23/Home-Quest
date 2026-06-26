@@ -812,6 +812,35 @@ const BathtubPrefab: React.FC<PrefabProps> = ({ w, h, d, colliding }) => {
 };
 
 // --- Router ----------------------------------------------------------------
+// --- Stairs (straight flight, solid stepped profile) -----------------------
+// A straight staircase that climbs one storey. Steps ascend along +Z (the piece's "front"),
+// so the bottom step is at -Z and the top tread lands at +h/2 (= the floor above's base, since
+// the catalog height is one storey). The first-person walkthrough reads this same convention
+// to ride the player up (see useFirstPerson groundHeightAtM).
+// ponytail: bare treads, no railings/stringers — enough to walk and read as stairs. There is
+// also no stairwell hole cut in the ceiling slab above, so climbing clips through that 20cm
+// slab briefly; cutting the slab is the upgrade if it matters.
+const StairsPrefab: React.FC<PrefabProps> = ({ w, h, d, colliding }) => {
+  const n = Math.max(3, Math.round(h / 0.18)); // ~18cm risers
+  const rise = h / n;
+  const run = d / n;
+  return (
+    <group>
+      {Array.from({ length: n }).map((_, i) => {
+        const boxH = (i + 1) * rise;            // solid from floor up to this tread
+        const cy = -h / 2 + boxH / 2;
+        const cz = -d / 2 + (i + 0.5) * run;    // bottom step at -Z, ascending toward +Z
+        return (
+          <mesh key={i} position={[0, cy, cz]} castShadow receiveShadow>
+            <boxGeometry args={[w, boxH, run]} />
+            {lightWood(colliding)}
+          </mesh>
+        );
+      })}
+    </group>
+  );
+};
+
 export const renderProceduralPrefab = (
   catalogId: string,
   w: number,
@@ -822,6 +851,7 @@ export const renderProceduralPrefab = (
 ) => {
   const props = { w, h, d, color, colliding };
 
+  if (catalogId.includes('stair')) return <StairsPrefab {...props} />;
   if (catalogId.includes('sofa')) return <SofaPrefab {...props} />;
   if (catalogId.includes('armchair')) return <ArmchairPrefab {...props} />;
   if (catalogId.startsWith('ac')) return <ACPrefab {...props} />;

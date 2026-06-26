@@ -95,7 +95,7 @@ export const OpeningsLayer: React.FC = React.memo(() => {
               key={opening.id}
               onClick={(e) => {
                 e.stopPropagation();
-                useAppStore.getState().removeOpening(opening.id);
+                useAppStore.getState().select([opening.id]);
               }}
               style={{ cursor: 'pointer' }}
             >
@@ -168,7 +168,7 @@ export const OpeningsLayer: React.FC = React.memo(() => {
             strokeDasharray={strokeDasharray}
             onClick={(e) => {
               e.stopPropagation();
-              useAppStore.getState().removeOpening(opening.id);
+              useAppStore.getState().select([opening.id]);
             }}
             style={{ cursor: 'pointer' }}
           />

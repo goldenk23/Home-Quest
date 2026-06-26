@@ -27,6 +27,36 @@ export function planToVec3(point: Point2D, elevationCm = 0): THREE.Vector3 {
 }
 
 /**
+ * Height (m) a player stands at on a straight staircase, or null if they're outside its
+ * footprint. The stair is an oriented box on the plan: centre (cx, cz) in 3D metres,
+ * `rotationY` radians about Y, half-extents `halfW` (local-X / width) and `halfD` (local-Z /
+ * ascent). It climbs `riseM` above `baseM` along local +Z, so local z = -halfD is the bottom
+ * step and +halfD the top — matching the StairsPrefab geometry.
+ */
+export function stairRampHeightAt(
+  x: number,
+  z: number,
+  cx: number,
+  cz: number,
+  rotationY: number,
+  halfW: number,
+  halfD: number,
+  baseM: number,
+  riseM: number
+): number | null {
+  if (halfD <= 0 || halfW <= 0) return null;
+  const cos = Math.cos(rotationY);
+  const sin = Math.sin(rotationY);
+  const vx = x - cx;
+  const vz = z - cz;
+  const lx = vx * cos - vz * sin; // local width axis
+  const lz = vx * sin + vz * cos; // local ascent axis (+Z = top)
+  if (Math.abs(lx) > halfW || Math.abs(lz) > halfD) return null;
+  const progress = (lz + halfD) / (2 * halfD); // 0 bottom (-Z) → 1 top (+Z)
+  return baseM + progress * riseM;
+}
+
+/**
  * Builds a THREE.Shape from a room polygon, in meters.
  *
  * The shape is created in its own 2D space using (x, y). When the resulting mesh is laid
@@ -42,4 +72,19 @@ export function polygonToShape(vertices: Point2D[]): THREE.Shape {
   }
   shape.closePath();
   return shape;
+}
+
+/**
+ * Where a storey's ceiling slab sits: resting on the wall tops and filling up to the floor
+ * above (`ceilingTopCm`, measured from this floor's base). The slab's top always lands flush
+ * at `ceilingTopCm` so the floor above sits on it with no gap; `minThicknessCm` keeps it from
+ * collapsing when the walls already reach the gap. Returns cm in the floor's local space.
+ */
+export function ceilingSlabRange(
+  wallTopCm: number,
+  ceilingTopCm: number,
+  minThicknessCm = 8
+): { baseCm: number; thicknessCm: number } {
+  const baseCm = Math.max(0, Math.min(wallTopCm, ceilingTopCm - minThicknessCm));
+  return { baseCm, thicknessCm: ceilingTopCm - baseCm };
 }

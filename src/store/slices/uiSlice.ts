@@ -53,6 +53,9 @@ export interface UISlice {
    */
   openingSizeOverrides: Record<OpeningFamily, { width?: number; height?: number; elevation?: number }>;
 
+  /** Incremented to ask the 2D editor to fit/center the view on the current plan. */
+  fitViewNonce: number;
+
   // Controls (How we change the memory)
   setActiveTool: (tool: Tool) => void;
   togglePanel: (panel: PanelId) => void;
@@ -69,6 +72,8 @@ export interface UISlice {
   setOpeningSize: (family: OpeningFamily, patch: { width?: number; height?: number; elevation?: number }) => void;
   /** Clear all size overrides for a family (revert to the kind's catalog defaults). */
   resetOpeningSize: (family: OpeningFamily) => void;
+  /** Ask the 2D editor to fit/center the view on the current plan. */
+  requestFitView: () => void;
 }
 
 export const createUISlice: StateCreator<
@@ -101,6 +106,7 @@ export const createUISlice: StateCreator<
     vent: {},
     ac: {},
   },
+  fitViewNonce: 0,
 
   setActiveTool: (tool) => {
     set((state) => {
@@ -164,6 +170,12 @@ export const createUISlice: StateCreator<
   resetOpeningSize: (family) => {
     set((state) => {
       state.openingSizeOverrides[family] = {};
+    });
+  },
+
+  requestFitView: () => {
+    set((state) => {
+      state.fitViewNonce += 1;
     });
   },
 });

@@ -2,11 +2,10 @@
 
 import * as THREE from 'three';
 import type { Point2D } from '@/types/geometry';
+import type { Opening } from '@/types/editor';
 import type { MiterOffsets } from '@/domains/editor/services/wallOps';
 
 const CM_TO_M = 0.01;
-
-import { useAppStore } from '@/store';
 
 /** An opening reduced to a clamped rectangle in the wall's 2D shape space (meters). */
 type OpeningRect = {
@@ -21,6 +20,10 @@ type OpeningRect = {
 /**
  * Builds a BufferGeometry for one wall using ExtrudeGeometry so that holes
  * (doors, windows, vents) can be natively punched out of the wall surface.
+ *
+ * `openings` are the openings on THIS wall (passed explicitly so the geometry builder is a
+ * pure function of its inputs and works for any floor — active or parked — without reaching
+ * into the global store).
  */
 export function createWallGeometry(
   start: Point2D,
@@ -28,7 +31,7 @@ export function createWallGeometry(
   thicknessCm: number,
   heightCm: number,
   offsets?: MiterOffsets,
-  wallId?: string
+  openings: Opening[] = []
 ): THREE.BufferGeometry {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
@@ -47,33 +50,26 @@ export function createWallGeometry(
   // 1. Collect this wall's openings as rectangles, CLAMPED to the wall so an oversized or
   //    badly-placed opening can never breach an edge.
   const rects: OpeningRect[] = [];
-  if (wallId) {
-    const state = useAppStore.getState();
-    const wall = state.walls[wallId];
-    if (wall && wall.openingIds) {
-      for (const oid of wall.openingIds) {
-        const opening = state.openings[oid];
-        if (!opening) continue;
-        // ACs are surface-mounted units, not holes — never cut the wall for them.
-        if (opening.type === 'ac') continue;
-        const ox = opening.offsetCm * CM_TO_M;
-        const oy = opening.elevation * CM_TO_M;
-        const ow = opening.width * CM_TO_M;
-        const oh = opening.height * CM_TO_M;
-        if (ow <= 0 || oh <= 0) continue;
+  for (const opening of openings) {
+    if (!opening) continue;
+    // ACs are surface-mounted units, not holes — never cut the wall for them.
+    if (opening.type === 'ac') continue;
+    const ox = opening.offsetCm * CM_TO_M;
+    const oy = opening.elevation * CM_TO_M;
+    const ow = opening.width * CM_TO_M;
+    const oh = opening.height * CM_TO_M;
+    if (ow <= 0 || oh <= 0) continue;
 
-        const left = Math.max(0, Math.min(lenM, ox - ow / 2));
-        const right = Math.max(0, Math.min(lenM, ox + ow / 2));
-        if (right - left < 0.01) continue; // entirely outside / too thin after clamping
+    const left = Math.max(0, Math.min(lenM, ox - ow / 2));
+    const right = Math.max(0, Math.min(lenM, ox + ow / 2));
+    if (right - left < 0.01) continue; // entirely outside / too thin after clamping
 
-        const toFloor = opening.type === 'door'; // doorways open to the floor
-        const bottom = toFloor ? 0 : oy;
-        const top = Math.min(hM, oy + oh);
-        if (top - bottom < 0.01) continue;
+    const toFloor = opening.type === 'door'; // doorways open to the floor
+    const bottom = toFloor ? 0 : oy;
+    const top = Math.min(hM, oy + oh);
+    if (top - bottom < 0.01) continue;
 
-        rects.push({ left, right, bottom, top, toFloor });
-      }
-    }
+    rects.push({ left, right, bottom, top, toFloor });
   }
 
   // 2. Build the wall outline. Doorways (sill on the floor) become NOTCHES so they open

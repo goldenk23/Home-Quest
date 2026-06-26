@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAppStore } from '../store';
 import { SnappingTestSandbox } from '../domains/editor/components/SnappingTestSandbox';
 import { EditorScreen } from '../domains/editor/components/EditorScreen';
+import { FloorSwitcher } from '../domains/editor/components/FloorSwitcher';
 import { ViewerCanvas } from '../domains/viewer/components/ViewerCanvas';
 import { VastuPanel } from '../domains/vastu/components/VastuPanel';
 import { VastuLegend } from '../domains/vastu/components/VastuLegend';
@@ -253,6 +254,8 @@ export const SandboxView: React.FC = () => {
   const redo = useAppStore((s) => s.redo);
 
   const [showSnapTest, setShowSnapTest] = useState(false);
+  // Which panel fills the work area: 'split' (50/50), 'editor' (2D full), 'viewer' (3D full).
+  const [maximized, setMaximized] = useState<'split' | 'editor' | 'viewer'>('split');
   const [isWalking, setIsWalking] = useState(false);
   const [ioMessage, setIoMessage] = useState<string | null>(null);
   const [exportFormat, setExportFormat] = useState<ImageExportFormat>('png');
@@ -285,11 +288,16 @@ export const SandboxView: React.FC = () => {
 
   const selectedFurnitureId = selectedIds.find((id) => furniture[id]);
   const selectedWallId = selectedIds.find((id) => walls[id]);
+  const openings = useAppStore((s) => s.openings);
+  const removeOpening = useAppStore((s) => s.removeOpening);
+  const selectedOpeningId = selectedIds.find((id) => openings[id]);
   const selectionLabel = selectedFurnitureId
     ? getCatalogEntry(furniture[selectedFurnitureId].catalogId).label
-    : selectedWallId
-      ? 'Wall'
-      : 'nothing selected';
+    : selectedOpeningId
+      ? (getOpeningKind(openings[selectedOpeningId].kind ?? '')?.label ?? openings[selectedOpeningId].type)
+      : selectedWallId
+        ? 'Wall'
+        : 'nothing selected';
 
   const rotateSelected = (deltaDeg: number) => {
     useAppStore.getState().recordHistory('Rotate', () => {
@@ -306,6 +314,7 @@ export const SandboxView: React.FC = () => {
       selectedIds.forEach((id) => {
         if (state.walls[id]) removeWall(id);
         if (state.furniture[id]) removeFurniture(id);
+        if (state.openings[id]) removeOpening(id);
       });
       clearSelection();
     });
@@ -535,8 +544,13 @@ export const SandboxView: React.FC = () => {
           </span>
         </Row>
 
+        <Row label="Floors">
+          <FloorSwitcher />
+        </Row>
+
         <Row label="Plan">
           <button style={btn(false, '#8b5cf6')} onClick={loadSampleHouse}>🏠 Load Sample House</button>
+          <button style={btn(false, '#0ea5e9')} onClick={() => useAppStore.getState().requestFitView()}>🎯 Center View</button>
           <button style={btn(false, '#ef4444')} onClick={() => { clearAllWithHistory(); }}>♻️ Clear All</button>
         </Row>
 
@@ -585,16 +599,34 @@ export const SandboxView: React.FC = () => {
 
       {/* Editor + Viewer */}
       <div style={{ display: 'flex', gap: '1rem', height: '78vh', minHeight: '600px', margin: '1rem 0' }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div style={badge}>2D Editor</div>
+        <div style={{ flex: 1, flexDirection: 'column', display: maximized === 'viewer' ? 'none' : 'flex' }}>
+          <div style={panelHeader}>
+            <span style={badge}>2D Editor</span>
+            <button
+              style={maxBtn}
+              title={maximized === 'editor' ? 'Restore split view' : 'Maximize the 2D editor'}
+              onClick={() => setMaximized((m) => (m === 'editor' ? 'split' : 'editor'))}
+            >
+              {maximized === 'editor' ? '🗗 Restore' : '🗖 Maximize'}
+            </button>
+          </div>
           <ErrorBoundary>
             <div style={canvasFrame}>
               <EditorScreen />
             </div>
           </ErrorBoundary>
         </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div style={badge}>3D Viewer {cameraMode === 'firstPerson' ? '— click to enter, then HOLD mouse to walk' : ''}</div>
+        <div style={{ flex: 1, flexDirection: 'column', display: maximized === 'editor' ? 'none' : 'flex' }}>
+          <div style={panelHeader}>
+            <span style={badge}>3D Viewer {cameraMode === 'firstPerson' ? '— click to enter, then HOLD mouse to walk' : ''}</span>
+            <button
+              style={maxBtn}
+              title={maximized === 'viewer' ? 'Restore split view' : 'Maximize the 3D viewer'}
+              onClick={() => setMaximized((m) => (m === 'viewer' ? 'split' : 'viewer'))}
+            >
+              {maximized === 'viewer' ? '🗗 Restore' : '🗖 Maximize'}
+            </button>
+          </div>
           <ErrorBoundary>
             <div style={{ ...canvasFrame, position: 'relative' }}>
               <ViewerCanvas />
@@ -668,6 +700,25 @@ const badge: React.CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
   color: '#64748b',
+  marginBottom: '4px',
+};
+
+const panelHeader: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '0.5rem',
+};
+
+const maxBtn: React.CSSProperties = {
+  fontSize: '0.7rem',
+  fontWeight: 600,
+  color: '#334155',
+  background: '#e2e8f0',
+  border: '1px solid #cbd5e1',
+  borderRadius: '6px',
+  padding: '2px 8px',
+  cursor: 'pointer',
   marginBottom: '4px',
 };
 

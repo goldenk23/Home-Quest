@@ -13,6 +13,11 @@ export function exportFloorPlan(filename = 'floorplan.hq.json'): void {
     walls: state.walls,
     rooms: state.rooms,
     furniture: state.furniture,
+    openings: state.openings,
+    roads: state.roads,
+    floors: state.floors,
+    activeFloorId: state.activeFloorId,
+    floorData: state.floorData,
     metadata: { name: filename.replace('.hq.json', ''), createdAt: new Date().toISOString(), lastModifiedAt: new Date().toISOString(), authorId: null },
     settings: { gridSize: 10, wallThickness: 20, wallHeight: 280, measurementUnit: 'cm' },
   };
@@ -40,8 +45,14 @@ export async function importFloorPlan(file: File): Promise<{ success: boolean; e
       walls: migrated.walls,
       rooms: migrated.rooms,
       furniture: migrated.furniture,
+      openings: migrated.openings ?? {},
+      roads: migrated.roads ?? {},
+      floors: migrated.floors,
+      activeFloorId: migrated.activeFloorId,
+      floorData: migrated.floorData ?? {},
     });
     useAppStore.getState().clearHistory(); // imported plan is a fresh baseline
+    useAppStore.getState().requestFitView(); // center the imported plan in the editor
 
     return { success: true };
   } catch (error) {

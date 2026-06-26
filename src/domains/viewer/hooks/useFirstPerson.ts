@@ -4,7 +4,8 @@ import { useRef, useEffect, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useAppStore } from '@/store';
-import { planTo3D } from '../services/transform';
+import { planTo3D, stairRampHeightAt } from '../services/transform';
+import { getCatalogEntry, STAIRS_CATALOG_ID } from '../hooks/useAssetLoader';
 import { computeSignedArea } from '@/domains/editor/services/roomDetection';
 
 interface FirstPersonConfig {
@@ -95,7 +96,17 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
   const resetCameraTick = useAppStore((s) => s.resetCameraTick);
 
   useEffect(() => {
-    const { rooms, vertices, planCentroid3D } = useAppStore.getState();
+    const state = useAppStore.getState();
+    const { floors, activeFloorId, floorData, planCentroid3D } = state;
+    // Spawn on the storey the player will actually stand in (ground level / lowest floor),
+    // pulling its geometry from the parked set if it isn't the floor being edited.
+    const ground = floors.reduce((lo, f) => (f.elevationCm < lo.elevationCm ? f : lo), floors[0]);
+    const geo =
+      ground && ground.id !== activeFloorId && floorData[ground.id]
+        ? floorData[ground.id]
+        : { rooms: state.rooms, vertices: state.vertices };
+    const rooms = geo.rooms;
+    const vertices = geo.vertices;
 
     let spawnX = planCentroid3D?.x ?? 0;
     let spawnZ = planCentroid3D?.z ?? 0;
@@ -208,10 +219,87 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
     };
   }, [camera, gl, config.lookSpeed]);
 
+  /**
+   * The geometry (walls/vertices/openings) of the storey the camera is currently standing in,
+   * chosen by eye height. The global store only holds the ACTIVE floor's geometry; the other
+   * floors are parked in `floorData`. Without this, the walkthrough always collided against
+   * whatever floor was being EDITED — so while building an upper storey you'd walk straight
+   * through the ground-floor walls you actually see. Resolving by elevation fixes that and is
+   * a no-op for a single-floor plan (it just returns the ground floor / working set).
+   */
+  const floorGeometryAtEye = useCallback(() => {
+    const state = useAppStore.getState();
+    const { floors, activeFloorId, floorData } = state;
+    const feetElevCm = (camera.position.y - config.eyeHeight) * CM_PER_M;
+    let chosen = floors[0];
+    let bestDiff = Infinity;
+    for (const f of floors) {
+      const diff = Math.abs(f.elevationCm - feetElevCm);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        chosen = f;
+      }
+    }
+    if (chosen && chosen.id !== activeFloorId) {
+      const g = floorData[chosen.id];
+      if (g) return { walls: g.walls, vertices: g.vertices, openings: g.openings };
+    }
+    // Active floor (or fallback): live working set.
+    return { walls: state.walls, vertices: state.vertices, openings: state.openings };
+  }, [camera, config.eyeHeight]);
+
+  /**
+   * Height (m, world Y of the surface under the player's feet) at plan-meters (x, z). Normally
+   * this is the elevation of the storey nearest the player's current feet height, so they
+   * stand on each floor. If the player is within a staircase footprint, they instead ride that
+   * staircase's ramp: progress along its ascent axis (local +Z) maps 0→1 to bottom→top, and
+   * the top equals the floor above's base — so walking up a flight smoothly lifts the camera
+   * one storey, after which `floorGeometryAtEye` switches collision to the upper floor.
+   */
+  const groundHeightAtM = useCallback((x: number, z: number): number => {
+    const state = useAppStore.getState();
+    const { floors, activeFloorId, floorData } = state;
+    const feetGuessM = camera.position.y - config.eyeHeight;
+
+    // Default: the floor whose base sits nearest the current feet height.
+    let groundM = 0;
+    let bestDiff = Infinity;
+    for (const f of floors) {
+      const eM = f.elevationCm / CM_PER_M;
+      const diff = Math.abs(eM - feetGuessM);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        groundM = eM;
+      }
+    }
+
+    // Stairs override: ride the ramp of any staircase whose footprint we're standing on.
+    for (const f of floors) {
+      const fur = f.id === activeFloorId ? state.furniture : floorData[f.id]?.furniture;
+      if (!fur) continue;
+      const baseM = f.elevationCm / CM_PER_M;
+      for (const item of Object.values(fur)) {
+        if (item.catalogId !== STAIRS_CATALOG_ID) continue;
+        const cat = getCatalogEntry(item.catalogId);
+        const halfW = (cat.bounds.width / 2) * item.scale / CM_PER_M;
+        const halfD = (cat.bounds.depth / 2) * item.scale / CM_PER_M;
+        const riseM = (cat.bounds.height * item.scale) / CM_PER_M;
+        const cx = item.position.x / CM_PER_M;
+        const cz = -item.position.y / CM_PER_M; // plan y → 3D z
+        const rampM = stairRampHeightAt(x, z, cx, cz, item.rotation, halfW, halfD, baseM, riseM);
+        if (rampM === null) continue;
+        // Pick the ramp height closest to where the player already is, so the floor↔stair
+        // handoff (and any overlap) never teleports them.
+        if (Math.abs(rampM - feetGuessM) < Math.abs(groundM - feetGuessM)) groundM = rampM;
+      }
+    }
+    return groundM;
+  }, [camera, config.eyeHeight]);
+
   const collidesWithWall = useCallback(
     (mx: number, mz: number): boolean => {
       if (isNaN(mx) || isNaN(mz)) return false;
-      const { walls, vertices, openings } = useAppStore.getState();
+      const { walls, vertices, openings } = floorGeometryAtEye();
       const px = mx * CM_PER_M;
       const py = -mz * CM_PER_M; // inverse of planTo3D's z = -y
       const radiusCm = config.collisionRadius * CM_PER_M;
@@ -251,13 +339,13 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
       }
       return false;
     },
-    [config.collisionRadius]
+    [config.collisionRadius, floorGeometryAtEye]
   );
 
   /** Unit tangent (3D x,z) of the wall nearest to plan-meters (mx, mz), or null. */
   const nearestWallTangent = useCallback((mx: number, mz: number): { x: number; z: number } | null => {
     if (isNaN(mx) || isNaN(mz)) return null;
-    const { walls, vertices } = useAppStore.getState();
+    const { walls, vertices } = floorGeometryAtEye();
     const px = mx * CM_PER_M;
     const py = -mz * CM_PER_M;
     let bestDist = Infinity;
@@ -276,7 +364,49 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
       }
     }
     return tangent;
-  }, []);
+  }, [floorGeometryAtEye]);
+
+  /**
+   * Unit direction (3D x,z) pointing AWAY from the nearest wall, for un-sticking the player.
+   * Used instead of the old "phase through everything" escape hatch: if the camera ever ends
+   * up inside a wall band, we nudge it straight back out toward open space rather than letting
+   * it travel freely through solid walls.
+   */
+  const wallEjectDir = useCallback((mx: number, mz: number): { x: number; z: number } | null => {
+    if (isNaN(mx) || isNaN(mz)) return null;
+    const { walls, vertices } = floorGeometryAtEye();
+    const px = mx * CM_PER_M;
+    const py = -mz * CM_PER_M;
+    let bestDist = Infinity;
+    let dir: { x: number; z: number } | null = null;
+    for (const wall of Object.values(walls)) {
+      const a = vertices[wall.startVertexId]?.position;
+      const b = vertices[wall.endVertexId]?.position;
+      if (!a || !b) continue;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const lenSq = dx * dx + dy * dy;
+      let t = lenSq > 0 ? ((px - a.x) * dx + (py - a.y) * dy) / lenSq : 0;
+      t = Math.max(0, Math.min(1, t));
+      const nx = a.x + t * dx;
+      const ny = a.y + t * dy;
+      const dist = Math.hypot(px - nx, py - ny);
+      if (dist < bestDist) {
+        bestDist = dist;
+        const vx = px - nx;
+        const vy = py - ny;
+        const len = Math.hypot(vx, vy);
+        if (len > 1e-3) {
+          dir = { x: vx / len, z: -vy / len }; // plan → 3D (x, -z)
+        } else {
+          // Dead on the centerline: push along the wall normal so we still escape.
+          const wl = Math.hypot(dx, dy) || 1;
+          dir = { x: -dy / wl, z: -dx / wl };
+        }
+      }
+    }
+    return dir;
+  }, [floorGeometryAtEye]);
 
   useFrame((_, delta) => {
     if (!isLocked.current) return;
@@ -329,7 +459,7 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
     // Below a tiny threshold, snap to rest so we don't integrate microscopic drift forever.
     if (velocity.current.lengthSq() < 1e-6) {
       velocity.current.set(0, 0, 0);
-      camera.position.y = config.eyeHeight;
+      camera.position.y = groundHeightAtM(camera.position.x, camera.position.z) + config.eyeHeight;
       return;
     }
 
@@ -345,13 +475,20 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
       return;
     }
 
-    // ESCAPE HATCH: If the player is somehow already stuck inside a wall
-    // (e.g. clipped the edge of a door frame), allow free movement so they can walk out
-    // rather than permanently freezing their position.
+    // UN-STICK: if the player is somehow already inside a wall band (e.g. clipped a door
+    // jamb, or spawned tight to a wall), eject them straight back out toward open space
+    // instead of integrating their step. The old behaviour allowed FREE movement here, which
+    // let the player phase through every wall once they touched one — the "walk through
+    // walls" bug. Doorways/gates are exempt in collidesWithWall, so standing in an opening
+    // never triggers this.
     if (collidesWithWall(cur.x, cur.z)) {
-      cur.x += stepX;
-      cur.z += stepZ;
-      camera.position.y = config.eyeHeight;
+      const dir = wallEjectDir(cur.x, cur.z);
+      if (dir) {
+        const ejectSpeed = Math.max(config.moveSpeed, 2); // m/s, gentle but firm
+        cur.x += dir.x * ejectSpeed * clampedDelta;
+        cur.z += dir.z * ejectSpeed * clampedDelta;
+      }
+      camera.position.y = groundHeightAtM(cur.x, cur.z) + config.eyeHeight;
       return;
     }
 
@@ -388,7 +525,7 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
       }
     }
 
-    camera.position.y = config.eyeHeight; // pinned to standing height
+    camera.position.y = groundHeightAtM(cur.x, cur.z) + config.eyeHeight; // ride floors/stairs
   });
 
   return { requestLock, isLocked };

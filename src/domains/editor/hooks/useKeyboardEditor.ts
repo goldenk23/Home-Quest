@@ -13,6 +13,7 @@ export function useKeyboardEditor(): void {
   const moveFurniture = useAppStore((s) => s.moveFurniture);
   const removeWall = useAppStore((s) => s.removeWall);
   const removeFurniture = useAppStore((s) => s.removeFurniture);
+  const removeOpening = useAppStore((s) => s.removeOpening);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -54,12 +55,12 @@ export function useKeyboardEditor(): void {
         case 'Backspace':
           e.preventDefault();
           useAppStore.getState().recordHistory('Delete', () =>
-            deleteSelection(selectedIds, removeWall, removeFurniture)
+            deleteSelection(selectedIds, removeWall, removeFurniture, removeOpening)
           );
           break;
       }
     },
-    [selectedIds, moveVertex, moveFurniture, removeWall, removeFurniture]
+    [selectedIds, moveVertex, moveFurniture, removeWall, removeFurniture, removeOpening]
   );
 
   useEffect(() => {
@@ -89,12 +90,14 @@ function nudgeSelection(
 function deleteSelection(
   ids: string[],
   removeWall: (id: string) => void,
-  removeFurniture: (id: string) => void
+  removeFurniture: (id: string) => void,
+  removeOpening: (id: string) => void
 ): void {
   const state = useAppStore.getState();
   for (const id of ids) {
     if (state.walls[id]) removeWall(id);
     else if (state.furniture[id]) removeFurniture(id);
+    else if (state.openings[id]) removeOpening(id);
   }
   useAppStore.getState().clearSelection();
 }

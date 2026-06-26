@@ -1,0 +1,1840 @@
+{
+  "version": 4,
+  "vertices": {
+    "vertex_89e295c8-19c4-4ec3-98f0-7dd088e7a2eb": {
+      "id": "vertex_89e295c8-19c4-4ec3-98f0-7dd088e7a2eb",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "connectedWalls": [
+        "wall_97e91c38-9f07-43fc-8986-bd4d5f01ff36",
+        "wall_1cf2eab2-af09-4798-96c1-4c73c677eba7"
+      ]
+    },
+    "vertex_c50ddac8-794e-4b94-a4e8-6414c2a840d4": {
+      "id": "vertex_c50ddac8-794e-4b94-a4e8-6414c2a840d4",
+      "position": {
+        "x": 340,
+        "y": 0
+      },
+      "connectedWalls": [
+        "wall_97e91c38-9f07-43fc-8986-bd4d5f01ff36",
+        "wall_9494e0ec-9aff-45f3-a23f-cd2ea8920fbc",
+        "wall_21a5d5ac-163a-4720-bd86-cb9d88b7f264"
+      ]
+    },
+    "vertex_b831afd3-cedd-468d-afe5-1048fc3968ba": {
+      "id": "vertex_b831afd3-cedd-468d-afe5-1048fc3968ba",
+      "position": {
+        "x": 620,
+        "y": 0
+      },
+      "connectedWalls": [
+        "wall_9494e0ec-9aff-45f3-a23f-cd2ea8920fbc",
+        "wall_8de962c6-2bd3-496c-91eb-a81292c59f1c",
+        "wall_24c7e541-4743-40bd-8339-81ab65001ea3"
+      ]
+    },
+    "vertex_66c47322-a423-495a-a162-ccb52156323e": {
+      "id": "vertex_66c47322-a423-495a-a162-ccb52156323e",
+      "position": {
+        "x": 820,
+        "y": 0
+      },
+      "connectedWalls": [
+        "wall_8de962c6-2bd3-496c-91eb-a81292c59f1c",
+        "wall_ce0ad343-fc16-432b-aa44-ce1c0da1079f",
+        "wall_d1a71055-ce1d-42f5-be8c-5a98e1fbeaa2"
+      ]
+    },
+    "vertex_010c779b-b586-4920-bf28-bc36d6f10450": {
+      "id": "vertex_010c779b-b586-4920-bf28-bc36d6f10450",
+      "position": {
+        "x": 1340,
+        "y": 0
+      },
+      "connectedWalls": [
+        "wall_ce0ad343-fc16-432b-aa44-ce1c0da1079f",
+        "wall_5b4a1dcc-b835-45ac-991b-9e7e4daf7c96"
+      ]
+    },
+    "vertex_306b88c8-852b-460b-9766-44c7772abb04": {
+      "id": "vertex_306b88c8-852b-460b-9766-44c7772abb04",
+      "position": {
+        "x": 0,
+        "y": 300
+      },
+      "connectedWalls": [
+        "wall_58df52d4-d076-4cef-8cb6-aa6f8d145ca8",
+        "wall_1cf2eab2-af09-4798-96c1-4c73c677eba7",
+        "wall_101a6e37-9c98-4100-b675-ce506d4bac99"
+      ]
+    },
+    "vertex_37421bfe-8f47-4413-bfb7-c572ae7a3267": {
+      "id": "vertex_37421bfe-8f47-4413-bfb7-c572ae7a3267",
+      "position": {
+        "x": 340,
+        "y": 300
+      },
+      "connectedWalls": [
+        "wall_58df52d4-d076-4cef-8cb6-aa6f8d145ca8",
+        "wall_0996858b-210e-44de-b609-e5c2a4b698e0",
+        "wall_21a5d5ac-163a-4720-bd86-cb9d88b7f264",
+        "wall_1621ae17-cbb2-4581-89b0-13dccd7106f2"
+      ]
+    },
+    "vertex_bf6bf262-7648-405e-918d-1369f0631de9": {
+      "id": "vertex_bf6bf262-7648-405e-918d-1369f0631de9",
+      "position": {
+        "x": 620,
+        "y": 300
+      },
+      "connectedWalls": [
+        "wall_0996858b-210e-44de-b609-e5c2a4b698e0",
+        "wall_33b9b171-20f7-4c36-a9f2-fd032ff2b6be",
+        "wall_24c7e541-4743-40bd-8339-81ab65001ea3",
+        "wall_87bc7a97-585b-4eb0-9f52-a94def478d68"
+      ]
+    },
+    "vertex_8afe6f90-9b91-4f3e-ae98-b296a9fd3206": {
+      "id": "vertex_8afe6f90-9b91-4f3e-ae98-b296a9fd3206",
+      "position": {
+        "x": 820,
+        "y": 300
+      },
+      "connectedWalls": [
+        "wall_33b9b171-20f7-4c36-a9f2-fd032ff2b6be",
+        "wall_0ab88245-3215-4c71-866d-09a693efd0c6",
+        "wall_d1a71055-ce1d-42f5-be8c-5a98e1fbeaa2",
+        "wall_e8c32a04-3eb3-4165-b11e-74dd4cd9f9c9"
+      ]
+    },
+    "vertex_fe2d55db-c40a-44e4-b74b-fe4e78ee891d": {
+      "id": "vertex_fe2d55db-c40a-44e4-b74b-fe4e78ee891d",
+      "position": {
+        "x": 1080,
+        "y": 300
+      },
+      "connectedWalls": [
+        "wall_0ab88245-3215-4c71-866d-09a693efd0c6",
+        "wall_2f6b9d40-fc07-4d38-82d9-97b954b92674",
+        "wall_54104774-f2ec-44dc-88f3-433ec7b44ec5"
+      ]
+    },
+    "vertex_29fc1ee1-1699-4b14-b7f2-d4565147d8aa": {
+      "id": "vertex_29fc1ee1-1699-4b14-b7f2-d4565147d8aa",
+      "position": {
+        "x": 1340,
+        "y": 300
+      },
+      "connectedWalls": [
+        "wall_2f6b9d40-fc07-4d38-82d9-97b954b92674",
+        "wall_5b4a1dcc-b835-45ac-991b-9e7e4daf7c96",
+        "wall_56eb0bb2-2182-46a1-a8e4-f9cb589fd783"
+      ]
+    },
+    "vertex_58080a8a-52d7-4268-ad63-5850939de70e": {
+      "id": "vertex_58080a8a-52d7-4268-ad63-5850939de70e",
+      "position": {
+        "x": 0,
+        "y": 560
+      },
+      "connectedWalls": [
+        "wall_43bb9d8a-eb73-4bae-922c-0fb12d8cc3d5",
+        "wall_101a6e37-9c98-4100-b675-ce506d4bac99",
+        "wall_555655ad-1073-4613-b6ba-b0c557910337"
+      ]
+    },
+    "vertex_10b23c0b-459f-4417-a471-ace769cc88a6": {
+      "id": "vertex_10b23c0b-459f-4417-a471-ace769cc88a6",
+      "position": {
+        "x": 340,
+        "y": 560
+      },
+      "connectedWalls": [
+        "wall_43bb9d8a-eb73-4bae-922c-0fb12d8cc3d5",
+        "wall_a8b19d8a-191e-457a-88bd-ad33aa51c3d6",
+        "wall_1621ae17-cbb2-4581-89b0-13dccd7106f2",
+        "wall_60b90275-a60d-46aa-bbd4-8f7a1cd955ba"
+      ]
+    },
+    "vertex_6bd5f30d-f2c7-4212-bcf9-ba41e6a131e3": {
+      "id": "vertex_6bd5f30d-f2c7-4212-bcf9-ba41e6a131e3",
+      "position": {
+        "x": 620,
+        "y": 560
+      },
+      "connectedWalls": [
+        "wall_a8b19d8a-191e-457a-88bd-ad33aa51c3d6",
+        "wall_87534805-eff7-4a14-a1c1-7ed663b21db1",
+        "wall_87bc7a97-585b-4eb0-9f52-a94def478d68"
+      ]
+    },
+    "vertex_d296cf01-ef6d-45d5-8e27-ed4b6753384d": {
+      "id": "vertex_d296cf01-ef6d-45d5-8e27-ed4b6753384d",
+      "position": {
+        "x": 820,
+        "y": 560
+      },
+      "connectedWalls": [
+        "wall_87534805-eff7-4a14-a1c1-7ed663b21db1",
+        "wall_c3475fe1-bec9-4816-a275-236483ab28fb",
+        "wall_e8c32a04-3eb3-4165-b11e-74dd4cd9f9c9"
+      ]
+    },
+    "vertex_717956bc-dd85-485c-941c-b8e4bd12af03": {
+      "id": "vertex_717956bc-dd85-485c-941c-b8e4bd12af03",
+      "position": {
+        "x": 1080,
+        "y": 560
+      },
+      "connectedWalls": [
+        "wall_c3475fe1-bec9-4816-a275-236483ab28fb",
+        "wall_30baa271-5981-400f-bd48-90e937013e5e",
+        "wall_54104774-f2ec-44dc-88f3-433ec7b44ec5"
+      ]
+    },
+    "vertex_9273a451-74aa-4ea4-a42b-bbbde8c03521": {
+      "id": "vertex_9273a451-74aa-4ea4-a42b-bbbde8c03521",
+      "position": {
+        "x": 1340,
+        "y": 560
+      },
+      "connectedWalls": [
+        "wall_30baa271-5981-400f-bd48-90e937013e5e",
+        "wall_56eb0bb2-2182-46a1-a8e4-f9cb589fd783",
+        "wall_2b73f395-0e18-4267-89dc-22d7c7ea3b00"
+      ]
+    },
+    "vertex_e192aa65-fef1-41e5-a4c8-0aa778d1f4ec": {
+      "id": "vertex_e192aa65-fef1-41e5-a4c8-0aa778d1f4ec",
+      "position": {
+        "x": 0,
+        "y": 900
+      },
+      "connectedWalls": [
+        "wall_dfc69439-26ca-4a4d-a87e-dec2e8d9877f",
+        "wall_555655ad-1073-4613-b6ba-b0c557910337"
+      ]
+    },
+    "vertex_99775dd1-f687-4675-b215-a37ed92cee3c": {
+      "id": "vertex_99775dd1-f687-4675-b215-a37ed92cee3c",
+      "position": {
+        "x": 60,
+        "y": 900
+      },
+      "connectedWalls": [
+        "wall_dfc69439-26ca-4a4d-a87e-dec2e8d9877f",
+        "wall_33cbd2a0-3ac2-4360-81c6-7b3ae3766619"
+      ]
+    },
+    "vertex_2826c97f-d883-49cf-8462-6583c3a390d7": {
+      "id": "vertex_2826c97f-d883-49cf-8462-6583c3a390d7",
+      "position": {
+        "x": 60,
+        "y": 1000
+      },
+      "connectedWalls": [
+        "wall_33cbd2a0-3ac2-4360-81c6-7b3ae3766619",
+        "wall_7178e3fa-f53d-4cab-abb9-5b6511245898"
+      ]
+    },
+    "vertex_cb78b202-825a-45aa-a95b-a97109c0a140": {
+      "id": "vertex_cb78b202-825a-45aa-a95b-a97109c0a140",
+      "position": {
+        "x": 280,
+        "y": 1000
+      },
+      "connectedWalls": [
+        "wall_7178e3fa-f53d-4cab-abb9-5b6511245898",
+        "wall_edceaf15-c792-4fd9-9a83-65b8e0e4255d"
+      ]
+    },
+    "vertex_2c0c837e-2537-4aec-abb4-23cbb074a26c": {
+      "id": "vertex_2c0c837e-2537-4aec-abb4-23cbb074a26c",
+      "position": {
+        "x": 280,
+        "y": 900
+      },
+      "connectedWalls": [
+        "wall_edceaf15-c792-4fd9-9a83-65b8e0e4255d",
+        "wall_2ff8b34b-4e85-4db0-999c-74e0ff6d3eef"
+      ]
+    },
+    "vertex_7516a5d4-075c-4406-8cfc-71bfac936b89": {
+      "id": "vertex_7516a5d4-075c-4406-8cfc-71bfac936b89",
+      "position": {
+        "x": 340,
+        "y": 900
+      },
+      "connectedWalls": [
+        "wall_2ff8b34b-4e85-4db0-999c-74e0ff6d3eef",
+        "wall_1b8d351c-c05d-4d51-ab6d-5f340c44a896",
+        "wall_60b90275-a60d-46aa-bbd4-8f7a1cd955ba"
+      ]
+    },
+    "vertex_2ad72316-2656-463b-868c-108d14c058e7": {
+      "id": "vertex_2ad72316-2656-463b-868c-108d14c058e7",
+      "position": {
+        "x": 1340,
+        "y": 900
+      },
+      "connectedWalls": [
+        "wall_1b8d351c-c05d-4d51-ab6d-5f340c44a896",
+        "wall_2b73f395-0e18-4267-89dc-22d7c7ea3b00"
+      ]
+    }
+  },
+  "walls": {
+    "wall_97e91c38-9f07-43fc-8986-bd4d5f01ff36": {
+      "id": "wall_97e91c38-9f07-43fc-8986-bd4d5f01ff36",
+      "startVertexId": "vertex_89e295c8-19c4-4ec3-98f0-7dd088e7a2eb",
+      "endVertexId": "vertex_c50ddac8-794e-4b94-a4e8-6414c2a840d4",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_bcb8765f-d28a-4b83-a51a-01a4f8b29ef6"
+      ],
+      "materialSideB": "paint-powder"
+    },
+    "wall_9494e0ec-9aff-45f3-a23f-cd2ea8920fbc": {
+      "id": "wall_9494e0ec-9aff-45f3-a23f-cd2ea8920fbc",
+      "startVertexId": "vertex_c50ddac8-794e-4b94-a4e8-6414c2a840d4",
+      "endVertexId": "vertex_b831afd3-cedd-468d-afe5-1048fc3968ba",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_acddfb33-774c-4a65-8422-148d61748a27"
+      ],
+      "materialSideB": "paint-mustard"
+    },
+    "wall_8de962c6-2bd3-496c-91eb-a81292c59f1c": {
+      "id": "wall_8de962c6-2bd3-496c-91eb-a81292c59f1c",
+      "startVertexId": "vertex_b831afd3-cedd-468d-afe5-1048fc3968ba",
+      "endVertexId": "vertex_66c47322-a423-495a-a162-ccb52156323e",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [],
+      "materialSideB": "paint-cream"
+    },
+    "wall_ce0ad343-fc16-432b-aa44-ce1c0da1079f": {
+      "id": "wall_ce0ad343-fc16-432b-aa44-ce1c0da1079f",
+      "startVertexId": "vertex_66c47322-a423-495a-a162-ccb52156323e",
+      "endVertexId": "vertex_010c779b-b586-4920-bf28-bc36d6f10450",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_83862fda-5153-4cc8-a6dc-e3a69262692f"
+      ],
+      "materialSideB": "paint-navy"
+    },
+    "wall_58df52d4-d076-4cef-8cb6-aa6f8d145ca8": {
+      "id": "wall_58df52d4-d076-4cef-8cb6-aa6f8d145ca8",
+      "startVertexId": "vertex_306b88c8-852b-460b-9766-44c7772abb04",
+      "endVertexId": "vertex_37421bfe-8f47-4413-bfb7-c572ae7a3267",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_fb18adde-24b9-4911-8d6e-26acf2638cd6"
+      ],
+      "materialSideA": "paint-powder",
+      "materialSideB": "paint-ochre"
+    },
+    "wall_0996858b-210e-44de-b609-e5c2a4b698e0": {
+      "id": "wall_0996858b-210e-44de-b609-e5c2a4b698e0",
+      "startVertexId": "vertex_37421bfe-8f47-4413-bfb7-c572ae7a3267",
+      "endVertexId": "vertex_bf6bf262-7648-405e-918d-1369f0631de9",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [],
+      "materialSideA": "paint-mustard",
+      "materialSideB": "paint-mint"
+    },
+    "wall_33b9b171-20f7-4c36-a9f2-fd032ff2b6be": {
+      "id": "wall_33b9b171-20f7-4c36-a9f2-fd032ff2b6be",
+      "startVertexId": "vertex_bf6bf262-7648-405e-918d-1369f0631de9",
+      "endVertexId": "vertex_8afe6f90-9b91-4f3e-ae98-b296a9fd3206",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_41ff182f-46f5-4b2d-88ff-c662f9f11578"
+      ],
+      "materialSideA": "paint-cream",
+      "materialSideB": "paint-linen"
+    },
+    "wall_0ab88245-3215-4c71-866d-09a693efd0c6": {
+      "id": "wall_0ab88245-3215-4c71-866d-09a693efd0c6",
+      "startVertexId": "vertex_8afe6f90-9b91-4f3e-ae98-b296a9fd3206",
+      "endVertexId": "vertex_fe2d55db-c40a-44e4-b74b-fe4e78ee891d",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [],
+      "materialSideA": "paint-navy",
+      "materialSideB": "paint-grey"
+    },
+    "wall_2f6b9d40-fc07-4d38-82d9-97b954b92674": {
+      "id": "wall_2f6b9d40-fc07-4d38-82d9-97b954b92674",
+      "startVertexId": "vertex_fe2d55db-c40a-44e4-b74b-fe4e78ee891d",
+      "endVertexId": "vertex_29fc1ee1-1699-4b14-b7f2-d4565147d8aa",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [],
+      "materialSideA": "paint-navy",
+      "materialSideB": "paint-powder"
+    },
+    "wall_43bb9d8a-eb73-4bae-922c-0fb12d8cc3d5": {
+      "id": "wall_43bb9d8a-eb73-4bae-922c-0fb12d8cc3d5",
+      "startVertexId": "vertex_58080a8a-52d7-4268-ad63-5850939de70e",
+      "endVertexId": "vertex_10b23c0b-459f-4417-a471-ace769cc88a6",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_a8e713e5-4990-4f6a-a731-bfa551433d24"
+      ],
+      "materialSideA": "paint-ochre",
+      "materialSideB": "paint-cream"
+    },
+    "wall_a8b19d8a-191e-457a-88bd-ad33aa51c3d6": {
+      "id": "wall_a8b19d8a-191e-457a-88bd-ad33aa51c3d6",
+      "startVertexId": "vertex_10b23c0b-459f-4417-a471-ace769cc88a6",
+      "endVertexId": "vertex_6bd5f30d-f2c7-4212-bcf9-ba41e6a131e3",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [],
+      "materialSideA": "paint-mint",
+      "materialSideB": "paint-sage"
+    },
+    "wall_87534805-eff7-4a14-a1c1-7ed663b21db1": {
+      "id": "wall_87534805-eff7-4a14-a1c1-7ed663b21db1",
+      "startVertexId": "vertex_6bd5f30d-f2c7-4212-bcf9-ba41e6a131e3",
+      "endVertexId": "vertex_d296cf01-ef6d-45d5-8e27-ed4b6753384d",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_5ebe2d19-4e22-4ff8-9d5c-b4b49d679faa"
+      ],
+      "materialSideA": "paint-linen",
+      "materialSideB": "paint-sage"
+    },
+    "wall_c3475fe1-bec9-4816-a275-236483ab28fb": {
+      "id": "wall_c3475fe1-bec9-4816-a275-236483ab28fb",
+      "startVertexId": "vertex_d296cf01-ef6d-45d5-8e27-ed4b6753384d",
+      "endVertexId": "vertex_717956bc-dd85-485c-941c-b8e4bd12af03",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [],
+      "materialSideA": "paint-grey",
+      "materialSideB": "paint-sage"
+    },
+    "wall_30baa271-5981-400f-bd48-90e937013e5e": {
+      "id": "wall_30baa271-5981-400f-bd48-90e937013e5e",
+      "startVertexId": "vertex_717956bc-dd85-485c-941c-b8e4bd12af03",
+      "endVertexId": "vertex_9273a451-74aa-4ea4-a42b-bbbde8c03521",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [],
+      "materialSideA": "paint-powder",
+      "materialSideB": "paint-sage"
+    },
+    "wall_dfc69439-26ca-4a4d-a87e-dec2e8d9877f": {
+      "id": "wall_dfc69439-26ca-4a4d-a87e-dec2e8d9877f",
+      "startVertexId": "vertex_e192aa65-fef1-41e5-a4c8-0aa778d1f4ec",
+      "endVertexId": "vertex_99775dd1-f687-4675-b215-a37ed92cee3c",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [],
+      "materialSideA": "paint-cream"
+    },
+    "wall_33cbd2a0-3ac2-4360-81c6-7b3ae3766619": {
+      "id": "wall_33cbd2a0-3ac2-4360-81c6-7b3ae3766619",
+      "startVertexId": "vertex_99775dd1-f687-4675-b215-a37ed92cee3c",
+      "endVertexId": "vertex_2826c97f-d883-49cf-8462-6583c3a390d7",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_9144d9f7-691b-4aa9-9afc-fd687917a556"
+      ],
+      "materialSideA": "paint-cream"
+    },
+    "wall_7178e3fa-f53d-4cab-abb9-5b6511245898": {
+      "id": "wall_7178e3fa-f53d-4cab-abb9-5b6511245898",
+      "startVertexId": "vertex_2826c97f-d883-49cf-8462-6583c3a390d7",
+      "endVertexId": "vertex_cb78b202-825a-45aa-a95b-a97109c0a140",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_422fc390-2dc9-479d-ac5f-476fcb70dcda"
+      ],
+      "materialSideA": "paint-cream"
+    },
+    "wall_edceaf15-c792-4fd9-9a83-65b8e0e4255d": {
+      "id": "wall_edceaf15-c792-4fd9-9a83-65b8e0e4255d",
+      "startVertexId": "vertex_cb78b202-825a-45aa-a95b-a97109c0a140",
+      "endVertexId": "vertex_2c0c837e-2537-4aec-abb4-23cbb074a26c",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_ca863e94-cde5-4448-b1ab-41d24750aab7"
+      ],
+      "materialSideA": "paint-cream"
+    },
+    "wall_2ff8b34b-4e85-4db0-999c-74e0ff6d3eef": {
+      "id": "wall_2ff8b34b-4e85-4db0-999c-74e0ff6d3eef",
+      "startVertexId": "vertex_2c0c837e-2537-4aec-abb4-23cbb074a26c",
+      "endVertexId": "vertex_7516a5d4-075c-4406-8cfc-71bfac936b89",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [],
+      "materialSideA": "paint-cream"
+    },
+    "wall_1b8d351c-c05d-4d51-ab6d-5f340c44a896": {
+      "id": "wall_1b8d351c-c05d-4d51-ab6d-5f340c44a896",
+      "startVertexId": "vertex_7516a5d4-075c-4406-8cfc-71bfac936b89",
+      "endVertexId": "vertex_2ad72316-2656-463b-868c-108d14c058e7",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_891eb0ce-d210-463b-adaf-4f5dcb9ce23c",
+        "opening_0a05f74c-3d38-4391-a2cd-da51b8724a39",
+        "opening_859d5183-e4f0-4b9f-9292-7d1b7ef7473e"
+      ],
+      "materialSideA": "paint-sage"
+    },
+    "wall_1cf2eab2-af09-4798-96c1-4c73c677eba7": {
+      "id": "wall_1cf2eab2-af09-4798-96c1-4c73c677eba7",
+      "startVertexId": "vertex_89e295c8-19c4-4ec3-98f0-7dd088e7a2eb",
+      "endVertexId": "vertex_306b88c8-852b-460b-9766-44c7772abb04",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_2058cf96-a298-40c7-a34f-4fd7976db75e"
+      ],
+      "materialSideA": "paint-powder"
+    },
+    "wall_101a6e37-9c98-4100-b675-ce506d4bac99": {
+      "id": "wall_101a6e37-9c98-4100-b675-ce506d4bac99",
+      "startVertexId": "vertex_306b88c8-852b-460b-9766-44c7772abb04",
+      "endVertexId": "vertex_58080a8a-52d7-4268-ad63-5850939de70e",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_ee6c6366-760b-4c25-9965-00d49e20c4b7"
+      ],
+      "materialSideA": "paint-ochre"
+    },
+    "wall_555655ad-1073-4613-b6ba-b0c557910337": {
+      "id": "wall_555655ad-1073-4613-b6ba-b0c557910337",
+      "startVertexId": "vertex_58080a8a-52d7-4268-ad63-5850939de70e",
+      "endVertexId": "vertex_e192aa65-fef1-41e5-a4c8-0aa778d1f4ec",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_f0e5ae43-890c-423d-89f3-f2068c08ede0"
+      ],
+      "materialSideA": "paint-cream"
+    },
+    "wall_21a5d5ac-163a-4720-bd86-cb9d88b7f264": {
+      "id": "wall_21a5d5ac-163a-4720-bd86-cb9d88b7f264",
+      "startVertexId": "vertex_c50ddac8-794e-4b94-a4e8-6414c2a840d4",
+      "endVertexId": "vertex_37421bfe-8f47-4413-bfb7-c572ae7a3267",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [],
+      "materialSideB": "paint-powder",
+      "materialSideA": "paint-mustard"
+    },
+    "wall_1621ae17-cbb2-4581-89b0-13dccd7106f2": {
+      "id": "wall_1621ae17-cbb2-4581-89b0-13dccd7106f2",
+      "startVertexId": "vertex_37421bfe-8f47-4413-bfb7-c572ae7a3267",
+      "endVertexId": "vertex_10b23c0b-459f-4417-a471-ace769cc88a6",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [],
+      "materialSideB": "paint-ochre",
+      "materialSideA": "paint-mint"
+    },
+    "wall_60b90275-a60d-46aa-bbd4-8f7a1cd955ba": {
+      "id": "wall_60b90275-a60d-46aa-bbd4-8f7a1cd955ba",
+      "startVertexId": "vertex_10b23c0b-459f-4417-a471-ace769cc88a6",
+      "endVertexId": "vertex_7516a5d4-075c-4406-8cfc-71bfac936b89",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_3427e782-30be-4944-8aa7-ad4b52c7d84d"
+      ],
+      "materialSideB": "paint-cream",
+      "materialSideA": "paint-sage"
+    },
+    "wall_24c7e541-4743-40bd-8339-81ab65001ea3": {
+      "id": "wall_24c7e541-4743-40bd-8339-81ab65001ea3",
+      "startVertexId": "vertex_b831afd3-cedd-468d-afe5-1048fc3968ba",
+      "endVertexId": "vertex_bf6bf262-7648-405e-918d-1369f0631de9",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_64891e36-3115-4bce-846a-11dd14bbc4df"
+      ],
+      "materialSideB": "paint-mustard",
+      "materialSideA": "paint-cream"
+    },
+    "wall_87bc7a97-585b-4eb0-9f52-a94def478d68": {
+      "id": "wall_87bc7a97-585b-4eb0-9f52-a94def478d68",
+      "startVertexId": "vertex_bf6bf262-7648-405e-918d-1369f0631de9",
+      "endVertexId": "vertex_6bd5f30d-f2c7-4212-bcf9-ba41e6a131e3",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_3d05e2b8-9e4a-4570-b557-fecdc0bc0224",
+        "opening_6a97ec73-6c0e-487e-bf6c-f10a18c9cb39"
+      ],
+      "materialSideB": "paint-mint",
+      "materialSideA": "paint-linen"
+    },
+    "wall_d1a71055-ce1d-42f5-be8c-5a98e1fbeaa2": {
+      "id": "wall_d1a71055-ce1d-42f5-be8c-5a98e1fbeaa2",
+      "startVertexId": "vertex_66c47322-a423-495a-a162-ccb52156323e",
+      "endVertexId": "vertex_8afe6f90-9b91-4f3e-ae98-b296a9fd3206",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_1642faf8-f1ce-45a1-b231-1267cf8e9a34"
+      ],
+      "materialSideB": "paint-cream",
+      "materialSideA": "paint-navy"
+    },
+    "wall_e8c32a04-3eb3-4165-b11e-74dd4cd9f9c9": {
+      "id": "wall_e8c32a04-3eb3-4165-b11e-74dd4cd9f9c9",
+      "startVertexId": "vertex_8afe6f90-9b91-4f3e-ae98-b296a9fd3206",
+      "endVertexId": "vertex_d296cf01-ef6d-45d5-8e27-ed4b6753384d",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_e187064d-f866-4fe0-b67e-f77d7ce9f517"
+      ],
+      "materialSideB": "paint-linen",
+      "materialSideA": "paint-grey"
+    },
+    "wall_54104774-f2ec-44dc-88f3-433ec7b44ec5": {
+      "id": "wall_54104774-f2ec-44dc-88f3-433ec7b44ec5",
+      "startVertexId": "vertex_fe2d55db-c40a-44e4-b74b-fe4e78ee891d",
+      "endVertexId": "vertex_717956bc-dd85-485c-941c-b8e4bd12af03",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_66547513-bec9-4ef0-9dd5-43dfb9f638fc"
+      ],
+      "materialSideB": "paint-grey",
+      "materialSideA": "paint-powder"
+    },
+    "wall_5b4a1dcc-b835-45ac-991b-9e7e4daf7c96": {
+      "id": "wall_5b4a1dcc-b835-45ac-991b-9e7e4daf7c96",
+      "startVertexId": "vertex_010c779b-b586-4920-bf28-bc36d6f10450",
+      "endVertexId": "vertex_29fc1ee1-1699-4b14-b7f2-d4565147d8aa",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_93cf0490-ab65-4f0f-a25f-17c7e949dca7"
+      ],
+      "materialSideB": "paint-navy"
+    },
+    "wall_56eb0bb2-2182-46a1-a8e4-f9cb589fd783": {
+      "id": "wall_56eb0bb2-2182-46a1-a8e4-f9cb589fd783",
+      "startVertexId": "vertex_29fc1ee1-1699-4b14-b7f2-d4565147d8aa",
+      "endVertexId": "vertex_9273a451-74aa-4ea4-a42b-bbbde8c03521",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_befe5063-9dad-4827-bb4f-166b65d6df5a"
+      ],
+      "materialSideB": "paint-powder"
+    },
+    "wall_2b73f395-0e18-4267-89dc-22d7c7ea3b00": {
+      "id": "wall_2b73f395-0e18-4267-89dc-22d7c7ea3b00",
+      "startVertexId": "vertex_9273a451-74aa-4ea4-a42b-bbbde8c03521",
+      "endVertexId": "vertex_2ad72316-2656-463b-868c-108d14c058e7",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "wall-plaster",
+      "isLoadBearing": false,
+      "openingIds": [
+        "opening_5cfb064d-023c-4800-84b6-a206dc9df2c6"
+      ],
+      "materialSideB": "paint-sage"
+    }
+  },
+  "rooms": {
+    "room_d3b88ce1-c807-4c21-96e5-ad89fb49ced4": {
+      "id": "room_d3b88ce1-c807-4c21-96e5-ad89fb49ced4",
+      "boundaryVertexIds": [
+        "vertex_89e295c8-19c4-4ec3-98f0-7dd088e7a2eb",
+        "vertex_c50ddac8-794e-4b94-a4e8-6414c2a840d4",
+        "vertex_37421bfe-8f47-4413-bfb7-c572ae7a3267",
+        "vertex_306b88c8-852b-460b-9766-44c7772abb04"
+      ],
+      "roomType": "bedroom",
+      "label": "Bedroom",
+      "floorMaterialId": "floor-wood"
+    },
+    "room_8c53b7a5-951a-44d1-b584-a526f5798c16": {
+      "id": "room_8c53b7a5-951a-44d1-b584-a526f5798c16",
+      "boundaryVertexIds": [
+        "vertex_c50ddac8-794e-4b94-a4e8-6414c2a840d4",
+        "vertex_b831afd3-cedd-468d-afe5-1048fc3968ba",
+        "vertex_bf6bf262-7648-405e-918d-1369f0631de9",
+        "vertex_37421bfe-8f47-4413-bfb7-c572ae7a3267"
+      ],
+      "roomType": "kitchen",
+      "label": "Kitchen",
+      "floorMaterialId": "floor-checker"
+    },
+    "room_7f5380e8-2f0a-4982-b1cc-4ad01205f7f3": {
+      "id": "room_7f5380e8-2f0a-4982-b1cc-4ad01205f7f3",
+      "boundaryVertexIds": [
+        "vertex_b831afd3-cedd-468d-afe5-1048fc3968ba",
+        "vertex_66c47322-a423-495a-a162-ccb52156323e",
+        "vertex_8afe6f90-9b91-4f3e-ae98-b296a9fd3206",
+        "vertex_bf6bf262-7648-405e-918d-1369f0631de9"
+      ],
+      "roomType": "entrance",
+      "label": "Foyer & Stairs",
+      "floorMaterialId": "floor-marble"
+    },
+    "room_c62494da-7944-4a80-b94d-e947567a65a3": {
+      "id": "room_c62494da-7944-4a80-b94d-e947567a65a3",
+      "boundaryVertexIds": [
+        "vertex_66c47322-a423-495a-a162-ccb52156323e",
+        "vertex_010c779b-b586-4920-bf28-bc36d6f10450",
+        "vertex_29fc1ee1-1699-4b14-b7f2-d4565147d8aa",
+        "vertex_fe2d55db-c40a-44e4-b74b-fe4e78ee891d",
+        "vertex_8afe6f90-9b91-4f3e-ae98-b296a9fd3206"
+      ],
+      "roomType": "study",
+      "label": "Study",
+      "floorMaterialId": "floor-wood-dark"
+    },
+    "room_ef009ae3-ccc8-45c6-b456-7e2a6850043e": {
+      "id": "room_ef009ae3-ccc8-45c6-b456-7e2a6850043e",
+      "boundaryVertexIds": [
+        "vertex_306b88c8-852b-460b-9766-44c7772abb04",
+        "vertex_37421bfe-8f47-4413-bfb7-c572ae7a3267",
+        "vertex_10b23c0b-459f-4417-a471-ace769cc88a6",
+        "vertex_58080a8a-52d7-4268-ad63-5850939de70e"
+      ],
+      "roomType": "study",
+      "label": "Home Office",
+      "floorMaterialId": "floor-wood"
+    },
+    "room_4f18d286-c452-4ce3-acf8-f6b97539130d": {
+      "id": "room_4f18d286-c452-4ce3-acf8-f6b97539130d",
+      "boundaryVertexIds": [
+        "vertex_37421bfe-8f47-4413-bfb7-c572ae7a3267",
+        "vertex_bf6bf262-7648-405e-918d-1369f0631de9",
+        "vertex_6bd5f30d-f2c7-4212-bcf9-ba41e6a131e3",
+        "vertex_10b23c0b-459f-4417-a471-ace769cc88a6"
+      ],
+      "roomType": "bathroom",
+      "label": "Bathroom",
+      "floorMaterialId": "floor-ceramic"
+    },
+    "room_f4166ba4-c4ef-4537-820d-533299c8b3e3": {
+      "id": "room_f4166ba4-c4ef-4537-820d-533299c8b3e3",
+      "boundaryVertexIds": [
+        "vertex_bf6bf262-7648-405e-918d-1369f0631de9",
+        "vertex_8afe6f90-9b91-4f3e-ae98-b296a9fd3206",
+        "vertex_d296cf01-ef6d-45d5-8e27-ed4b6753384d",
+        "vertex_6bd5f30d-f2c7-4212-bcf9-ba41e6a131e3"
+      ],
+      "roomType": "corridor",
+      "label": "Corridor",
+      "floorMaterialId": "floor-wood"
+    },
+    "room_e17ed9d1-eab3-45bb-ba46-8e1770bfc0f6": {
+      "id": "room_e17ed9d1-eab3-45bb-ba46-8e1770bfc0f6",
+      "boundaryVertexIds": [
+        "vertex_8afe6f90-9b91-4f3e-ae98-b296a9fd3206",
+        "vertex_fe2d55db-c40a-44e4-b74b-fe4e78ee891d",
+        "vertex_717956bc-dd85-485c-941c-b8e4bd12af03",
+        "vertex_d296cf01-ef6d-45d5-8e27-ed4b6753384d"
+      ],
+      "roomType": "bedroom",
+      "label": "Bedroom 2",
+      "floorMaterialId": "floor-wood"
+    },
+    "room_d7d9cd60-0f37-4324-ac3b-120d1d8e098f": {
+      "id": "room_d7d9cd60-0f37-4324-ac3b-120d1d8e098f",
+      "boundaryVertexIds": [
+        "vertex_fe2d55db-c40a-44e4-b74b-fe4e78ee891d",
+        "vertex_29fc1ee1-1699-4b14-b7f2-d4565147d8aa",
+        "vertex_9273a451-74aa-4ea4-a42b-bbbde8c03521",
+        "vertex_717956bc-dd85-485c-941c-b8e4bd12af03"
+      ],
+      "roomType": "bathroom",
+      "label": "Master Bath",
+      "floorMaterialId": "floor-slate"
+    },
+    "room_2d7502e6-d94b-4323-bce6-224bea7ba9eb": {
+      "id": "room_2d7502e6-d94b-4323-bce6-224bea7ba9eb",
+      "boundaryVertexIds": [
+        "vertex_58080a8a-52d7-4268-ad63-5850939de70e",
+        "vertex_10b23c0b-459f-4417-a471-ace769cc88a6",
+        "vertex_7516a5d4-075c-4406-8cfc-71bfac936b89",
+        "vertex_2c0c837e-2537-4aec-abb4-23cbb074a26c",
+        "vertex_cb78b202-825a-45aa-a95b-a97109c0a140",
+        "vertex_2826c97f-d883-49cf-8462-6583c3a390d7",
+        "vertex_99775dd1-f687-4675-b215-a37ed92cee3c",
+        "vertex_e192aa65-fef1-41e5-a4c8-0aa778d1f4ec"
+      ],
+      "roomType": "living",
+      "label": "Bay Window Nook",
+      "floorMaterialId": "floor-wood-light"
+    },
+    "room_fdb7f63c-84d4-4fac-b973-6798fba97922": {
+      "id": "room_fdb7f63c-84d4-4fac-b973-6798fba97922",
+      "boundaryVertexIds": [
+        "vertex_10b23c0b-459f-4417-a471-ace769cc88a6",
+        "vertex_6bd5f30d-f2c7-4212-bcf9-ba41e6a131e3",
+        "vertex_d296cf01-ef6d-45d5-8e27-ed4b6753384d",
+        "vertex_717956bc-dd85-485c-941c-b8e4bd12af03",
+        "vertex_9273a451-74aa-4ea4-a42b-bbbde8c03521",
+        "vertex_2ad72316-2656-463b-868c-108d14c058e7",
+        "vertex_7516a5d4-075c-4406-8cfc-71bfac936b89"
+      ],
+      "roomType": "living",
+      "label": "Living Room",
+      "floorMaterialId": "floor-wood"
+    }
+  },
+  "furniture": {
+    "furniture_bef93163-d35f-4062-9d3b-8692bf4716bb": {
+      "position": {
+        "x": 180,
+        "y": 150
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "bed-queen",
+      "roomId": null,
+      "bounds": {
+        "width": 165,
+        "depth": 210
+      },
+      "id": "furniture_bef93163-d35f-4062-9d3b-8692bf4716bb"
+    },
+    "furniture_60845b9a-9b9e-45ae-8330-f059cbd01d08": {
+      "position": {
+        "x": 60,
+        "y": 50
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "nightstand",
+      "roomId": null,
+      "bounds": {
+        "width": 48,
+        "depth": 42
+      },
+      "id": "furniture_60845b9a-9b9e-45ae-8330-f059cbd01d08"
+    },
+    "furniture_54a49701-e9ed-4f25-9646-75ac5a406a7d": {
+      "position": {
+        "x": 300,
+        "y": 150
+      },
+      "rotation": 1.5707963267948966,
+      "scale": 1,
+      "catalogId": "wardrobe",
+      "roomId": null,
+      "bounds": {
+        "width": 100,
+        "depth": 45
+      },
+      "id": "furniture_54a49701-e9ed-4f25-9646-75ac5a406a7d"
+    },
+    "furniture_68b35c33-4834-4520-88a5-4a29f399bf3c": {
+      "position": {
+        "x": 365,
+        "y": 45
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "kitchen-counter-end",
+      "roomId": null,
+      "bounds": {
+        "width": 62,
+        "depth": 62
+      },
+      "id": "furniture_68b35c33-4834-4520-88a5-4a29f399bf3c"
+    },
+    "furniture_dedc1052-cbac-4745-96d8-f625dddb69a2": {
+      "position": {
+        "x": 460,
+        "y": 45
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "kitchen-counter",
+      "roomId": null,
+      "bounds": {
+        "width": 100,
+        "depth": 62
+      },
+      "id": "furniture_dedc1052-cbac-4745-96d8-f625dddb69a2"
+    },
+    "furniture_71d468f9-c357-4192-8226-95ed03b6d309": {
+      "position": {
+        "x": 555,
+        "y": 45
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "stove",
+      "roomId": null,
+      "bounds": {
+        "width": 60,
+        "depth": 62
+      },
+      "id": "furniture_71d468f9-c357-4192-8226-95ed03b6d309"
+    },
+    "furniture_de8e582f-d32d-4903-a564-2b0755832aa8": {
+      "position": {
+        "x": 585,
+        "y": 255
+      },
+      "rotation": 3.141592653589793,
+      "scale": 1,
+      "catalogId": "fridge",
+      "roomId": null,
+      "bounds": {
+        "width": 72,
+        "depth": 70
+      },
+      "id": "furniture_de8e582f-d32d-4903-a564-2b0755832aa8"
+    },
+    "furniture_8ff95957-be7f-4938-855b-5b83b100a79c": {
+      "position": {
+        "x": 365,
+        "y": 255
+      },
+      "rotation": 3.141592653589793,
+      "scale": 1,
+      "catalogId": "kitchen-counter",
+      "roomId": null,
+      "bounds": {
+        "width": 100,
+        "depth": 62
+      },
+      "id": "furniture_8ff95957-be7f-4938-855b-5b83b100a79c"
+    },
+    "furniture_0e7bcedd-66e5-4e14-9551-6a9ebc5b18cc": {
+      "position": {
+        "x": 720,
+        "y": 270
+      },
+      "rotation": 3.141592653589793,
+      "scale": 1,
+      "catalogId": "sideboard",
+      "roomId": null,
+      "bounds": {
+        "width": 150,
+        "depth": 42
+      },
+      "id": "furniture_0e7bcedd-66e5-4e14-9551-6a9ebc5b18cc"
+    },
+    "furniture_afb2620d-ad43-4ed3-81ff-f9e9ced57e05": {
+      "position": {
+        "x": 660,
+        "y": 60
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "plant",
+      "roomId": null,
+      "bounds": {
+        "width": 55,
+        "depth": 55
+      },
+      "id": "furniture_afb2620d-ad43-4ed3-81ff-f9e9ced57e05"
+    },
+    "furniture_287724fe-5d6d-460f-b716-1852cf6fe263": {
+      "position": {
+        "x": 785,
+        "y": 70
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "plant",
+      "roomId": null,
+      "bounds": {
+        "width": 55,
+        "depth": 55
+      },
+      "id": "furniture_287724fe-5d6d-460f-b716-1852cf6fe263"
+    },
+    "furniture_ad7d883b-20f1-4fbd-8e8d-94bc10f074b4": {
+      "position": {
+        "x": 1010,
+        "y": 55
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "desk",
+      "roomId": null,
+      "bounds": {
+        "width": 130,
+        "depth": 55
+      },
+      "id": "furniture_ad7d883b-20f1-4fbd-8e8d-94bc10f074b4"
+    },
+    "furniture_b7961bf7-cca9-4587-9f6e-aa749a0c13af": {
+      "position": {
+        "x": 1010,
+        "y": 120
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "chair-office",
+      "roomId": null,
+      "bounds": {
+        "width": 60,
+        "depth": 60
+      },
+      "id": "furniture_b7961bf7-cca9-4587-9f6e-aa749a0c13af"
+    },
+    "furniture_82c4c115-bb50-4479-a27f-9dd9ef806bfe": {
+      "position": {
+        "x": 860,
+        "y": 150
+      },
+      "rotation": 1.5707963267948966,
+      "scale": 1,
+      "catalogId": "bookshelf",
+      "roomId": null,
+      "bounds": {
+        "width": 80,
+        "depth": 35
+      },
+      "id": "furniture_82c4c115-bb50-4479-a27f-9dd9ef806bfe"
+    },
+    "furniture_be85c809-963a-4b39-9e28-025cdb97c83a": {
+      "position": {
+        "x": 1250,
+        "y": 55
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "sideboard",
+      "roomId": null,
+      "bounds": {
+        "width": 150,
+        "depth": 42
+      },
+      "id": "furniture_be85c809-963a-4b39-9e28-025cdb97c83a"
+    },
+    "furniture_a4a0df9b-5c8f-491b-8874-4d2cf3349d69": {
+      "position": {
+        "x": 1300,
+        "y": 255
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "plant-leafy",
+      "roomId": null,
+      "bounds": {
+        "width": 50,
+        "depth": 50
+      },
+      "id": "furniture_a4a0df9b-5c8f-491b-8874-4d2cf3349d69"
+    },
+    "furniture_9186d0d6-778a-454f-9bdd-3b88355fa77e": {
+      "position": {
+        "x": 170,
+        "y": 335
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "desk",
+      "roomId": null,
+      "bounds": {
+        "width": 130,
+        "depth": 55
+      },
+      "id": "furniture_9186d0d6-778a-454f-9bdd-3b88355fa77e"
+    },
+    "furniture_88518712-06ee-4b9b-ac4a-7e68093bf5b3": {
+      "position": {
+        "x": 170,
+        "y": 405
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "chair-office",
+      "roomId": null,
+      "bounds": {
+        "width": 60,
+        "depth": 60
+      },
+      "id": "furniture_88518712-06ee-4b9b-ac4a-7e68093bf5b3"
+    },
+    "furniture_cc8b37e4-8cab-450c-ab93-77d28893bb9a": {
+      "position": {
+        "x": 55,
+        "y": 440
+      },
+      "rotation": 1.5707963267948966,
+      "scale": 1,
+      "catalogId": "bookshelf",
+      "roomId": null,
+      "bounds": {
+        "width": 80,
+        "depth": 35
+      },
+      "id": "furniture_cc8b37e4-8cab-450c-ab93-77d28893bb9a"
+    },
+    "furniture_3e806820-aa60-4256-9aff-9d97fbd5a8bd": {
+      "position": {
+        "x": 305,
+        "y": 520
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "plant",
+      "roomId": null,
+      "bounds": {
+        "width": 55,
+        "depth": 55
+      },
+      "id": "furniture_3e806820-aa60-4256-9aff-9d97fbd5a8bd"
+    },
+    "furniture_fb8b97da-56fa-42b5-a43c-7da0882f7a01": {
+      "position": {
+        "x": 360,
+        "y": 360
+      },
+      "rotation": 1.5707963267948966,
+      "scale": 1,
+      "catalogId": "vanity",
+      "roomId": null,
+      "bounds": {
+        "width": 80,
+        "depth": 50
+      },
+      "id": "furniture_fb8b97da-56fa-42b5-a43c-7da0882f7a01"
+    },
+    "furniture_7815e60d-3860-4f54-9f91-d96364dce940": {
+      "position": {
+        "x": 600,
+        "y": 350
+      },
+      "rotation": -1.5707963267948966,
+      "scale": 1,
+      "catalogId": "toilet",
+      "roomId": null,
+      "bounds": {
+        "width": 42,
+        "depth": 68
+      },
+      "id": "furniture_7815e60d-3860-4f54-9f91-d96364dce940"
+    },
+    "furniture_868d95a5-eb1d-4f04-86f6-7bff9a2c9d6c": {
+      "position": {
+        "x": 480,
+        "y": 500
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "bathtub",
+      "roomId": null,
+      "bounds": {
+        "width": 78,
+        "depth": 170
+      },
+      "id": "furniture_868d95a5-eb1d-4f04-86f6-7bff9a2c9d6c"
+    },
+    "furniture_aa787bc8-a369-49d9-97a9-e8cf2ffadb37": {
+      "position": {
+        "x": 780,
+        "y": 520
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "plant",
+      "roomId": null,
+      "bounds": {
+        "width": 55,
+        "depth": 55
+      },
+      "id": "furniture_aa787bc8-a369-49d9-97a9-e8cf2ffadb37"
+    },
+    "furniture_7ec94047-4b84-4507-a9aa-4093e4c62bab": {
+      "position": {
+        "x": 950,
+        "y": 430
+      },
+      "rotation": 3.141592653589793,
+      "scale": 1,
+      "catalogId": "bed-queen",
+      "roomId": null,
+      "bounds": {
+        "width": 165,
+        "depth": 210
+      },
+      "id": "furniture_7ec94047-4b84-4507-a9aa-4093e4c62bab"
+    },
+    "furniture_ef5005c2-1019-4817-b5a4-9f625c6dbca4": {
+      "position": {
+        "x": 845,
+        "y": 320
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "nightstand",
+      "roomId": null,
+      "bounds": {
+        "width": 48,
+        "depth": 42
+      },
+      "id": "furniture_ef5005c2-1019-4817-b5a4-9f625c6dbca4"
+    },
+    "furniture_21839398-8072-4132-92f8-fd6b27b080b6": {
+      "position": {
+        "x": 1055,
+        "y": 320
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "nightstand",
+      "roomId": null,
+      "bounds": {
+        "width": 48,
+        "depth": 42
+      },
+      "id": "furniture_21839398-8072-4132-92f8-fd6b27b080b6"
+    },
+    "furniture_d44e8414-8946-4655-bc42-072577393985": {
+      "position": {
+        "x": 1285,
+        "y": 440
+      },
+      "rotation": 1.5707963267948966,
+      "scale": 1,
+      "catalogId": "bathtub",
+      "roomId": null,
+      "bounds": {
+        "width": 78,
+        "depth": 170
+      },
+      "id": "furniture_d44e8414-8946-4655-bc42-072577393985"
+    },
+    "furniture_9d24e16b-85ab-4287-a75b-4628950f1c13": {
+      "position": {
+        "x": 1110,
+        "y": 330
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "vanity",
+      "roomId": null,
+      "bounds": {
+        "width": 80,
+        "depth": 50
+      },
+      "id": "furniture_9d24e16b-85ab-4287-a75b-4628950f1c13"
+    },
+    "furniture_e2da5611-a273-4b7b-b4f0-40ea32becc54": {
+      "position": {
+        "x": 1285,
+        "y": 340
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "shower",
+      "roomId": null,
+      "bounds": {
+        "width": 95,
+        "depth": 95
+      },
+      "id": "furniture_e2da5611-a273-4b7b-b4f0-40ea32becc54"
+    },
+    "furniture_6ad965ca-a210-4f99-9b7f-f656f2a708c1": {
+      "position": {
+        "x": 1115,
+        "y": 520
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "plant",
+      "roomId": null,
+      "bounds": {
+        "width": 55,
+        "depth": 55
+      },
+      "id": "furniture_6ad965ca-a210-4f99-9b7f-f656f2a708c1"
+    },
+    "furniture_665cdb39-9300-48f4-a891-e64a3b00432b": {
+      "position": {
+        "x": 380,
+        "y": 630
+      },
+      "rotation": 1.5707963267948966,
+      "scale": 1,
+      "catalogId": "bookshelf",
+      "roomId": null,
+      "bounds": {
+        "width": 80,
+        "depth": 35
+      },
+      "id": "furniture_665cdb39-9300-48f4-a891-e64a3b00432b"
+    },
+    "furniture_7144a334-ccff-4aca-8798-5abb0a9d4ad7": {
+      "position": {
+        "x": 380,
+        "y": 760
+      },
+      "rotation": 1.5707963267948966,
+      "scale": 1,
+      "catalogId": "bookshelf",
+      "roomId": null,
+      "bounds": {
+        "width": 80,
+        "depth": 35
+      },
+      "id": "furniture_7144a334-ccff-4aca-8798-5abb0a9d4ad7"
+    },
+    "furniture_5fd64f6c-b4b5-4309-addf-dd070c9bfc29": {
+      "position": {
+        "x": 362,
+        "y": 700
+      },
+      "rotation": 1.5707963267948966,
+      "scale": 1,
+      "catalogId": "fireplace",
+      "roomId": null,
+      "bounds": {
+        "width": 130,
+        "depth": 36
+      },
+      "id": "furniture_5fd64f6c-b4b5-4309-addf-dd070c9bfc29"
+    },
+    "furniture_7f573627-fece-4a56-aa23-0417927c4808": {
+      "position": {
+        "x": 640,
+        "y": 605
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "sofa-3seat",
+      "roomId": null,
+      "bounds": {
+        "width": 220,
+        "depth": 95
+      },
+      "id": "furniture_7f573627-fece-4a56-aa23-0417927c4808"
+    },
+    "furniture_02bf61c6-14c2-4695-8bbf-a38da363fe6c": {
+      "position": {
+        "x": 660,
+        "y": 720
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "coffee-table",
+      "roomId": null,
+      "bounds": {
+        "width": 110,
+        "depth": 60
+      },
+      "id": "furniture_02bf61c6-14c2-4695-8bbf-a38da363fe6c"
+    },
+    "furniture_ac07a31c-d56e-4dce-a948-e36749184a28": {
+      "position": {
+        "x": 700,
+        "y": 745
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "rug",
+      "roomId": null,
+      "bounds": {
+        "width": 220,
+        "depth": 160
+      },
+      "id": "furniture_ac07a31c-d56e-4dce-a948-e36749184a28"
+    },
+    "furniture_4e871b2f-34db-4fd8-aa73-b2085bd51db7": {
+      "position": {
+        "x": 540,
+        "y": 745
+      },
+      "rotation": 1.5707963267948966,
+      "scale": 1,
+      "catalogId": "dining-chair",
+      "roomId": null,
+      "bounds": {
+        "width": 48,
+        "depth": 52
+      },
+      "id": "furniture_4e871b2f-34db-4fd8-aa73-b2085bd51db7"
+    },
+    "furniture_c175759f-68d1-416a-bc21-65b8019a0c70": {
+      "position": {
+        "x": 800,
+        "y": 745
+      },
+      "rotation": -1.5707963267948966,
+      "scale": 1,
+      "catalogId": "dining-chair",
+      "roomId": null,
+      "bounds": {
+        "width": 48,
+        "depth": 52
+      },
+      "id": "furniture_c175759f-68d1-416a-bc21-65b8019a0c70"
+    },
+    "furniture_ee606eb8-e3ce-4437-ac1d-5408c5375cb8": {
+      "position": {
+        "x": 940,
+        "y": 640
+      },
+      "rotation": 3.141592653589793,
+      "scale": 1,
+      "catalogId": "armchair",
+      "roomId": null,
+      "bounds": {
+        "width": 80,
+        "depth": 82
+      },
+      "id": "furniture_ee606eb8-e3ce-4437-ac1d-5408c5375cb8"
+    },
+    "furniture_3d5f3dfa-c46e-4649-9190-f76a79567ad8": {
+      "position": {
+        "x": 860,
+        "y": 850
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "armchair",
+      "roomId": null,
+      "bounds": {
+        "width": 80,
+        "depth": 82
+      },
+      "id": "furniture_3d5f3dfa-c46e-4649-9190-f76a79567ad8"
+    },
+    "furniture_db177321-eddf-4638-aa29-5d4523fb2660": {
+      "position": {
+        "x": 1120,
+        "y": 585
+      },
+      "rotation": 3.141592653589793,
+      "scale": 1,
+      "catalogId": "sideboard",
+      "roomId": null,
+      "bounds": {
+        "width": 150,
+        "depth": 42
+      },
+      "id": "furniture_db177321-eddf-4638-aa29-5d4523fb2660"
+    },
+    "furniture_b25de06b-6b55-4417-8dbb-7dd930d7ace2": {
+      "position": {
+        "x": 1290,
+        "y": 860
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "plant-leafy",
+      "roomId": null,
+      "bounds": {
+        "width": 50,
+        "depth": 50
+      },
+      "id": "furniture_b25de06b-6b55-4417-8dbb-7dd930d7ace2"
+    },
+    "furniture_dc083d18-ce51-4b2b-97fc-947874407f89": {
+      "position": {
+        "x": 170,
+        "y": 740
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "armchair",
+      "roomId": null,
+      "bounds": {
+        "width": 80,
+        "depth": 82
+      },
+      "id": "furniture_dc083d18-ce51-4b2b-97fc-947874407f89"
+    },
+    "furniture_2fb29ff5-bc3a-45e8-933b-bc7e1db9160e": {
+      "position": {
+        "x": 170,
+        "y": 830
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "ottoman",
+      "roomId": null,
+      "bounds": {
+        "width": 70,
+        "depth": 70
+      },
+      "id": "furniture_2fb29ff5-bc3a-45e8-933b-bc7e1db9160e"
+    },
+    "furniture_9ff49d18-b460-4365-ab20-cb1ea8c01ea7": {
+      "position": {
+        "x": 70,
+        "y": 610
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "plant",
+      "roomId": null,
+      "bounds": {
+        "width": 55,
+        "depth": 55
+      },
+      "id": "furniture_9ff49d18-b460-4365-ab20-cb1ea8c01ea7"
+    },
+    "furniture_4bec9d0f-245a-439b-8b41-495bbced99e4": {
+      "position": {
+        "x": 280,
+        "y": 610
+      },
+      "rotation": 0,
+      "scale": 1,
+      "catalogId": "plant",
+      "roomId": null,
+      "bounds": {
+        "width": 55,
+        "depth": 55
+      },
+      "id": "furniture_4bec9d0f-245a-439b-8b41-495bbced99e4"
+    }
+  },
+  "openings": {
+    "opening_891eb0ce-d210-463b-adaf-4f5dcb9ce23c": {
+      "wallId": "wall_1b8d351c-c05d-4d51-ab6d-5f340c44a896",
+      "type": "door",
+      "kind": "door-main-gate",
+      "offsetCm": 500,
+      "width": 160,
+      "height": 240,
+      "elevation": 0,
+      "id": "opening_891eb0ce-d210-463b-adaf-4f5dcb9ce23c"
+    },
+    "opening_3427e782-30be-4944-8aa7-ad4b52c7d84d": {
+      "wallId": "wall_60b90275-a60d-46aa-bbd4-8f7a1cd955ba",
+      "type": "door",
+      "offsetCm": 140,
+      "width": 90,
+      "height": 210,
+      "elevation": 0,
+      "id": "opening_3427e782-30be-4944-8aa7-ad4b52c7d84d"
+    },
+    "opening_a8e713e5-4990-4f6a-a731-bfa551433d24": {
+      "wallId": "wall_43bb9d8a-eb73-4bae-922c-0fb12d8cc3d5",
+      "type": "door",
+      "offsetCm": 170,
+      "width": 80,
+      "height": 210,
+      "elevation": 0,
+      "id": "opening_a8e713e5-4990-4f6a-a731-bfa551433d24"
+    },
+    "opening_5ebe2d19-4e22-4ff8-9d5c-b4b49d679faa": {
+      "wallId": "wall_87534805-eff7-4a14-a1c1-7ed663b21db1",
+      "type": "door",
+      "offsetCm": 100,
+      "width": 95,
+      "height": 210,
+      "elevation": 0,
+      "id": "opening_5ebe2d19-4e22-4ff8-9d5c-b4b49d679faa"
+    },
+    "opening_41ff182f-46f5-4b2d-88ff-c662f9f11578": {
+      "wallId": "wall_33b9b171-20f7-4c36-a9f2-fd032ff2b6be",
+      "type": "door",
+      "offsetCm": 100,
+      "width": 90,
+      "height": 210,
+      "elevation": 0,
+      "id": "opening_41ff182f-46f5-4b2d-88ff-c662f9f11578"
+    },
+    "opening_3d05e2b8-9e4a-4570-b557-fecdc0bc0224": {
+      "wallId": "wall_87bc7a97-585b-4eb0-9f52-a94def478d68",
+      "type": "door",
+      "offsetCm": 130,
+      "width": 80,
+      "height": 210,
+      "elevation": 0,
+      "id": "opening_3d05e2b8-9e4a-4570-b557-fecdc0bc0224"
+    },
+    "opening_e187064d-f866-4fe0-b67e-f77d7ce9f517": {
+      "wallId": "wall_e8c32a04-3eb3-4165-b11e-74dd4cd9f9c9",
+      "type": "door",
+      "offsetCm": 130,
+      "width": 85,
+      "height": 210,
+      "elevation": 0,
+      "id": "opening_e187064d-f866-4fe0-b67e-f77d7ce9f517"
+    },
+    "opening_66547513-bec9-4ef0-9dd5-43dfb9f638fc": {
+      "wallId": "wall_54104774-f2ec-44dc-88f3-433ec7b44ec5",
+      "type": "door",
+      "offsetCm": 130,
+      "width": 75,
+      "height": 210,
+      "elevation": 0,
+      "id": "opening_66547513-bec9-4ef0-9dd5-43dfb9f638fc"
+    },
+    "opening_64891e36-3115-4bce-846a-11dd14bbc4df": {
+      "wallId": "wall_24c7e541-4743-40bd-8339-81ab65001ea3",
+      "type": "door",
+      "offsetCm": 150,
+      "width": 90,
+      "height": 210,
+      "elevation": 0,
+      "id": "opening_64891e36-3115-4bce-846a-11dd14bbc4df"
+    },
+    "opening_1642faf8-f1ce-45a1-b231-1267cf8e9a34": {
+      "wallId": "wall_d1a71055-ce1d-42f5-be8c-5a98e1fbeaa2",
+      "type": "door",
+      "offsetCm": 150,
+      "width": 90,
+      "height": 210,
+      "elevation": 0,
+      "id": "opening_1642faf8-f1ce-45a1-b231-1267cf8e9a34"
+    },
+    "opening_fb18adde-24b9-4911-8d6e-26acf2638cd6": {
+      "wallId": "wall_58df52d4-d076-4cef-8cb6-aa6f8d145ca8",
+      "type": "door",
+      "offsetCm": 170,
+      "width": 80,
+      "height": 210,
+      "elevation": 0,
+      "id": "opening_fb18adde-24b9-4911-8d6e-26acf2638cd6"
+    },
+    "opening_bcb8765f-d28a-4b83-a51a-01a4f8b29ef6": {
+      "wallId": "wall_97e91c38-9f07-43fc-8986-bd4d5f01ff36",
+      "type": "window",
+      "offsetCm": 170,
+      "width": 120,
+      "height": 120,
+      "elevation": 90,
+      "id": "opening_bcb8765f-d28a-4b83-a51a-01a4f8b29ef6"
+    },
+    "opening_2058cf96-a298-40c7-a34f-4fd7976db75e": {
+      "wallId": "wall_1cf2eab2-af09-4798-96c1-4c73c677eba7",
+      "type": "window",
+      "offsetCm": 150,
+      "width": 120,
+      "height": 120,
+      "elevation": 90,
+      "id": "opening_2058cf96-a298-40c7-a34f-4fd7976db75e"
+    },
+    "opening_acddfb33-774c-4a65-8422-148d61748a27": {
+      "wallId": "wall_9494e0ec-9aff-45f3-a23f-cd2ea8920fbc",
+      "type": "window",
+      "offsetCm": 140,
+      "width": 120,
+      "height": 120,
+      "elevation": 90,
+      "id": "opening_acddfb33-774c-4a65-8422-148d61748a27"
+    },
+    "opening_83862fda-5153-4cc8-a6dc-e3a69262692f": {
+      "wallId": "wall_ce0ad343-fc16-432b-aa44-ce1c0da1079f",
+      "type": "window",
+      "offsetCm": 360,
+      "width": 160,
+      "height": 140,
+      "elevation": 90,
+      "id": "opening_83862fda-5153-4cc8-a6dc-e3a69262692f"
+    },
+    "opening_93cf0490-ab65-4f0f-a25f-17c7e949dca7": {
+      "wallId": "wall_5b4a1dcc-b835-45ac-991b-9e7e4daf7c96",
+      "type": "window",
+      "offsetCm": 150,
+      "width": 120,
+      "height": 120,
+      "elevation": 90,
+      "id": "opening_93cf0490-ab65-4f0f-a25f-17c7e949dca7"
+    },
+    "opening_ee6c6366-760b-4c25-9965-00d49e20c4b7": {
+      "wallId": "wall_101a6e37-9c98-4100-b675-ce506d4bac99",
+      "type": "window",
+      "offsetCm": 130,
+      "width": 120,
+      "height": 120,
+      "elevation": 90,
+      "id": "opening_ee6c6366-760b-4c25-9965-00d49e20c4b7"
+    },
+    "opening_befe5063-9dad-4827-bb4f-166b65d6df5a": {
+      "wallId": "wall_56eb0bb2-2182-46a1-a8e4-f9cb589fd783",
+      "type": "window",
+      "offsetCm": 130,
+      "width": 100,
+      "height": 120,
+      "elevation": 90,
+      "id": "opening_befe5063-9dad-4827-bb4f-166b65d6df5a"
+    },
+    "opening_5cfb064d-023c-4800-84b6-a206dc9df2c6": {
+      "wallId": "wall_2b73f395-0e18-4267-89dc-22d7c7ea3b00",
+      "type": "window",
+      "offsetCm": 170,
+      "width": 150,
+      "height": 150,
+      "elevation": 80,
+      "id": "opening_5cfb064d-023c-4800-84b6-a206dc9df2c6"
+    },
+    "opening_0a05f74c-3d38-4391-a2cd-da51b8724a39": {
+      "wallId": "wall_1b8d351c-c05d-4d51-ab6d-5f340c44a896",
+      "type": "window",
+      "offsetCm": 200,
+      "width": 160,
+      "height": 150,
+      "elevation": 80,
+      "id": "opening_0a05f74c-3d38-4391-a2cd-da51b8724a39"
+    },
+    "opening_859d5183-e4f0-4b9f-9292-7d1b7ef7473e": {
+      "wallId": "wall_1b8d351c-c05d-4d51-ab6d-5f340c44a896",
+      "type": "window",
+      "offsetCm": 760,
+      "width": 160,
+      "height": 150,
+      "elevation": 80,
+      "id": "opening_859d5183-e4f0-4b9f-9292-7d1b7ef7473e"
+    },
+    "opening_f0e5ae43-890c-423d-89f3-f2068c08ede0": {
+      "wallId": "wall_555655ad-1073-4613-b6ba-b0c557910337",
+      "type": "window",
+      "offsetCm": 170,
+      "width": 120,
+      "height": 120,
+      "elevation": 90,
+      "id": "opening_f0e5ae43-890c-423d-89f3-f2068c08ede0"
+    },
+    "opening_422fc390-2dc9-479d-ac5f-476fcb70dcda": {
+      "wallId": "wall_7178e3fa-f53d-4cab-abb9-5b6511245898",
+      "type": "window",
+      "offsetCm": 110,
+      "width": 140,
+      "height": 160,
+      "elevation": 30,
+      "id": "opening_422fc390-2dc9-479d-ac5f-476fcb70dcda"
+    },
+    "opening_9144d9f7-691b-4aa9-9afc-fd687917a556": {
+      "wallId": "wall_33cbd2a0-3ac2-4360-81c6-7b3ae3766619",
+      "type": "window",
+      "offsetCm": 50,
+      "width": 70,
+      "height": 160,
+      "elevation": 30,
+      "id": "opening_9144d9f7-691b-4aa9-9afc-fd687917a556"
+    },
+    "opening_ca863e94-cde5-4448-b1ab-41d24750aab7": {
+      "wallId": "wall_edceaf15-c792-4fd9-9a83-65b8e0e4255d",
+      "type": "window",
+      "offsetCm": 50,
+      "width": 70,
+      "height": 160,
+      "elevation": 30,
+      "id": "opening_ca863e94-cde5-4448-b1ab-41d24750aab7"
+    },
+    "opening_6a97ec73-6c0e-487e-bf6c-f10a18c9cb39": {
+      "wallId": "wall_87bc7a97-585b-4eb0-9f52-a94def478d68",
+      "type": "vent",
+      "offsetCm": 220,
+      "width": 50,
+      "height": 45,
+      "elevation": 170,
+      "id": "opening_6a97ec73-6c0e-487e-bf6c-f10a18c9cb39"
+    }
+  },
+  "roads": {},
+  "floors": [
+    {
+      "id": "floor_0885e3e7-cf7c-4a6a-bd9d-99274047caa0",
+      "name": "Ground Floor",
+      "elevationCm": 0
+    }
+  ],
+  "activeFloorId": "floor_0885e3e7-cf7c-4a6a-bd9d-99274047caa0",
+  "floorData": {},
+  "metadata": {
+    "name": "floorplan",
+    "createdAt": "2026-06-26T11:05:11.458Z",
+    "lastModifiedAt": "2026-06-26T11:05:11.458Z",
+    "authorId": null
+  },
+  "settings": {
+    "gridSize": 10,
+    "wallThickness": 20,
+    "wallHeight": 280,
+    "measurementUnit": "cm"
+  }
+}

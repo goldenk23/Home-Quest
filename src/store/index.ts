@@ -13,6 +13,8 @@ import { createVastuSlice } from './slices/vastuSlice';
 import type { VastuSlice } from './slices/vastuSlice';
 import { createHistorySlice } from './slices/historySlice';
 import type { HistorySlice } from './slices/historySlice';
+import { createFloorsSlice } from './slices/floorsSlice';
+import type { FloorsSlice } from './slices/floorsSlice';
 import { indexedDBStorage } from './persistence/persistConfig';
 import { migrateState, CURRENT_SCHEMA_VERSION } from './persistence/migrations';
 
@@ -21,7 +23,8 @@ export type AppStore = EditorSlice &
   UISlice &
   SettingsSlice &
   VastuSlice &
-  HistorySlice;
+  HistorySlice &
+  FloorsSlice;
 
 export const useAppStore = create<AppStore>()(
   devtools(
@@ -33,13 +36,15 @@ export const useAppStore = create<AppStore>()(
         ...createSettingsSlice(...args),
         ...createVastuSlice(...args),
         ...createHistorySlice(...args),
+        ...createFloorsSlice(...args),
       })),
       {
         name: 'homequest-store',
         version: CURRENT_SCHEMA_VERSION,
         storage: createJSONStorage(() => indexedDBStorage),
         migrate: (persisted) => migrateState(persisted) as unknown as AppStore,
-        // Persist floor-plan data only — UI/history are transient.
+        // Persist floor-plan data only — UI/history are transient. The active floor lives in
+        // the flat maps; the other storeys are parked in floorData.
         partialize: (state) => ({
           vertices: state.vertices,
           walls: state.walls,
@@ -47,6 +52,9 @@ export const useAppStore = create<AppStore>()(
           furniture: state.furniture,
           openings: state.openings,
           roads: state.roads,
+          floors: state.floors,
+          activeFloorId: state.activeFloorId,
+          floorData: state.floorData,
         }),
         skipHydration: false,
       }

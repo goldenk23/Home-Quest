@@ -24,18 +24,28 @@ Object.values(FURNITURE_CATALOG).forEach((c) => {
  * Renders every placed furniture item. Items whose catalog entry has a `model` render as the
  * real glTF asset (scaled to fit their footprint and grounded); the rest fall back to a
  * procedural prefab. Colliding procedural items render red so the collision engine is visible.
+ *
+ * When `items` is passed (e.g. a parked floor in the 3D stack) those are rendered instead of
+ * the live store, and collision highlighting is skipped.
  */
-export const FurnitureInstances: React.FC = () => {
-  const furniture = useAppStore(useShallow((s) => Object.values(s.furniture)));
+const EMPTY_COLLISIONS: Set<string> = new Set();
+
+export const FurnitureInstances: React.FC<{ items?: FurnitureItem[]; highlightCollisions?: boolean }> = ({
+  items,
+  highlightCollisions = true,
+}) => {
+  const storeFurniture = useAppStore(useShallow((s) => Object.values(s.furniture)));
   const colliding = useCollidingFurnitureIds();
+  const list = items ?? storeFurniture;
+  const collisions = highlightCollisions && !items ? colliding : EMPTY_COLLISIONS;
   return (
     <group>
-      {furniture.map((item) => {
+      {list.map((item) => {
         const catalog = getCatalogEntry(item.catalogId);
         return catalog.model ? (
           <ModelPiece key={item.id} item={item} catalog={catalog} />
         ) : (
-          <ProceduralPiece key={item.id} item={item} catalog={catalog} colliding={colliding.has(item.id)} />
+          <ProceduralPiece key={item.id} item={item} catalog={catalog} colliding={collisions.has(item.id)} />
         );
       })}
     </group>

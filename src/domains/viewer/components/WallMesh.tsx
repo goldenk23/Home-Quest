@@ -2,12 +2,12 @@
 
 import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
-import { useAppStore } from '@/store';
 import { createWallGeometry } from '../services/extrusion';
 import { getMaterial } from '../services/materials';
 import { furnitureMaterialProps, getFurnitureMaterial } from '../services/furnitureMaterials';
 import { resolveKind } from '@/domains/shared/openings/openingCatalog';
 import type { Point2D } from '@/types/geometry';
+import type { Opening } from '@/types/editor';
 import type { MiterOffsets } from '@/domains/editor/services/wallOps';
 
 interface WallMeshProps {
@@ -21,10 +21,17 @@ interface WallMeshProps {
   materialSideA?: string;
   materialSideB?: string;
   offsets?: MiterOffsets;
+  /** Openings on this wall (passed in so the mesh works for any floor, active or parked). */
+  openings: Opening[];
+  /** Room polygons (plan cm) on this floor — used to orient the main gate outward. */
+  roomPolys: Point2D[][];
 }
-import { useShallow } from 'zustand/react/shallow';
 
 const CM_TO_M = 0.01;
+
+/** Vertical lift (m) for door/gate frames so their base clears the floor finish (y=0.02)
+ *  and stops z-fighting at the threshold. */
+const DOOR_THRESHOLD_LIFT = 0.015;
 
 /**
  * A small, deterministic depth-offset "slot" for a wall, derived from its id.
@@ -349,25 +356,7 @@ function pointInPoly(px: number, py: number, poly: Point2D[]): boolean {
   return inside;
 }
 
-const OpeningFrames: React.FC<{ wallId: string; thickness: number; start: Point2D; end: Point2D }> = React.memo(({ wallId, thickness, start, end }) => {
-  const openings = useAppStore(useShallow(s => {
-    const wall = s.walls[wallId];
-    if (!wall || !wall.openingIds) return [];
-    return wall.openingIds.map(oid => s.openings[oid]).filter(Boolean);
-  }));
-
-  // Room polygons (plan cm) — used to orient the main gate so its front faces OUTWARD
-  // (the side of the wall that isn't inside any room).
-  const rooms = useAppStore(s => s.rooms);
-  const vertices = useAppStore(s => s.vertices);
-  const roomPolys = useMemo(
-    () =>
-      Object.values(rooms)
-        .map((r) => r.boundaryVertexIds.map((id) => vertices[id]?.position).filter((p): p is Point2D => Boolean(p)))
-        .filter((p) => p.length >= 3),
-    [rooms, vertices]
-  );
-
+const OpeningFrames: React.FC<{ thickness: number; start: Point2D; end: Point2D; openings: Opening[]; roomPolys: Point2D[][] }> = React.memo(({ thickness, start, end, openings, roomPolys }) => {
   if (openings.length === 0) return null;
 
   const dx = end.x - start.x;
@@ -426,7 +415,12 @@ const OpeningFrames: React.FC<{ wallId: string; thickness: number; start: Point2
           return (
             <group
               key={opening.id}
-              position={[ox, oy + oh / 2, 0]}
+              // Lift the whole door/gate assembly ~1.5cm so its base clears the room floor
+              // finish (which sits at y=0.02). Without this, the bottom architrave bar and the
+              // gate body plate are coplanar with the floor at exactly y=0.02 and z-fight,
+              // which is the "blinking" band the user saw at the gate base. The door bottom
+              // stays just under the finish so no gap shows.
+              position={[ox, oy + oh / 2 + DOOR_THRESHOLD_LIFT, 0]}
               rotation={(variant === 'gate' || variant === 'shutter') && gateFlip ? [0, Math.PI, 0] : [0, 0, 0]}
             >
               <DoorFrame ow={ow} oh={oh} frameDepth={frameDepth} variant={variant} />
@@ -571,21 +565,15 @@ const OpeningFrames: React.FC<{ wallId: string; thickness: number; start: Point2
 });
 
 export const WallMesh: React.FC<WallMeshProps> = React.memo(
-  ({ id, start, end, thickness, height, materialId, materialSideA, materialSideB, offsets }) => {
-    // We must subscribe to the openings of this specific wall so the mesh regenerates when an opening is added
-    useAppStore(s => s.walls[id]?.openingIds);
-    // Deep map the openings so we re-render if any opening dimensions change
-    const openingsStr = useAppStore(s => {
-       const wall = s.walls[id];
-       if (!wall || !wall.openingIds) return '';
-       return wall.openingIds.map(oid => {
-          const o = s.openings[oid];
-          return o ? `${o.id}-${o.offsetCm}-${o.width}-${o.height}-${o.elevation}-${o.kind ?? o.type}` : '';
-       }).join(',');
-    });
+  ({ id, start, end, thickness, height, materialId, materialSideA, materialSideB, offsets, openings, roomPolys }) => {
+    // A compact signature of the openings so the geometry rebuilds when any of them change.
+    const openingsStr = openings
+      .map((o) => `${o.id}-${o.offsetCm}-${o.width}-${o.height}-${o.elevation}-${o.kind ?? o.type}`)
+      .join(',');
 
     const geometry = useMemo(
-      () => createWallGeometry(start, end, thickness, height, offsets, id),
+      () => createWallGeometry(start, end, thickness, height, offsets, openings),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [start.x, start.y, end.x, end.y, thickness, height, offsets?.startLeft, offsets?.startRight, offsets?.endLeft, offsets?.endRight, id, openingsStr]
     );
 
@@ -618,7 +606,7 @@ export const WallMesh: React.FC<WallMeshProps> = React.memo(
     return (
       <group>
         <mesh geometry={geometry} material={materials.array} castShadow receiveShadow />
-        <OpeningFrames wallId={id} thickness={thickness} start={start} end={end} />
+        <OpeningFrames thickness={thickness} start={start} end={end} openings={openings} roomPolys={roomPolys} />
       </group>
     );
   }

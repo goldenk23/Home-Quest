@@ -4,6 +4,7 @@
 import { useAppStore } from '@/store';
 import { useShallow } from 'zustand/react/shallow';// it prevents unnecessary re-renders by doing a shallow comparison of the
  import type {Point2D} from '@/types/geometry';
+ import type { FloorGeometry } from '@/types/editor';
 
 
 import { useMemo } from 'react';
@@ -77,4 +78,28 @@ export function useViewerRooms() {
       floorMaterialId: r.floorMaterialId,
     }));
   }, [rooms, vertices]);
+}
+
+/**
+ * The geometry of the storey directly below the active one (the floor you're building on
+ * top of), or null on the ground floor. Used to draw a faint "ghost" tracing in the 2D
+ * editor so a new floor can be aligned with the one beneath it. The floor below is always a
+ * parked floor, so its geometry lives in `floorData`.
+ */
+export function useFloorBelowGeometry(): FloorGeometry | null {
+  const floors = useAppStore((s) => s.floors);
+  const activeFloorId = useAppStore((s) => s.activeFloorId);
+  const floorData = useAppStore((s) => s.floorData);
+
+  return useMemo(() => {
+    const active = floors.find((f) => f.id === activeFloorId);
+    if (!active) return null;
+    let below: typeof floors[number] | null = null;
+    for (const f of floors) {
+      if (f.elevationCm < active.elevationCm && (!below || f.elevationCm > below.elevationCm)) {
+        below = f;
+      }
+    }
+    return below ? floorData[below.id] ?? null : null;
+  }, [floors, activeFloorId, floorData]);
 }

@@ -3,6 +3,7 @@
 import React from 'react';
 import { useAppStore } from '@/store';
 import { computeWallQuad } from '../services/geometry';
+import { computeOpeningGeometry } from '../services/openingGeometry';
 import { EDITOR_STYLE } from '../constants';
 import type { Point2D } from '@/types/geometry';
 
@@ -19,6 +20,7 @@ export const SelectionLayer: React.FC = React.memo(() => {
   const walls = useAppStore((s) => s.walls);
   const vertices = useAppStore((s) => s.vertices);
   const furniture = useAppStore((s) => s.furniture);
+  const openings = useAppStore((s) => s.openings);
 
   if (selectedIds.length === 0) return null;
 
@@ -68,6 +70,35 @@ export const SelectionLayer: React.FC = React.memo(() => {
               <line x1={0} y1={-d/2} x2={0} y2={-d/2 - 20} stroke={EDITOR_STYLE.selectionStroke} strokeWidth={2} />
               <circle cx={0} cy={-d/2 - 20} r={5} fill="#fff" stroke={EDITOR_STYLE.selectionStroke} strokeWidth={2} />
             </g>
+          );
+        }
+
+        // Openings (doors / gates / windows / vents): outline the opening footprint on the wall.
+        const opening = openings[id];
+        if (opening) {
+          const ow = walls[opening.wallId];
+          if (!ow) return null;
+          const s = vertices[ow.startVertexId]?.position;
+          const en = vertices[ow.endVertexId]?.position;
+          if (!s || !en) return null;
+          const geo = computeOpeningGeometry(opening, s, en, ow.thickness);
+          if (!geo) return null;
+          const { center, v, n, halfW, halfThick } = geo;
+          const pad = EDITOR_STYLE.selectionStrokeWidth;
+          const hw = halfW + pad;
+          const ht = halfThick + pad;
+          const c1 = { x: center.x - v.x * hw + n.x * ht, y: center.y - v.y * hw + n.y * ht };
+          const c2 = { x: center.x + v.x * hw + n.x * ht, y: center.y + v.y * hw + n.y * ht };
+          const c3 = { x: center.x + v.x * hw - n.x * ht, y: center.y + v.y * hw - n.y * ht };
+          const c4 = { x: center.x - v.x * hw - n.x * ht, y: center.y - v.y * hw - n.y * ht };
+          return (
+            <path
+              key={id}
+              d={quadPath(c1, c2, c3, c4)}
+              fill={EDITOR_STYLE.selectionGlow}
+              stroke={EDITOR_STYLE.selectionStroke}
+              strokeWidth={EDITOR_STYLE.selectionStrokeWidth}
+            />
           );
         }
 

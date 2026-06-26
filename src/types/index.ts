@@ -20,4 +20,6 @@ export type {
   OpeningType,
   Opening,
   FloorPlan,
+  Floor,
+  FloorGeometry,
 } from './editor';

@@ -129,3 +129,26 @@ export interface FloorPlan {
   readonly furniture: Record<EntityId, FurnitureItem>;
   readonly openings: Record<EntityId, Opening>;
 }
+
+/**
+ * A storey of the building. The geometry of each floor (vertices/walls/rooms/…) is stored
+ * separately (see the floors slice); a `Floor` is just its identity + where it sits
+ * vertically. `elevationCm` is the base height of this storey's ground above the building
+ * base (ground floor = 0), so the 3D view can stack floors on top of each other.
+ */
+export interface Floor {
+  readonly id: EntityId;
+  name: string;
+  /** Base elevation of this storey's floor in cm (ground floor = 0). */
+  elevationCm: number;
+}
+
+/** The full geometry of a single floor — the parked/serialized form of one storey. */
+export interface FloorGeometry {
+  vertices: Record<EntityId, Vertex>;
+  walls: Record<EntityId, Wall>;
+  rooms: Record<EntityId, Room>;
+  furniture: Record<EntityId, FurnitureItem>;
+  openings: Record<EntityId, Opening>;
+  roads: Record<EntityId, Road>;
+}

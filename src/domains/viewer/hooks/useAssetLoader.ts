@@ -65,6 +65,8 @@ export const FURNITURE_CATALOG: Record<string, FurnitureCatalogEntry> = {
   'wardrobe': { label: 'Wardrobe', color: '#6f5641', bounds: { width: 100, depth: 45, height: 200 }, group: 'Bedroom', model: `${K}/wardrobe.glb` },
   'nightstand': { label: 'Nightstand', color: '#c8a27c', bounds: { width: 48, depth: 42, height: 50 }, group: 'Bedroom', model: `${M}/ClassicNightstand_01/ClassicNightstand_01_1k.gltf` },
   'bookshelf': { label: 'Bookshelf', color: '#6f5641', bounds: { width: 80, depth: 35, height: 190 }, group: 'Bedroom', model: `${M}/wooden_bookshelf_worn/wooden_bookshelf_worn_1k.gltf` },
+  'desk': { label: 'Desk', color: '#6f5641', bounds: { width: 130, depth: 55, height: 78 }, group: 'Bedroom', model: `${M}/ClassicConsole_01/ClassicConsole_01_1k.gltf` },
+  'fireplace': { label: 'Fireplace', color: '#2b2f36', bounds: { width: 130, depth: 36, height: 112 }, group: 'Decor' },
   // Kitchen
   'kitchen-counter': { label: 'Kitchen Counter', color: '#3b4654', bounds: { width: 100, depth: 62, height: 90 }, group: 'Kitchen', model: `${K}/kitchen-counter.glb` },
   'kitchen-counter-end': { label: 'Counter (End/Corner)', color: '#3b4654', bounds: { width: 62, depth: 62, height: 90 }, group: 'Kitchen', model: `${K}/kitchen-counter-end.glb` },
@@ -90,11 +92,20 @@ export const FURNITURE_CATALOG: Record<string, FurnitureCatalogEntry> = {
   'tree-money': { label: '🌳 Money Tree', color: '#36702c', bounds: { width: 150, depth: 150, height: 230 }, group: 'Plants', model: `${M}/pachira_aquatica_01/pachira_aquatica_01_1k.gltf`, modelVariant: 0 },
   // Decor
   'rug': { label: 'Rug', color: '#9aa1ad', bounds: { width: 220, depth: 160, height: 2 }, group: 'Decor' },
+  'stairs': { label: '🪜 Stairs (to floor above)', color: '#b08968', bounds: { width: 110, depth: 360, height: 300 }, group: 'Decor' },
   'lightbulb': { label: '💡 Light Bulb', color: '#fde68a', bounds: { width: 12, depth: 12, height: 18 }, group: 'Decor', model: `${M}/lightbulb_01/lightbulb_01_1k.gltf` },
 };
 
 /** Convenience: ordered list of catalog ids for building UI menus. */
 export const FURNITURE_CATALOG_IDS = Object.keys(FURNITURE_CATALOG);
+
+/**
+ * Catalog id of the staircase. Stairs are a normal furniture item (placed/rotated/parked like
+ * any other), but the first-person walkthrough special-cases this id to ride the player up its
+ * ramp to the floor above. Its `height` is one storey (STORY_HEIGHT_CM) so the top step lands
+ * exactly on the floor above's base.
+ */
+export const STAIRS_CATALOG_ID = 'stairs';
 
 /** Returns the catalog entry for an id, falling back to the sofa if unknown. */
 export function getCatalogEntry(catalogId: string): FurnitureCatalogEntry {
