@@ -7,7 +7,7 @@ import { SlabMesh } from './SlabMesh';
 import { WallCapMesh } from './WallCapMesh';
 import { FurnitureInstances } from './FurnitureModel';
 import { computeMiterOffsets } from '@/domains/editor/services/wallOps';
-import { ceilingSlabRange } from '../services/transform';
+import { ceilingSlabRange, pointInPolygon } from '../services/transform';
 import type { EntityId, Vertex, Wall, Room, FurnitureItem, Opening } from '@/types/editor';
 import type { Point2D } from '@/types/geometry';
 
@@ -30,6 +30,17 @@ export interface FloorSceneProps {
   ceilingTopCm?: number;
   /** The active floor renders collision highlighting; parked floors don't. */
   isActive?: boolean;
+  /**
+   * Stairwell footprints (plan-cm polygons) of THIS floor's own staircases. Each is cut as a
+   * void in this floor's ceiling slab so a flight can rise through the ceiling.
+   */
+  ceilingHoles?: Point2D[][];
+  /**
+   * Stairwell footprints (plan-cm polygons) of the staircases on the floor DIRECTLY BELOW.
+   * Each is cut in this floor's floor finish so the flight rising from below opens onto this
+   * storey instead of being sealed off by its floor.
+   */
+  floorHoles?: Point2D[][];
 }
 
 /**
@@ -38,7 +49,7 @@ export interface FloorSceneProps {
  * parked floor identically, which is what lets the 3D view stack a whole multi-storey house.
  */
 export const FloorScene: React.FC<FloorSceneProps> = React.memo(
-  ({ vertices, walls, rooms, furniture, openings, elevationCm, ceilingTopCm, isActive = false }) => {
+  ({ vertices, walls, rooms, furniture, openings, elevationCm, ceilingTopCm, isActive = false, ceilingHoles = [], floorHoles = [] }) => {
     // Room polygons (plan cm) — for floor slabs and for orienting main gates outward.
     const roomData = useMemo(
       () =>
@@ -83,11 +94,22 @@ export const FloorScene: React.FC<FloorSceneProps> = React.memo(
     const { baseCm: ceilingBaseCm, thicknessCm: ceilingThicknessCm } =
       ceilingTopCm != null ? ceilingSlabRange(wallTopCm, ceilingTopCm) : { baseCm: 0, thicknessCm: 0 };
 
+    // A stairwell void is cut only into the room slab/finish that fully contains it (every
+    // corner inside the polygon). A footprint straddling two rooms or poking outside is
+    // skipped — the flight still carries the player up, it just won't punch a torn slab.
+    const holesIn = (poly: Point2D[], all: Point2D[][]) =>
+      all.filter((h) => h.every((c) => pointInPolygon(c, poly)));
+
     return (
       <group position={[0, elevationCm * CM_TO_M, 0]}>
         {roomData.map((room) =>
           room.polygon.length >= 3 ? (
-            <FloorMesh key={room.id} polygon={room.polygon} materialId={room.floorMaterialId} />
+            <FloorMesh
+              key={room.id}
+              polygon={room.polygon}
+              materialId={room.floorMaterialId}
+              holes={holesIn(room.polygon, floorHoles)}
+            />
           ) : null
         )}
 
@@ -99,6 +121,7 @@ export const FloorScene: React.FC<FloorSceneProps> = React.memo(
                 polygon={room.polygon}
                 baseCm={ceilingBaseCm}
                 thicknessCm={ceilingThicknessCm}
+                holes={holesIn(room.polygon, ceilingHoles)}
               />
             ) : null
           )}

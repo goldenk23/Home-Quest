@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
-import { polygonToShape } from '../services/transform';
+import { shapeWithHoles, holesKey } from '../services/transform';
 import { useFloorMaterial } from '../hooks/useMaterial';
 import type { Point2D } from '@/types/geometry';
 
@@ -10,15 +10,20 @@ interface FloorMeshProps {
   /** Room boundary in 2D plan coordinates (cm). */
   polygon: Point2D[];
   materialId: string;
+  /** Stairwell voids (plan-cm polygons) cut through the floor finish so a flight rising from
+   *  the storey below opens onto this floor instead of being capped by it. */
+  holes?: Point2D[][];
 }
 
-export const FloorMesh: React.FC<FloorMeshProps> = React.memo(({ polygon, materialId }) => {
-  // Rebuild only when the polygon actually changes. We key the memo on a compact string
-  // of the coordinates so a new array with identical points doesn't force a rebuild.
+export const FloorMesh: React.FC<FloorMeshProps> = React.memo(({ polygon, materialId, holes = [] }) => {
+  // Rebuild only when the polygon (or its stairwell holes) actually change. We key the memo
+  // on a compact string of the coordinates so a new array with identical points doesn't force
+  // a rebuild.
   const geometry = useMemo(() => {
     if (polygon.length < 3) return new THREE.BufferGeometry();
-    return new THREE.ShapeGeometry(polygonToShape(polygon));
-  }, [polygon.map((p) => `${p.x},${p.y}`).join(';')]); // eslint-disable-line react-hooks/exhaustive-deps
+    return new THREE.ShapeGeometry(shapeWithHoles(polygon, holes));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [polygon.map((p) => `${p.x},${p.y}`).join(';'), holesKey(holes)]);
 
   const material = useFloorMaterial(materialId);
   if (polygon.length < 3) return null;

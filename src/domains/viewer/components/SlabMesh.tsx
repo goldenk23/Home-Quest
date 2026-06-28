@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
-import { polygonToShape } from '../services/transform';
+import { shapeWithHoles, holesKey } from '../services/transform';
 import type { Point2D } from '@/types/geometry';
 
 const CM_TO_M = 0.01;
@@ -32,18 +32,22 @@ interface SlabMeshProps {
   baseCm: number;
   /** Slab thickness (cm). Its top lands at baseCm + thicknessCm = the floor above. */
   thicknessCm: number;
+  /** Stairwell voids (plan-cm polygons, fully inside `polygon`) cut through the slab. */
+  holes?: Point2D[][];
 }
 
-export const SlabMesh: React.FC<SlabMeshProps> = React.memo(({ polygon, baseCm, thicknessCm }) => {
+export const SlabMesh: React.FC<SlabMeshProps> = React.memo(({ polygon, baseCm, thicknessCm, holes = [] }) => {
   const geometry = useMemo(() => {
     if (polygon.length < 3 || thicknessCm <= 0) return new THREE.BufferGeometry();
     // Extrude along +Z; after the flat rotation below, +Z becomes +Y, so the slab grows
-    // upward from its base into the gap.
-    return new THREE.ExtrudeGeometry(polygonToShape(polygon), {
+    // upward from its base into the gap. Stairwell holes are punched so a flight can rise
+    // through the ceiling into the storey above.
+    return new THREE.ExtrudeGeometry(shapeWithHoles(polygon, holes), {
       depth: thicknessCm * CM_TO_M,
       bevelEnabled: false,
     });
-  }, [polygon.map((p) => `${p.x},${p.y}`).join(';'), thicknessCm]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [polygon.map((p) => `${p.x},${p.y}`).join(';'), thicknessCm, holesKey(holes)]);
 
   if (polygon.length < 3 || thicknessCm <= 0) return null;
 

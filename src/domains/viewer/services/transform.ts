@@ -74,6 +74,74 @@ export function polygonToShape(vertices: Point2D[]): THREE.Shape {
   return shape;
 }
 
+/** Twice the signed area of a plan polygon (sign = winding: >0 one way, <0 the other). */
+function signedArea2(poly: Point2D[]): number {
+  let s = 0;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    s += (poly[j].x - poly[i].x) * (poly[j].y + poly[i].y);
+  }
+  return s;
+}
+
+/** Ray-casting point-in-polygon test (point and polygon in the same plan units). */
+export function pointInPolygon(p: Point2D, poly: Point2D[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
+    if (yi > p.y !== yj > p.y && p.x < ((xj - xi) * (p.y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * The four plan-cm corners of a straight staircase's footprint. The stair is an oriented box
+ * on the plan centred at (cx, cy), rotated `rotationY` about Y, with half-extents `halfWcm`
+ * (local width / X) and `halfDcm` (local ascent / Z). Same convention as stairRampHeightAt
+ * and the StairsPrefab, so the footprint lines up with the rendered flight.
+ */
+export function stairFootprint(
+  cx: number,
+  cy: number,
+  rotationY: number,
+  halfWcm: number,
+  halfDcm: number
+): Point2D[] {
+  const cos = Math.cos(rotationY);
+  const sin = Math.sin(rotationY);
+  const corner = (sx: number, sz: number): Point2D => ({
+    x: cx + sx * halfWcm * cos + sz * halfDcm * sin,
+    y: cy + sx * halfWcm * sin - sz * halfDcm * cos,
+  });
+  return [corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1)];
+}
+
+/**
+ * Builds a flat THREE.Shape for `polygon` (plan cm → m) with each polygon in `holes` punched
+ * through it (e.g. a stairwell void cut in a floor/ceiling slab). Holes are re-wound opposite
+ * to the outer ring so the triangulator subtracts them cleanly. Holes are assumed to lie
+ * fully inside the polygon; a hole that crosses the boundary is the caller's responsibility
+ * to filter out (see pointInPolygon).
+ */
+export function shapeWithHoles(polygon: Point2D[], holes: Point2D[][] = []): THREE.Shape {
+  const shape = polygonToShape(polygon);
+  const outerSign = Math.sign(signedArea2(polygon)) || 1;
+  for (const hole of holes) {
+    if (hole.length < 3) continue;
+    const ring = Math.sign(signedArea2(hole)) === outerSign ? [...hole].reverse() : hole;
+    const path = new THREE.Path();
+    path.moveTo(ring[0].x * CM_TO_M, ring[0].y * CM_TO_M);
+    for (let i = 1; i < ring.length; i++) path.lineTo(ring[i].x * CM_TO_M, ring[i].y * CM_TO_M);
+    path.closePath();
+    shape.holes.push(path);
+  }
+  return shape;
+}
+
+/** Stable string key for a hole set, for memoising geometry that depends on it. */
+export function holesKey(holes: Point2D[][] = []): string {
+  return holes.map((h) => h.map((p) => `${Math.round(p.x)},${Math.round(p.y)}`).join(' ')).join('|');
+}
+
 /**
  * Where a storey's ceiling slab sits: resting on the wall tops and filling up to the floor
  * above (`ceilingTopCm`, measured from this floor's base). The slab's top always lands flush

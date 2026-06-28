@@ -382,7 +382,7 @@ const OpeningFrames: React.FC<{ thickness: number; start: Point2D; end: Point2D;
         const ow = opening.width * CM_TO_M;
         const oh = opening.height * CM_TO_M;
 
-        const frameDepth = thickM * 0.8;
+        const frameDepth = thickM; // line the full wall depth so the cut reveal is never raw wall
         const border = 0.05; // 5cm frame border
 
         // Tuned materials (env-map response so frames/louvres catch the sky, glass reads as

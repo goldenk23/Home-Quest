@@ -812,31 +812,75 @@ const BathtubPrefab: React.FC<PrefabProps> = ({ w, h, d, colliding }) => {
 };
 
 // --- Router ----------------------------------------------------------------
-// --- Stairs (straight flight, solid stepped profile) -----------------------
+// --- Stairs (open straight flight: treads, risers, stringers, railings) ----
 // A straight staircase that climbs one storey. Steps ascend along +Z (the piece's "front"),
 // so the bottom step is at -Z and the top tread lands at +h/2 (= the floor above's base, since
 // the catalog height is one storey). The first-person walkthrough reads this same convention
-// to ride the player up (see useFirstPerson groundHeightAtM).
-// ponytail: bare treads, no railings/stringers — enough to walk and read as stairs. There is
-// also no stairwell hole cut in the ceiling slab above, so climbing clips through that 20cm
-// slab briefly; cutting the slab is the upgrade if it matters.
+// to ride the player up (see useFirstPerson groundHeightAtM), and SceneContent cuts a stairwell
+// void through the ceiling above + the floor finish of the storey above using this footprint,
+// so the flight actually connects the two levels instead of clipping into a solid slab.
 const StairsPrefab: React.FC<PrefabProps> = ({ w, h, d, colliding }) => {
   const n = Math.max(3, Math.round(h / 0.18)); // ~18cm risers
   const rise = h / n;
   const run = d / n;
-  return (
-    <group>
-      {Array.from({ length: n }).map((_, i) => {
-        const boxH = (i + 1) * rise;            // solid from floor up to this tread
-        const cy = -h / 2 + boxH / 2;
-        const cz = -d / 2 + (i + 0.5) * run;    // bottom step at -Z, ascending toward +Z
+  const tt = Math.min(0.05, rise * 0.5);  // tread board thickness
+  const rt = Math.min(0.03, run * 0.35);  // riser board thickness
+  const nosing = run * 0.08;              // tread overhang past the riser
+
+  // Side members run along the slope, so build them in a frame tilted by the pitch.
+  const slopeLen = Math.hypot(d, h);
+  const pitch = Math.atan2(h, d);          // flight angle from horizontal
+  const sh = Math.max(0.18, rise * 1.3);   // stringer/skirt board height
+  const sx = 0.05;                          // stringer + baluster thickness
+  const railH = 0.9;                        // handrail height above the slope
+  const posts = Math.max(2, Math.floor(slopeLen / 0.5));
+  const treadW = Math.max(0.1, w - 2 * sx); // tread spans between the two stringers
+
+  // One side: a skirt stringer hugging the step edges, raked balusters and a sloped handrail.
+  const sideRail = (sign: 1 | -1, key: string) => (
+    <group key={key} position={[sign * (w / 2 - sx / 2), 0, 0]} rotation={[-pitch, 0, 0]}>
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={[sx, sh, slopeLen]} />
+        {darkWood(colliding)}
+      </mesh>
+      <mesh position={[0, railH, 0]} castShadow>
+        <boxGeometry args={[sx * 1.3, 0.05, slopeLen]} />
+        {metal(colliding)}
+      </mesh>
+      {Array.from({ length: posts }).map((_, i) => {
+        const lz = -slopeLen / 2 + (slopeLen * (i + 0.5)) / posts;
         return (
-          <mesh key={i} position={[0, cy, cz]} castShadow receiveShadow>
-            <boxGeometry args={[w, boxH, run]} />
-            {lightWood(colliding)}
+          <mesh key={i} position={[0, railH / 2, lz]} castShadow>
+            <boxGeometry args={[sx * 0.55, railH, sx * 0.55]} />
+            {metal(colliding)}
           </mesh>
         );
       })}
+    </group>
+  );
+
+  return (
+    <group>
+      {Array.from({ length: n }).map((_, i) => {
+        const treadTopY = -h / 2 + (i + 1) * rise; // top surface of step i
+        const cz = -d / 2 + (i + 0.5) * run;       // centre of step i along the run
+        return (
+          <group key={i}>
+            {/* Tread: a horizontal board with a small nosing overhang. */}
+            <mesh position={[0, treadTopY - tt / 2, cz + nosing / 2]} castShadow receiveShadow>
+              <boxGeometry args={[treadW, tt, run + nosing]} />
+              {lightWood(colliding)}
+            </mesh>
+            {/* Riser: a vertical board closing the front face of the step. */}
+            <mesh position={[0, treadTopY - rise / 2, cz - run / 2 + rt / 2]} castShadow receiveShadow>
+              <boxGeometry args={[treadW, rise, rt]} />
+              {white(colliding)}
+            </mesh>
+          </group>
+        );
+      })}
+      {sideRail(-1, 'rail-left')}
+      {sideRail(1, 'rail-right')}
     </group>
   );
 };
