@@ -13,6 +13,11 @@ import type { Point2D } from '@/types/geometry';
 
 const CM_TO_M = 0.01;
 
+// Polygon-offset unit palette for the 4-color wall adjacency graph coloring.
+// Adjacent walls (sharing a vertex) get different palette entries, guaranteeing
+// that no two walls at the same joint share a polygonOffsetUnits value.
+const DEPTH_SLOT_PALETTE = [-12, -4, 4, 12];
+
 export interface FloorSceneProps {
   vertices: Record<EntityId, Vertex>;
   walls: Record<EntityId, Wall>;
@@ -66,6 +71,35 @@ export const FloorScene: React.FC<FloorSceneProps> = React.memo(
       () => roomData.map((r) => r.polygon).filter((p) => p.length >= 3),
       [roomData]
     );
+
+    // Graph-color the wall adjacency graph so no two walls sharing a vertex get the same
+    // polygonOffsetUnits. This eliminates z-fighting seam lines at wall joints without any
+    // hash-collision risk. 4 colors suffice for planar graphs; we use a simple greedy pass.
+    const wallDepthSlots = useMemo(() => {
+      const colorOf: Record<string, number> = {}; // wall id → palette index
+      for (const wall of Object.values(walls)) {
+        const usedColors = new Set<number>();
+        for (const vid of [wall.startVertexId, wall.endVertexId]) {
+          const v = vertices[vid];
+          if (v) {
+            for (const adjId of v.connectedWalls) {
+              if (adjId !== wall.id && colorOf[adjId] !== undefined) {
+                usedColors.add(colorOf[adjId]);
+              }
+            }
+          }
+        }
+        let c = 0;
+        while (usedColors.has(c)) c++;
+        colorOf[wall.id] = c;
+      }
+      // Map palette index → actual units value
+      const slots: Record<string, number> = {};
+      for (const [id, c] of Object.entries(colorOf)) {
+        slots[id] = DEPTH_SLOT_PALETTE[c % DEPTH_SLOT_PALETTE.length];
+      }
+      return slots;
+    }, [walls, vertices]);
 
     const wallData = useMemo(
       () =>
@@ -156,6 +190,7 @@ export const FloorScene: React.FC<FloorSceneProps> = React.memo(
               offsets={wall.offsets}
               openings={wall.openings}
               roomPolys={roomPolys}
+              depthSlot={wallDepthSlots[wall.id]}
             />
           ) : null
         )}

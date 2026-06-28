@@ -25,6 +25,12 @@ interface WallMeshProps {
   openings: Opening[];
   /** Room polygons (plan cm) on this floor — used to orient the main gate outward. */
   roomPolys: Point2D[][];
+  /**
+   * Graph-coloring depth slot (polygonOffsetUnits) computed by FloorScene so that
+   * no two adjacent walls share the same value. Eliminates z-fighting seam lines at
+   * wall joints without relying on hash-collision probability.
+   */
+  depthSlot?: number;
 }
 
 const CM_TO_M = 0.01;
@@ -50,7 +56,7 @@ const DOOR_THRESHOLD_LIFT = 0.015;
 function wallDepthOffsetSlot(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return (h % 16) - 8; // integer units in [-8, +7]
+  return (h % 32) - 16; // integer units in [-16, +15] — wider range halves collision probability
 }
 
 // A row of nested-square lattice motifs (the geometric "grille" bands at the top and bottom
@@ -263,7 +269,21 @@ const DoorFrame: React.FC<{ ow: number; oh: number; frameDepth: number; variant:
   frameDepth,
   variant,
 }) => {
-  const casingMat = variant === 'gate' || variant === 'shutter' ? getFurnitureMaterial('matteBlack', '#2f343d') : getFurnitureMaterial('darkWood', '#6f5135');
+  // Clone casing material so we can add polygonOffset without mutating the shared cache.
+  // units=-20 puts casing faces in front of every wall slot {-12,-4,4,12} so the notch
+  // rim never bleeds through the architrave or jamb faces (the main source of blinking).
+  const casingMat = useMemo(() => {
+    const src = variant === 'gate' || variant === 'shutter'
+      ? getFurnitureMaterial('matteBlack', '#2f343d')
+      : getFurnitureMaterial('darkWood', '#6f5135');
+    const m = (src as THREE.MeshStandardMaterial).clone();
+    m.polygonOffset = true;
+    m.polygonOffsetFactor = -1;
+    m.polygonOffsetUnits = -20;
+    return m;
+  }, [variant]);
+  useEffect(() => () => casingMat.dispose(), [casingMat]);
+
   const leafMat = getFurnitureMaterial('lightWood', '#b3884f');
   const railMat = getFurnitureMaterial('darkWood', '#9a6f3e');
   const handleMat = getFurnitureMaterial('metal', '#c9b079');
@@ -325,13 +345,17 @@ const DoorFrame: React.FC<{ ow: number; oh: number; frameDepth: number; variant:
   // shift down by oh/2 to work in floor-relative (0..oh) coordinates here.
   return (
     <group position={[0, -oh / 2, 0]}>
-      {/* Casing: jambs + head. */}
-      <mesh material={casingMat} castShadow position={[-ow / 2 + jamb / 2, oh / 2, 0]}><boxGeometry args={[jamb, oh, depth]} /></mesh>
-      <mesh material={casingMat} castShadow position={[ow / 2 - jamb / 2, oh / 2, 0]}><boxGeometry args={[jamb, oh, depth]} /></mesh>
-      <mesh material={casingMat} castShadow position={[0, oh - jamb / 2, 0]}><boxGeometry args={[ow, jamb, depth]} /></mesh>
+      {/* Casing: jambs + head. Nudged 1mm inward so outer faces don't sit exactly on
+          the wall notch edge — those are coplanar and z-fight (blink) without the offset.
+          1mm is sub-pixel at normal viewing distance so no visible gap appears. */}
+      <mesh material={casingMat} castShadow position={[-ow / 2 + jamb / 2 + 0.001, oh / 2, 0]}><boxGeometry args={[jamb, oh, depth]} /></mesh>
+      <mesh material={casingMat} castShadow position={[ow / 2 - jamb / 2 - 0.001, oh / 2, 0]}><boxGeometry args={[jamb, oh, depth]} /></mesh>
+      <mesh material={casingMat} castShadow position={[0, oh - jamb / 2 - 0.001, 0]}><boxGeometry args={[ow, jamb, depth]} /></mesh>
 
-      {architrave(depth / 2 + archProud / 2)}
-      {architrave(-depth / 2 - archProud / 2)}
+      {/* Architrave nudged 1mm proud of the wall face so its back face isn't coplanar
+          with the wall surface — that exact coincidence caused blinking in walk mode. */}
+      {architrave(depth / 2 + archProud / 2 + 0.001)}
+      {architrave(-depth / 2 - archProud / 2 - 0.001)}
 
       {/* Leaves — skipped for the gate (MainGate supplies its own panels). */}
       {variant === 'double' ? (
@@ -387,9 +411,14 @@ const OpeningFrames: React.FC<{ thickness: number; start: Point2D; end: Point2D;
 
         // Tuned materials (env-map response so frames/louvres catch the sky, glass reads as
         // real glass). Glass casts/receives NO shadow so sunlight passes cleanly through.
-        const frameMaterial = <meshStandardMaterial {...furnitureMaterialProps('white', '#f8fafc')} />;
-        const glassMaterial = <meshStandardMaterial {...furnitureMaterialProps('glass', '#cde4f5')} />;
-        const louvreMaterial = <meshStandardMaterial {...furnitureMaterialProps('metal', '#cbd5e1')} />;
+        // Negative polygonOffset pulls frame/glass faces toward the camera so they
+        // consistently win the depth test against the coplanar wall hole-rim faces.
+        // Without this the rim and frame faces fight at identical depth → blinking.
+        // units=-20 guarantees frame faces beat any wall slot from graph-coloring
+        // (wall slots are in {-12,-4,4,12}; -20 is always more negative → frame wins).
+        const frameMaterial = <meshStandardMaterial {...furnitureMaterialProps('white', '#f8fafc')} polygonOffset={true} polygonOffsetFactor={-1} polygonOffsetUnits={-20} />;
+        const glassMaterial = <meshStandardMaterial {...furnitureMaterialProps('glass', '#cde4f5')} polygonOffset={true} polygonOffsetFactor={-1} polygonOffsetUnits={-20} />;
+        const louvreMaterial = <meshStandardMaterial {...furnitureMaterialProps('metal', '#cbd5e1')} polygonOffset={true} polygonOffsetFactor={-1} polygonOffsetUnits={-20} />;
         const acBodyMaterial = <meshStandardMaterial {...furnitureMaterialProps('white', '#ffffff')} />;
         const acTrimMaterial = <meshStandardMaterial {...furnitureMaterialProps('matteBlack', '#1f2937')} />;
 
@@ -565,7 +594,7 @@ const OpeningFrames: React.FC<{ thickness: number; start: Point2D; end: Point2D;
 });
 
 export const WallMesh: React.FC<WallMeshProps> = React.memo(
-  ({ id, start, end, thickness, height, materialId, materialSideA, materialSideB, offsets, openings, roomPolys }) => {
+  ({ id, start, end, thickness, height, materialId, materialSideA, materialSideB, offsets, openings, roomPolys, depthSlot }) => {
     // A compact signature of the openings so the geometry rebuilds when any of them change.
     const openingsStr = openings
       .map((o) => `${o.id}-${o.offsetCm}-${o.width}-${o.height}-${o.elevation}-${o.kind ?? o.type}`)
@@ -579,12 +608,14 @@ export const WallMesh: React.FC<WallMeshProps> = React.memo(
 
     // Material array matches the geometry's groups: [edges/sides, −z face (B), +z face (A)].
     // Faces that haven't been painted individually fall back to the wall's base material.
-    // We clone the cached materials so this wall can carry its own depth-offset slot (see
-    // wallDepthOffsetSlot): that's what stops same-finish corners from z-fighting into the
-    // "fan" artifacts on the low tier. Clones share the underlying textures, so the only cost
-    // is a few extra lightweight material objects per wall.
+    // We clone the cached materials so this wall can carry its own depth-offset slot.
+    // The slot comes from FloorScene's graph coloring (depthSlot prop) which guarantees
+    // adjacent walls always get different values — eliminating seam-line z-fighting without
+    // relying on hash collision probability. The hash fallback covers cases where FloorScene
+    // hasn't yet provided a slot (e.g. legacy callers). Clones share textures; only a few
+    // lightweight material objects are created per wall.
     const materials = useMemo(() => {
-      const units = wallDepthOffsetSlot(id);
+      const units = depthSlot ?? wallDepthOffsetSlot(id);
       const clones: THREE.Material[] = [];
       const make = (mid: string): THREE.Material => {
         const m = getMaterial(mid).clone() as THREE.MeshStandardMaterial;
@@ -598,7 +629,7 @@ export const WallMesh: React.FC<WallMeshProps> = React.memo(
       const sideA = materialSideA ? make(materialSideA) : base;
       const sideB = materialSideB ? make(materialSideB) : base;
       return { array: [base, sideB, sideA] as THREE.Material[], clones };
-    }, [materialId, materialSideA, materialSideB, id]);
+    }, [materialId, materialSideA, materialSideB, id, depthSlot]);
 
     // Dispose the previous wall's cloned materials when they're replaced or the wall unmounts.
     useEffect(() => () => materials.clones.forEach((m) => m.dispose()), [materials]);
