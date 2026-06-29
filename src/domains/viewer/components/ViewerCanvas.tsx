@@ -64,10 +64,11 @@ export const ViewerCanvas: React.FC = () => {
           // See the lowTier note above: only the no-composer low path needs this.
           logarithmicDepthBuffer: lowTier,
         }}
-        // near is raised well above the usual 0.1 to reclaim depth-buffer precision: a
-        // 0.1↔1000 range is a 10,000:1 ratio that leaves coplanar wall faces (corners,
-        // joints) z-fighting, especially on the 'low' tier with no post-AA to hide it.
-        // First-person collision keeps the camera ≥0.3m from wall faces, so 0.2 never clips.
+        // near is raised above the usual 0.1 to reclaim depth-buffer precision: a smaller
+        // near/far ratio leaves coplanar wall faces (corners, joints) z-fighting, especially
+        // on the 'low' tier with no post-AA to hide it. First-person mode overrides this to
+        // 0.05 on mount (via useFirstPersonControls) to prevent frustum-corner clipping into
+        // wall faces, then restores 0.2 on unmount so orbit mode keeps its precision benefit.
         camera={{ fov: 60, near: 0.2, far: 1000, position: [10, 10, 10] }}
         onCreated={({ gl }) => {
           // Filmic tone mapping + a hair of extra exposure turns the flat, video-game

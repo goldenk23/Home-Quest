@@ -306,6 +306,40 @@ const LandingMesh: React.FC<LandingMeshProps> = ({ landing, floorElevationCm, ou
   const showCornerPX_PZ = showPosX || showPosZ;
   const showCornerNX_PZ = showNegX || showPosZ;
 
+  // A railed side = a top rail bar spanning the side plus evenly-spaced vertical balusters from the
+  // slab up to the bar. Without the balusters the side reads as a lone floating bar — the
+  // "unorganized" look at the turn. `axis` is the direction the side runs along; `fixed` pins it to
+  // the slab edge. Balusters are inset from the corners (the corner posts already occupy them).
+  const balThick = railThick * 0.6;
+  const balSpacing = 0.13; // m between balusters
+  const railedSide = (axis: 'x' | 'z', fixed: number, length: number) => {
+    const count = Math.max(1, Math.round(length / balSpacing) - 1);
+    const balusters = Array.from({ length: count }, (_, i) => {
+      const t = (i + 1) / (count + 1);        // fraction along the side, excluding the corners
+      const p = -length / 2 + t * length;     // local coordinate along the side's axis
+      const pos: [number, number, number] = axis === 'x'
+        ? [p, railH / 2, fixed]
+        : [fixed, railH / 2, p];
+      return (
+        <mesh key={i} position={pos} material={railMat} castShadow>
+          <boxGeometry args={[balThick, railH, balThick]} />
+        </mesh>
+      );
+    });
+    const barPos: [number, number, number] = axis === 'x' ? [0, railH, fixed] : [fixed, railH, 0];
+    const barArgs: [number, number, number] = axis === 'x'
+      ? [length, railThick, railThick]
+      : [railThick, railThick, length];
+    return (
+      <group>
+        <mesh position={barPos} material={railMat} castShadow>
+          <boxGeometry args={barArgs} />
+        </mesh>
+        {balusters}
+      </group>
+    );
+  };
+
   return (
     <group position={[cx, cy, cz]} rotation={[0, yRot, 0]}>
       {/* Platform slab */}
@@ -314,26 +348,10 @@ const LandingMesh: React.FC<LandingMeshProps> = ({ landing, floorElevationCm, ou
       </mesh>
 
       {/* Guardrails — only on the sides NOT connected to an incoming or outgoing flight */}
-      {showPosX && (
-        <mesh position={[w / 2, railH, 0]} material={railMat} castShadow>
-          <boxGeometry args={[railThick, railThick, d]} />
-        </mesh>
-      )}
-      {showNegX && (
-        <mesh position={[-w / 2, railH, 0]} material={railMat} castShadow>
-          <boxGeometry args={[railThick, railThick, d]} />
-        </mesh>
-      )}
-      {showPosZ && (
-        <mesh position={[0, railH, d / 2]} material={railMat} castShadow>
-          <boxGeometry args={[w, railThick, railThick]} />
-        </mesh>
-      )}
-      {showNegZ && (
-        <mesh position={[0, railH, -d / 2]} material={railMat} castShadow>
-          <boxGeometry args={[w, railThick, railThick]} />
-        </mesh>
-      )}
+      {showPosX && railedSide('z', w / 2, d)}
+      {showNegX && railedSide('z', -w / 2, d)}
+      {showPosZ && railedSide('x', d / 2, w)}
+      {showNegZ && railedSide('x', -d / 2, w)}
 
       {/* Corner posts only where at least one adjacent side has a rail */}
       {showCornerNX_NZ && (

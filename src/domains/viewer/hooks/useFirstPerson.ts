@@ -181,6 +181,21 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
     return () => el.removeEventListener('click', onCanvasClick);
   }, [gl, requestLock]);
 
+  // Reduce the near clip plane for first-person so the frustum corners don't clip into wall
+  // faces when the player is right at the collision boundary. Orbit mode restores the higher
+  // value (0.2) on unmount, which it needs for depth-precision reasons at room scale.
+  useEffect(() => {
+    const cam = camera as THREE.PerspectiveCamera;
+    if (!cam.isPerspectiveCamera) return;
+    const prevNear = cam.near;
+    cam.near = 0.05;
+    cam.updateProjectionMatrix();
+    return () => {
+      cam.near = prevNear;
+      cam.updateProjectionMatrix();
+    };
+  }, [camera]);
+
   // Spawn standing in the MIDDLE of a room (the largest one) so you don't start jammed
   // against a wall. Falls back to the plan centroid, then the origin.
   const resetCameraTick = useAppStore((s) => s.resetCameraTick);
@@ -750,6 +765,11 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
     if (mouseMove.current === 1) direction.z -= 1;
     else if (mouseMove.current === -1) direction.z += 1;
 
+    // Compute whether the player is currently riding a stair ramp/landing. All stair-specific
+    // motion constraints (axis-lock, heading align, bounds clamp) are gated on this flag so
+    // merely walking NEAR stairs never captures or redirects the player.
+    const onStairNow = groundHeightAtM(camera.position.x, camera.position.z).onStair;
+
     // Build the target velocity in world space. When there's no input the target is zero, so
     // the velocity smoothly decays and the player glides to a stop instead of stopping dead.
     const target = new THREE.Vector3();
@@ -758,9 +778,11 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
       // Move relative to where you're facing, but ignore pitch so you don't fly.
       const moveQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, smoothEuler.current.y, 0));
       direction.applyQuaternion(moveQuat);
-      // While moving along a flight, gently steer the view to face up/down it (no-op off a flight).
-      // Inside this `lengthSq > 0` block, so it only ever engages when the player is actively moving.
-      alignHeadingToFlight(camera.position.x, camera.position.z, direction.x, direction.z, clampedDelta);
+      // While moving along a flight, gently steer the view to face up/down it. Only engages
+      // when actually ON the stair ramp — not just nearby — to avoid view-hijacking.
+      if (onStairNow) {
+        alignHeadingToFlight(camera.position.x, camera.position.z, direction.x, direction.z, clampedDelta);
+      }
       const speed = config.moveSpeed * (sprinting.current ? config.sprintMultiplier : 1);
       target.set(direction.x * speed, 0, direction.z * speed);
     }
@@ -773,20 +795,24 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
     // Below a tiny threshold, snap to rest so we don't integrate microscopic drift forever.
     if (velocity.current.lengthSq() < 1e-6) {
       velocity.current.set(0, 0, 0);
-      const c = clampToFlightBounds(camera.position.x, camera.position.z);
-      camera.position.x = c.x;
-      camera.position.z = c.z;
+      if (onStairNow) {
+        const c = clampToFlightBounds(camera.position.x, camera.position.z);
+        camera.position.x = c.x;
+        camera.position.z = c.z;
+      }
       updateHeight(camera.position.x, camera.position.z, clampedDelta);
       return;
     }
 
     // --- 4. Integrate position with wall collision + sliding -----------------
     const cur = camera.position;
-    // While inside a stair flight's footprint, strip out the across-the-width component so
-    // travel strictly follows the flight's incline direction — you can't strafe off the side.
-    const lockedStep = lockStepToFlightAxis(
-      cur.x, cur.z, velocity.current.x * clampedDelta, velocity.current.z * clampedDelta
-    );
+    // Only lock step to flight axis when actually ON the stair — not just nearby — to avoid
+    // magnetic snap that prevents free movement in the room surrounding the stair footprint.
+    const rawStepX = velocity.current.x * clampedDelta;
+    const rawStepZ = velocity.current.z * clampedDelta;
+    const lockedStep = onStairNow
+      ? lockStepToFlightAxis(cur.x, cur.z, rawStepX, rawStepZ)
+      : { x: rawStepX, z: rawStepZ };
     const stepX = lockedStep.x;
     const stepZ = lockedStep.z;
 
@@ -797,13 +823,23 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
       return;
     }
 
+    // Are we currently standing on a stair footprint? The stair's own axis-lock, body-block and
+    // height ramp already own containment there, so the flat-floor wall systems below must not fight
+    // them. This is the real top-of-stairs trap: the TOP of a flight butts against the upper-floor
+    // wall it runs into, so you stand within collisionRadius of that wall — and the un-stick eject
+    // below would otherwise shove you back DOWN the flight every frame, before your turn/step input
+    // is ever applied, so you can never reach the top edge to turn off onto the floor. We reuse the
+    // SAME engagement test groundHeightAtM uses (its onStair flag), computed earlier in this frame
+    // so all stair constraints share a single consistent value.
+
     // UN-STICK: if the player is somehow already inside a wall band (e.g. clipped a door
     // jamb, or spawned tight to a wall), eject them straight back out toward open space
     // instead of integrating their step. The old behaviour allowed FREE movement here, which
     // let the player phase through every wall once they touched one — the "walk through
     // walls" bug. Doorways/gates are exempt in collidesWithWall, so standing in an opening
-    // never triggers this.
-    if (collidesWithWall(cur.x, cur.z)) {
+    // never triggers this. Suppressed on a stair (see onStairNow): there the eject is the trap,
+    // not the cure — forward collision below still keeps the wall solid, so you can't phase through.
+    if (!onStairNow && collidesWithWall(cur.x, cur.z)) {
       const dir = wallEjectDir(cur.x, cur.z);
       if (dir) {
         const ejectSpeed = Math.max(config.moveSpeed, 2); // m/s, gentle but firm
@@ -854,9 +890,11 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
       }
     }
 
-    const c = clampToFlightBounds(cur.x, cur.z);
-    cur.x = c.x;
-    cur.z = c.z;
+    if (onStairNow) {
+      const c = clampToFlightBounds(cur.x, cur.z);
+      cur.x = c.x;
+      cur.z = c.z;
+    }
     updateHeight(cur.x, cur.z, clampedDelta); // ride floors/stairs
   });
 
