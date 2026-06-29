@@ -7,7 +7,7 @@ import { useAppStore } from '@/store';
 import { planTo3D, stairRampHeightAt } from '../services/transform';
 import { getCatalogEntry, STAIRS_CATALOG_ID } from '../hooks/useAssetLoader';
 import { computeSignedArea } from '@/domains/editor/services/roomDetection';
-import type { StairEntity } from '@/types/stair';
+import type { StairEntity, StairFlight } from '@/types/stair';
 
 interface FirstPersonConfig {
   moveSpeed: number; // meters / second
@@ -17,6 +17,17 @@ interface FirstPersonConfig {
   collisionRadius: number; // meters — how far to stay clear of wall faces
   acceleration: number; // 1/s — how quickly velocity ramps toward the target (higher = snappier)
   lookSmoothing: number; // 1/s — how quickly the view eases toward the mouse target (higher = tighter)
+  heightSmoothing: number; // 1/s — how quickly the camera's vertical position eases toward the
+  // floor/stair ramp height under the player's feet (higher = snappier). Without this, walking
+  // down stairs feels like falling: the raw ramp height is correct in theory, but any tiny
+  // discontinuity (floor-selection flipping, ramp engagement window edges) reads as a sudden drop.
+  stairHeightSmoothing: number; // 1/s — near-snap vertical tracking while riding a stair ramp.
+  // A stair ramp is a KNOWN continuous slope, so the gentle heightSmoothing (which exists to mask
+  // discrete floor-selection flips) only hurts here: its lag puts the camera below the real steps
+  // when climbing (you clip through the stairs) and above them when descending (you float, then
+  // fall). Tracking the ramp almost exactly removes both.
+  headingAlign: number; // 1/s — how gently the view eases to face up/down a flight while you move
+  // along it. Soft assist, not a snap: you keep full mouse control, it just nudges you straight.
 }
 
 const DEFAULT_CONFIG: FirstPersonConfig = {
@@ -27,6 +38,9 @@ const DEFAULT_CONFIG: FirstPersonConfig = {
   collisionRadius: 0.3,
   acceleration: 9,
   lookSmoothing: 22,
+  heightSmoothing: 9,
+  stairHeightSmoothing: 40,
+  headingAlign: 1.8,
 };
 
 const CM_PER_M = 100;
@@ -49,6 +63,80 @@ function pointToSegmentDistanceCm(
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 
+// Tolerance (m) at a flight's ends/sides for engagement checks — lets the player step onto a
+// flight from the room and not fall through the gap at the very edge of its footprint.
+const FLIGHT_EDGE_TOL_M = 0.15;
+
+// Length (m) of the free "apron" at each END of a flight where the lateral axis-lock and width
+// clamp are RELEASED. The lock exists to stop you strafing off the side mid-climb, but at the very
+// bottom/top you need lateral freedom to mount, dismount, and turn off to the side onto the floor —
+// otherwise you get funnelled straight into whatever wall faces the top of the stairs and trapped.
+// The ends are at floor level, so stepping off the side there just lands you on the adjacent floor.
+const FLIGHT_END_APRON_M = 0.6;
+
+// How far (m) a flight's ramp surface may sit ABOVE the player's feet and still be CLIMBABLE (you
+// get lifted onto it) rather than a wall. Generous (0.5m ≈ 3 step rises) so that while climbing a
+// continuous ramp you are ALWAYS lifted and never get blocked by your own next step — the cause of
+// the "stuck at the bottom, can't go up" deadlock when this sat at 0.30 while the height engagement
+// lifted only up to 0.28 (a 2cm gap a single fast/low-fps frame could fall into). Used by BOTH the
+// height ramp and the rigid-body guard so they can never disagree.
+const STAIR_STEP_UP_M = 0.5;
+// Above this height (m) over the feet, a flight surface is overhead clearance, not a wall: you walk
+// UNDER it (e.g. the upper flight of a switchback). Between STAIR_STEP_UP_M and this, the surface is
+// a step face at body height — the solid side you must not pass through.
+const STAIR_HEAD_CLEARANCE_M = 2.0;
+
+/**
+ * Ease an angle toward a target along the SHORTEST arc, by fraction t. Naively lerping radians
+ * spins the long way around the ±π seam (e.g. from -3.1 to +3.1); wrapping the delta into (-π, π]
+ * first guarantees the short rotation. Used to gently align the view with a stair flight's axis.
+ */
+function approachAngle(current: number, target: number, t: number): number {
+  const diff = Math.atan2(Math.sin(target - current), Math.cos(target - current));
+  return current + diff * t;
+}
+
+/**
+ * Local (along the flight's ascent axis / across its width) frame for a stair flight, in 3D
+ * metres. `along` 0→flightLenM maps bottom→top of the flight; `across` 0 is the centerline.
+ * Shared by the height ramp, the lateral axis-lock, and the edge clamp so all three agree on
+ * exactly the same footprint.
+ */
+function flightFrame(flight: StairFlight): {
+  ux: number; uy: number; nx: number; ny: number;
+  ox: number; oz: number; flightLenM: number; halfWidthM: number;
+} | null {
+  const dx = flight.endPoint.x - flight.startPoint.x;
+  const dy = flight.endPoint.y - flight.startPoint.y;
+  const planLen = Math.hypot(dx, dy);
+  if (planLen < 0.001) return null;
+  const ux = dx / planLen;
+  const uy = dy / planLen;
+  const nx = -uy;
+  const ny = ux;
+  return {
+    ux, uy, nx, ny,
+    ox: flight.startPoint.x / CM_PER_M,
+    oz: -flight.startPoint.y / CM_PER_M,
+    flightLenM: planLen / CM_PER_M,
+    halfWidthM: flight.widthCm / 2 / CM_PER_M,
+  };
+}
+
+/**
+ * Local (along, across) coordinates of a 3D point (x, z) relative to a flight frame.
+ * Plan +X → 3D +X; plan +Y → 3D -Z, so the 3D direction along the flight is (ux, -uy).
+ */
+function flightLocalCoords(
+  frame: { ux: number; uy: number; nx: number; ny: number; ox: number; oz: number },
+  x: number,
+  z: number
+): { along: number; across: number } {
+  const along = (x - frame.ox) * frame.ux + (z - frame.oz) * (-frame.uy);
+  const across = (x - frame.ox) * frame.nx + (z - frame.oz) * (-frame.ny);
+  return { along, across };
+}
+
 /**
  * First-person walkthrough controls.
  *
@@ -66,6 +154,7 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
   const euler = useRef(new THREE.Euler(0, 0, 0, 'YXZ')); // TARGET orientation (driven by mouse)
   const smoothEuler = useRef(new THREE.Euler(0, 0, 0, 'YXZ')); // RENDERED orientation (eased toward target)
   const velocity = useRef(new THREE.Vector3()); // current horizontal velocity (m/s) in world x,z
+  const smoothedGroundM = useRef<number | null>(null); // eased ground height (m), eyeHeight excluded
   const keys = useRef(new Set<string>());
   const isLocked = useRef(false);
   const mouseMove = useRef(0); // +1 = forward (LMB), -1 = backward (RMB), 0 = none
@@ -143,6 +232,7 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
     euler.current.set(0, 0, 0, 'YXZ');
     smoothEuler.current.set(0, 0, 0, 'YXZ');
     velocity.current.set(0, 0, 0);
+    smoothedGroundM.current = null; // re-snap on next frame instead of easing from the old floor
     camera.quaternion.setFromEuler(euler.current);
     if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
       (camera as THREE.PerspectiveCamera).fov = DEFAULT_FOV;
@@ -249,6 +339,19 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
     return { walls: state.walls, vertices: state.vertices, openings: state.openings };
   }, [camera, config.eyeHeight]);
 
+  /** Every stair flight across all floors (active floor's live set + parked floors' data). */
+  const getAllFlights = useCallback((): StairFlight[] => {
+    const state = useAppStore.getState();
+    const { floors, activeFloorId, floorData } = state;
+    const flights: StairFlight[] = [];
+    for (const f of floors) {
+      const sta: Record<string, StairEntity> =
+        f.id === activeFloorId ? state.stairs : (floorData[f.id]?.stairs ?? {});
+      for (const stair of Object.values(sta)) flights.push(...stair.flights);
+    }
+    return flights;
+  }, []);
+
   /**
    * Height (m, world Y of the surface under the player's feet) at plan-meters (x, z). Normally
    * this is the elevation of the storey nearest the player's current feet height, so they
@@ -257,13 +360,14 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
    * the top equals the floor above's base — so walking up a flight smoothly lifts the camera
    * one storey, after which `floorGeometryAtEye` switches collision to the upper floor.
    */
-  const groundHeightAtM = useCallback((x: number, z: number): number => {
+  const groundHeightAtM = useCallback((x: number, z: number): { height: number; onStair: boolean } => {
     const state = useAppStore.getState();
     const { floors, activeFloorId, floorData } = state;
     const feetGuessM = camera.position.y - config.eyeHeight;
 
     // Default: the floor whose base sits nearest the current feet height.
     let groundM = 0;
+    let onStair = false; // true when the chosen height comes from a stair ramp/landing, not a flat floor
     let bestDiff = Infinity;
     for (const f of floors) {
       const eM = f.elevationCm / CM_PER_M;
@@ -289,59 +393,46 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
         const cz = -item.position.y / CM_PER_M; // plan y → 3D z
         const rampM = stairRampHeightAt(x, z, cx, cz, item.rotation, halfW, halfD, baseM, riseM);
         if (rampM === null) continue;
-        if (Math.abs(rampM - feetGuessM) < Math.abs(groundM - feetGuessM)) groundM = rampM;
+        if (Math.abs(rampM - feetGuessM) < Math.abs(groundM - feetGuessM)) {
+          groundM = rampM;
+          onStair = true;
+        }
       }
     }
 
-    // New StairEntity stairs: ride each flight or stand on each landing.
+    // New StairEntity stairs: ride each flight (linear ramp).
+    for (const flight of getAllFlights()) {
+      const frame = flightFrame(flight);
+      if (!frame) continue;
+      const { along, across } = flightLocalCoords(frame, x, z);
+      if (along < -FLIGHT_EDGE_TOL_M || along > frame.flightLenM + FLIGHT_EDGE_TOL_M) continue;
+      if (Math.abs(across) > frame.halfWidthM + FLIGHT_EDGE_TOL_M) continue;
+
+      // Clamp along so progress stays in [0,1] even in the tolerance band.
+      const clampedAlong = Math.max(0, Math.min(frame.flightLenM, along));
+      const progress = clampedAlong / frame.flightLenM;
+      // bottomElevationCm / topElevationCm are absolute (global) elevations in cm.
+      const bottomM = flight.bottomElevationCm / CM_PER_M;
+      const topM = flight.topElevationCm / CM_PER_M;
+      const rampM = bottomM + progress * (topM - bottomM);
+      // Accept the ramp if within a climbable step above OR the full flight height below.
+      // The old maxDropM=0.6 caused descent to break once the player was >60cm
+      // below the upper floor — the ramp was never re-engaged and they floated up.
+      // maxStepUp shares STAIR_STEP_UP_M with the rigid-body guard so a step is never
+      // simultaneously "too high to climb" AND "not yet a wall" (the ascent deadlock).
+      const maxStepUpM = STAIR_STEP_UP_M;
+      const maxDropM = Math.max(4.5, (topM - bottomM) + 0.5);
+      if (rampM >= feetGuessM - maxDropM && rampM <= feetGuessM + maxStepUpM) {
+        groundM = rampM;
+        onStair = true;
+      }
+    }
+
+    // New StairEntity stairs: stand on each landing.
     for (const f of floors) {
       const sta: Record<string, StairEntity> =
         f.id === activeFloorId ? state.stairs : (floorData[f.id]?.stairs ?? {});
       for (const stair of Object.values(sta)) {
-        // Check each flight (linear ramp).
-        for (const flight of stair.flights) {
-          const dx = flight.endPoint.x - flight.startPoint.x;
-          const dy = flight.endPoint.y - flight.startPoint.y;
-          const planLen = Math.hypot(dx, dy);
-          if (planLen < 0.001) continue;
-          const ux = dx / planLen;
-          const uy = dy / planLen;
-          const nx = -uy;
-          const ny = ux;
-
-          const ox = flight.startPoint.x / CM_PER_M;
-          const oz = -flight.startPoint.y / CM_PER_M;
-
-          // Local coords relative to flight start (in 3D metres).
-          // Plan +X → 3D +X; plan +Y → 3D -Z, so the 3D direction along the flight is (ux, -uy).
-          const along = (x - ox) * ux + (z - oz) * (-uy);
-          const across = (x - ox) * nx + (z - oz) * (-ny);
-
-          const flightLenM = planLen / CM_PER_M;
-          const halfWidthM = flight.widthCm / 2 / CM_PER_M;
-          // Allow a small overshoot at both ends so the player doesn't fall through
-          // the gap at the very edge of a flight footprint.
-          const edgeTol = 0.15;
-          if (along < -edgeTol || along > flightLenM + edgeTol) continue;
-          if (Math.abs(across) > halfWidthM + edgeTol) continue;
-
-          // Clamp along so progress stays in [0,1] even in the tolerance band.
-          const clampedAlong = Math.max(0, Math.min(flightLenM, along));
-          const progress = clampedAlong / flightLenM;
-          // bottomElevationCm / topElevationCm are absolute (global) elevations in cm.
-          const bottomM = flight.bottomElevationCm / CM_PER_M;
-          const topM = flight.topElevationCm / CM_PER_M;
-          const rampM = bottomM + progress * (topM - bottomM);
-          // Accept the ramp if within one step above OR the full flight height below.
-          // The old maxDropM=0.6 caused descent to break once the player was >60cm
-          // below the upper floor — the ramp was never re-engaged and they floated up.
-          const maxStepUpM = 0.28;
-          const maxDropM = Math.max(4.5, (topM - bottomM) + 0.5);
-          if (rampM >= feetGuessM - maxDropM && rampM <= feetGuessM + maxStepUpM) {
-            groundM = rampM;
-          }
-        }
-
         // Check each landing (flat platform).
         for (const landing of stair.landings) {
           const cx = landing.center.x / CM_PER_M;
@@ -360,13 +451,161 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
           const maxDropL = 4.5;
           if (landM >= feetGuessM - maxDropL && landM <= feetGuessM + maxStepUpL) {
             groundM = landM;
+            onStair = true;
           }
         }
       }
     }
 
-    return groundM;
-  }, [camera, config.eyeHeight]);
+    return { height: groundM, onStair };
+  }, [camera, config.eyeHeight, getAllFlights]);
+
+  /**
+   * Constrains the player to a flight's incline direction once they're inside its footprint:
+   * strips the across-the-width component out of the intended step so you can't drift/strafe
+   * off the side of a stair while ascending or descending — only forward/back progress along
+   * the flight's axis is allowed. Mirrors the engagement window groundHeightAtM uses, so a step
+   * is locked exactly when the ramp height calc would also be riding this flight.
+   */
+  const lockStepToFlightAxis = useCallback((
+    x: number, z: number, stepX: number, stepZ: number
+  ): { x: number; z: number } => {
+    for (const flight of getAllFlights()) {
+      const frame = flightFrame(flight);
+      if (!frame) continue;
+      const { along, across } = flightLocalCoords(frame, x, z);
+      if (along < -FLIGHT_EDGE_TOL_M || along > frame.flightLenM + FLIGHT_EDGE_TOL_M) continue;
+      if (Math.abs(across) > frame.halfWidthM + FLIGHT_EDGE_TOL_M) continue;
+      // Release the lock in the end aprons so you can turn off onto the floor at the bottom/top.
+      const apron = Math.min(FLIGHT_END_APRON_M, frame.flightLenM * 0.4);
+      if (along < apron || along > frame.flightLenM - apron) continue;
+
+      // Across-direction unit vector in 3D (x, z), per the same basis as flightLocalCoords.
+      const acrossX = frame.nx;
+      const acrossZ = -frame.ny;
+      const stepAcross = stepX * acrossX + stepZ * acrossZ;
+      return { x: stepX - stepAcross * acrossX, z: stepZ - stepAcross * acrossZ };
+    }
+    return { x: stepX, z: stepZ };
+  }, [getAllFlights]);
+
+  /**
+   * Safety net for lockStepToFlightAxis: if a position ever ends up past a flight's side edge
+   * (e.g. the player entered the footprint mid-step, before the lock could engage), clamp it
+   * back to the flight's width instead of letting them walk off the stair.
+   */
+  const clampToFlightBounds = useCallback((x: number, z: number): { x: number; z: number } => {
+    for (const flight of getAllFlights()) {
+      const frame = flightFrame(flight);
+      if (!frame) continue;
+      const { along, across } = flightLocalCoords(frame, x, z);
+      if (along < -FLIGHT_EDGE_TOL_M || along > frame.flightLenM + FLIGHT_EDGE_TOL_M) continue;
+      if (Math.abs(across) <= frame.halfWidthM) continue;
+      // Don't clamp in the end aprons — you're meant to step off the side onto the floor there.
+      const apron = Math.min(FLIGHT_END_APRON_M, frame.flightLenM * 0.4);
+      if (along < apron || along > frame.flightLenM - apron) continue;
+
+      const clampedAcross = Math.sign(across) * frame.halfWidthM;
+      return {
+        x: frame.ox + along * frame.ux + clampedAcross * frame.nx,
+        z: frame.oz - along * frame.uy - clampedAcross * frame.ny,
+      };
+    }
+    return { x, z };
+  }, [getAllFlights]);
+
+  /**
+   * Treats each flight as a SOLID body: returns true if moving to (x, z) would put the player inside
+   * a flight footprint where the ramp surface is a step face at BODY height in front of them — i.e.
+   * they'd be walking into the solid side of the rise. Used like a wall in the integration step, so
+   * a flight blocks (and slides) instead of letting you phase through it.
+   *
+   * Two bounds, both relative to the feet:
+   *  - Below STAIR_STEP_UP_M above the feet → climbable: the height engagement lifts you instead, so
+   *    NOT a wall (this shared threshold is what prevents the ascent deadlock). Anything at/below the
+   *    feet is also walkable, so descending is never blocked.
+   *  - Above STAIR_HEAD_CLEARANCE_M over the feet → overhead clearance: you walk UNDER it (e.g. the
+   *    upper flight of a switchback), so NOT a wall.
+   * Only the band between the two — a step face roughly knee-to-head high — blocks.
+   */
+  const stairBodyBlocks = useCallback((x: number, z: number): boolean => {
+    if (isNaN(x) || isNaN(z)) return false;
+    const feetM = camera.position.y - config.eyeHeight;
+    for (const flight of getAllFlights()) {
+      const frame = flightFrame(flight);
+      if (!frame) continue;
+      const { along, across } = flightLocalCoords(frame, x, z);
+      // Use the tight footprint (no edge tolerance) so we only block genuinely-inside-the-body
+      // positions, never the approach band where the player is meant to mount the flight.
+      if (along < 0 || along > frame.flightLenM) continue;
+      if (Math.abs(across) > frame.halfWidthM) continue;
+      const progress = along / frame.flightLenM;
+      const bottomM = flight.bottomElevationCm / CM_PER_M;
+      const topM = flight.topElevationCm / CM_PER_M;
+      const rampM = bottomM + progress * (topM - bottomM);
+      const aboveFeet = rampM - feetM;
+      if (aboveFeet > STAIR_STEP_UP_M && aboveFeet < STAIR_HEAD_CLEARANCE_M) return true;
+    }
+    return false;
+  }, [camera, config.eyeHeight, getAllFlights]);
+
+  /**
+   * While moving along a flight, gently eases the look TARGET (euler.current.y) toward facing
+   * straight up or down that flight — so "press forward" naturally walks you along the stairs
+   * without hand-steering. A soft assist, not a snap: it nudges the mouse target, which the look
+   * smoothing then eases the rendered camera toward, so you keep full control.
+   *
+   * (worldDirX, worldDirZ) is the player's intended world-space move direction this frame.
+   * No-ops when there's no movement input (so looking around while standing still is never forced),
+   * when not inside a flight footprint, or when moving purely across the flight (a deliberate strafe).
+   * Legacy furniture stairs have no flight frame, so this simply doesn't engage for them.
+   */
+  const alignHeadingToFlight = useCallback((
+    curX: number, curZ: number, worldDirX: number, worldDirZ: number, deltaSec: number
+  ): void => {
+    for (const flight of getAllFlights()) {
+      const frame = flightFrame(flight);
+      if (!frame) continue;
+      const { along, across } = flightLocalCoords(frame, curX, curZ);
+      if (along < -FLIGHT_EDGE_TOL_M || along > frame.flightLenM + FLIGHT_EDGE_TOL_M) continue;
+      if (Math.abs(across) > frame.halfWidthM + FLIGHT_EDGE_TOL_M) continue;
+
+      // 3D ascent direction of the flight is (ux, -uy) (plan +Y → 3D -Z). How much of the intended
+      // motion runs along it decides whether we aim up the flight or down it.
+      const alongDot = worldDirX * frame.ux + worldDirZ * -frame.uy;
+      if (Math.abs(alongDot) < 0.2) return; // pure strafe across the flight — don't spin the view
+
+      // Camera forward from yaw y is (-sin y, 0, -cos y); solving it equal to the chosen direction
+      // gives yaw = atan2(-dirX, -dirZ). Ascent dir (ux,-uy) → atan2(-ux, uy); descent flips sign.
+      const targetYaw = alongDot > 0
+        ? Math.atan2(-frame.ux, frame.uy)
+        : Math.atan2(frame.ux, -frame.uy);
+      const alignT = 1 - Math.exp(-config.headingAlign * deltaSec);
+      euler.current.y = approachAngle(euler.current.y, targetYaw, alignT);
+      return;
+    }
+  }, [config.headingAlign, getAllFlights]);
+
+  /**
+   * Ease the camera's Y toward the ground height under (x, z) instead of snapping to it. The
+   * raw ramp math in groundHeightAtM is already a continuous slope while walking a flight, but
+   * mode switches (floor-selection flip, ramp engagement window edges) can still produce small
+   * jumps; smoothing turns those into a brief glide instead of a perceptible teleport/fall.
+   */
+  const updateHeight = useCallback((x: number, z: number, deltaSec: number) => {
+    const { height: target, onStair } = groundHeightAtM(x, z);
+    if (smoothedGroundM.current === null) {
+      smoothedGroundM.current = target;
+    } else {
+      // A stair ramp is a continuous, known slope, so track it almost exactly (high k) — the gentle
+      // floor smoothing's lag would otherwise sink the camera into the steps going up and float it
+      // going down. Flat floor-to-floor changes keep the gentle rate to mask discrete selection flips.
+      const k = onStair ? config.stairHeightSmoothing : config.heightSmoothing;
+      const heightT = 1 - Math.exp(-k * deltaSec);
+      smoothedGroundM.current += (target - smoothedGroundM.current) * heightT;
+    }
+    camera.position.y = smoothedGroundM.current + config.eyeHeight;
+  }, [camera, config.eyeHeight, config.heightSmoothing, config.stairHeightSmoothing, groundHeightAtM]);
 
   const collidesWithWall = useCallback(
     (mx: number, mz: number): boolean => {
@@ -519,6 +758,9 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
       // Move relative to where you're facing, but ignore pitch so you don't fly.
       const moveQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, smoothEuler.current.y, 0));
       direction.applyQuaternion(moveQuat);
+      // While moving along a flight, gently steer the view to face up/down it (no-op off a flight).
+      // Inside this `lengthSq > 0` block, so it only ever engages when the player is actively moving.
+      alignHeadingToFlight(camera.position.x, camera.position.z, direction.x, direction.z, clampedDelta);
       const speed = config.moveSpeed * (sprinting.current ? config.sprintMultiplier : 1);
       target.set(direction.x * speed, 0, direction.z * speed);
     }
@@ -531,14 +773,22 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
     // Below a tiny threshold, snap to rest so we don't integrate microscopic drift forever.
     if (velocity.current.lengthSq() < 1e-6) {
       velocity.current.set(0, 0, 0);
-      camera.position.y = groundHeightAtM(camera.position.x, camera.position.z) + config.eyeHeight;
+      const c = clampToFlightBounds(camera.position.x, camera.position.z);
+      camera.position.x = c.x;
+      camera.position.z = c.z;
+      updateHeight(camera.position.x, camera.position.z, clampedDelta);
       return;
     }
 
     // --- 4. Integrate position with wall collision + sliding -----------------
-    const stepX = velocity.current.x * clampedDelta;
-    const stepZ = velocity.current.z * clampedDelta;
     const cur = camera.position;
+    // While inside a stair flight's footprint, strip out the across-the-width component so
+    // travel strictly follows the flight's incline direction — you can't strafe off the side.
+    const lockedStep = lockStepToFlightAxis(
+      cur.x, cur.z, velocity.current.x * clampedDelta, velocity.current.z * clampedDelta
+    );
+    const stepX = lockedStep.x;
+    const stepZ = lockedStep.z;
 
     // NaN safety net: if camera somehow broke, reset it to origin
     if (isNaN(cur.x) || isNaN(cur.z)) {
@@ -560,11 +810,18 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
         cur.x += dir.x * ejectSpeed * clampedDelta;
         cur.z += dir.z * ejectSpeed * clampedDelta;
       }
-      camera.position.y = groundHeightAtM(cur.x, cur.z) + config.eyeHeight;
+      const c = clampToFlightBounds(cur.x, cur.z);
+      cur.x = c.x;
+      cur.z = c.z;
+      updateHeight(cur.x, cur.z, clampedDelta);
       return;
     }
 
-    if (!collidesWithWall(cur.x + stepX, cur.z + stepZ)) {
+    // A flight is a solid body too: combine wall + stair-body blocking so you slide along the side
+    // of a staircase exactly as you would a wall, instead of phasing through it.
+    const blocked = (bx: number, bz: number) => collidesWithWall(bx, bz) || stairBodyBlocks(bx, bz);
+
+    if (!blocked(cur.x + stepX, cur.z + stepZ)) {
       // Clear path — go straight.
       cur.x += stepX;
       cur.z += stepZ;
@@ -577,7 +834,7 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
         const dot = stepX * tan.x + stepZ * tan.z;
         const sx = tan.x * dot;
         const sz = tan.z * dot;
-        if ((sx !== 0 || sz !== 0) && !collidesWithWall(cur.x + sx, cur.z + sz)) {
+        if ((sx !== 0 || sz !== 0) && !blocked(cur.x + sx, cur.z + sz)) {
           cur.x += sx;
           cur.z += sz;
           // Re-project velocity onto the wall too, so we keep gliding along it next frame
@@ -590,14 +847,17 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
       }
       if (!slid) {
         // Fallback: axis-separated sliding (handles corners / axis-aligned walls).
-        if (!collidesWithWall(cur.x + stepX, cur.z)) cur.x += stepX;
+        if (!blocked(cur.x + stepX, cur.z)) cur.x += stepX;
         else velocity.current.x = 0;
-        if (!collidesWithWall(cur.x, cur.z + stepZ)) cur.z += stepZ;
+        if (!blocked(cur.x, cur.z + stepZ)) cur.z += stepZ;
         else velocity.current.z = 0;
       }
     }
 
-    camera.position.y = groundHeightAtM(cur.x, cur.z) + config.eyeHeight; // ride floors/stairs
+    const c = clampToFlightBounds(cur.x, cur.z);
+    cur.x = c.x;
+    cur.z = c.z;
+    updateHeight(cur.x, cur.z, clampedDelta); // ride floors/stairs
   });
 
   return { requestLock, isLocked };

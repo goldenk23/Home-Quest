@@ -164,6 +164,24 @@ const FlightMesh: React.FC<FlightMeshProps> = ({ flight, floorElevationCm, hasTo
     const postBz = oz + rz * sOff + uz * hPostBottom;
     const postTx = ox + rx * sOff + ux * hPostTop;
     const postTz = oz + rz * sOff + uz * hPostTop;
+
+    // Intermediate balusters — one per step, evenly along the slope between the end posts, each
+    // rising from the nosing line up to the angled handrail bar. Turns the lone bar + 2 newels into
+    // a proper, organised balustrade. Skipped where a landing trims the flight end.
+    const balThick = railThick * 0.5;
+    const balusters = Array.from({ length: stepCount }, (_, i) => {
+      const p = (i + 0.5) * going; // horizontal distance from flight origin to this step's mid
+      if (p <= hPostBottom + going * 0.25 || p >= hPostTop - going * 0.25) return null; // clear of newels
+      const nosingElev = oy + (p / going) * rise;
+      const bx = ox + rx * sOff + ux * p;
+      const bz = oz + rz * sOff + uz * p;
+      return (
+        <mesh key={i} position={[bx, nosingElev + railH / 2, bz]} material={railMat} castShadow>
+          <boxGeometry args={[balThick, railH, balThick]} />
+        </mesh>
+      );
+    });
+
     return (
       <group key={side}>
         {/* Stringer board (trimmed where landings attach) */}
@@ -194,6 +212,8 @@ const FlightMesh: React.FC<FlightMeshProps> = ({ flight, floorElevationCm, hasTo
         >
           <boxGeometry args={[railThick, railH, railThick]} />
         </mesh>
+        {/* Intermediate balusters (one per step) */}
+        {balusters}
         {/* Continuous handrail bar (angled along trimmed slope) */}
         {trimmedSlopeLen > 0 && (
           <mesh
