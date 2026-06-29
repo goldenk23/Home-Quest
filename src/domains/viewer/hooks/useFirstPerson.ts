@@ -327,7 +327,15 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
           const bottomM = flight.bottomElevationCm / CM_PER_M;
           const topM = flight.topElevationCm / CM_PER_M;
           const rampM = bottomM + progress * (topM - bottomM);
-          if (Math.abs(rampM - feetGuessM) < Math.abs(groundM - feetGuessM)) groundM = rampM;
+          // Accept the ramp if it is within a step's reach above or a half-storey
+          // below the player's current feet. This lets the player both ascend
+          // (ramp is slightly above feet) and descend (ramp drops below feet)
+          // without being blocked by the nearest-floor heuristic.
+          const maxStepUpM = 0.28;
+          const maxDropM = 0.6;
+          if (rampM >= feetGuessM - maxDropM && rampM <= feetGuessM + maxStepUpM) {
+            groundM = rampM;
+          }
         }
 
         // Check each landing (flat platform).
@@ -343,7 +351,11 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
           const lz = (x - cx) * sin + (z - cz) * cos;
           if (Math.abs(lx) > halfW || Math.abs(lz) > halfD) continue;
           const landM = landing.elevationCm / CM_PER_M;
-          if (Math.abs(landM - feetGuessM) < Math.abs(groundM - feetGuessM)) groundM = landM;
+          const maxStepUpL = 0.28;
+          const maxDropL = 0.6;
+          if (landM >= feetGuessM - maxDropL && landM <= feetGuessM + maxStepUpL) {
+            groundM = landM;
+          }
         }
       }
     }

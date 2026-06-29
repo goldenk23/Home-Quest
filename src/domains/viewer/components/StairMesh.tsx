@@ -1,23 +1,30 @@
 // src/domains/viewer/components/StairMesh.tsx
 //
-// 3D renderer for a StairEntity. Geometry is computed directly in world space
-// so there is no confusion between plan coordinates and 3D orientation.
+// 3D renderer for a StairEntity.
+//
+// Coordinate convention:
+//   plan (x, y) → 3D (x * CM, elevation * CM, -y * CM)
+//   plan direction (ux, uy) → 3D flight direction (ux, 0, -uy) in world XZ
+//
+// Y-rotation formula:
+//   To align local +X with world direction (ux, 0, uz), use rotation-Y = atan2(-uz, ux).
+//   Three.js Ry(θ) maps local +X → world (cosθ, 0, -sinθ), so cosθ=ux, -sinθ=uz → sinθ=-uz.
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import type { StairEntity, StairFlight, StairLanding } from '@/types/stair';
 
 const CM = 0.01; // cm → m
 
-// Shared materials (module-level so they're created once and reused).
-const lightWoodMat = new THREE.MeshStandardMaterial({ color: '#d4a574', roughness: 0.7, metalness: 0 });
-const whiteMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.6, metalness: 0 });
-const darkWoodMat = new THREE.MeshStandardMaterial({ color: '#6f5135', roughness: 0.65, metalness: 0 });
-const metalMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.3, metalness: 0.6 });
-const landingMat = new THREE.MeshStandardMaterial({ color: '#c8b4a0', roughness: 0.75, metalness: 0 });
+// Shared materials.
+const treadMat = new THREE.MeshStandardMaterial({ color: '#c8a96e', roughness: 0.65, metalness: 0 });
+const riserMat = new THREE.MeshStandardMaterial({ color: '#f0ece4', roughness: 0.55, metalness: 0 });
+const stringerMat = new THREE.MeshStandardMaterial({ color: '#5a4230', roughness: 0.7, metalness: 0 });
+const railMat = new THREE.MeshStandardMaterial({ color: '#8b9cad', roughness: 0.25, metalness: 0.7 });
+const landingMat = new THREE.MeshStandardMaterial({ color: '#b8a99a', roughness: 0.7, metalness: 0 });
 
 // ---------------------------------------------------------------------------
-// Flight geometry
+// Flight mesh
 // ---------------------------------------------------------------------------
 
 interface FlightMeshProps {
@@ -26,123 +33,149 @@ interface FlightMeshProps {
 }
 
 const FlightMesh: React.FC<FlightMeshProps> = ({ flight, floorElevationCm }) => {
-  const { startPoint, endPoint, widthCm, bottomElevationCm, stepCount, risePerStepCm, goingPerStepCm } = flight;
+  const {
+    startPoint, endPoint, widthCm,
+    bottomElevationCm, stepCount, risePerStepCm, goingPerStepCm,
+  } = flight;
 
-  // 3D plan direction: plan +Y → 3D -Z.
-  const dx3 = (endPoint.x - startPoint.x) * CM;
-  const dz3 = -(endPoint.y - startPoint.y) * CM; // plan y → 3D -z
-  const len3 = Math.hypot(dx3, dz3) || 1;
-  const ux = dx3 / len3; // unit along flight in XZ
-  const uz = dz3 / len3;
-  // Perpendicular (right side when facing up the flight).
-  const rx = uz;
-  const rz = -ux;
+  // 3D flight direction in world XZ:  plan +Y → 3D -Z
+  const dx = (endPoint.x - startPoint.x) * CM;
+  const dz = -(endPoint.y - startPoint.y) * CM;   // plan y → 3D -z
+  const hLen = Math.hypot(dx, dz) || 1;            // horizontal length (m)
+  const ux = dx / hLen;                             // unit along flight (world X)
+  const uz = dz / hLen;                             // unit along flight (world Z)
 
-  // Flight origin in world space (bottom step's front-bottom corner).
+  // Right-hand perpendicular in XZ (right side when facing up the flight).
+  const rx = -uz;
+  const rz = ux;
+
+  // Y-rotation angle that aligns local +X with (ux, 0, uz):
+  //   Ry(θ) * (1,0,0) = (cosθ, 0, -sinθ)  →  cosθ = ux, sinθ = -uz
+  const yAngle = Math.atan2(-uz, ux);
+
+  // Flight origin in world space (bottom of first riser).
   const ox = startPoint.x * CM;
-  const oz = -startPoint.y * CM;
   const oy = (bottomElevationCm - floorElevationCm) * CM;
+  const oz = -startPoint.y * CM;
 
   const w = widthCm * CM;
   const rise = risePerStepCm * CM;
   const going = goingPerStepCm * CM;
+  const treadW = w;                              // tread width = full stair width
+  const treadT = Math.min(0.035, rise * 0.38);  // tread board thickness
+  const riserT = Math.min(0.018, going * 0.22); // riser board thickness (along-flight)
+  const nosing  = going * 0.08;                 // small tread overhang
 
-  // Tread / riser dimensions.
-  const tt = Math.min(0.04, rise * 0.4);   // tread board thickness (Y)
-  const nosing = going * 0.06;              // tread overhang past riser face
-  const rt = Math.min(0.02, going * 0.25); // riser board thickness (along flight)
+  // Stringer (closed side board).
+  const stringerW = 0.05;                        // board width (across-flight)
+  const stringerH = Math.max(0.22, rise * 1.3); // board depth (perpendicular to slope)
+  const pitch = Math.atan2(rise, going);         // slope angle
 
-  // Stringer dimensions.
-  const stringerW = 0.04;                              // stringer board width (across-flight)
-  const stringerH = Math.max(0.15, rise * 1.2);        // stringer height
-  const slopeLen = Math.sqrt(going * going * stepCount * stepCount + rise * rise * stepCount * stepCount);
-  const pitch = Math.atan2(rise * stepCount, going * stepCount);
-  const railH = 0.9;
-  const posts = Math.max(2, Math.floor(slopeLen / 0.5));
+  // Slope length of the entire flight.
+  const slopeLen = stepCount * Math.hypot(going, rise);
 
-  const treadW = Math.max(0.1, w - 2 * stringerW); // tread width between stringers
+  // Quaternion that correctly orients a box's local X along the slope direction
+  // for any flight heading. Steps:
+  //   Q1 = Ry(yAngle)  → aligns local X with (ux, 0, uz) in world XZ
+  //   Q2 = rotation by `pitch` around the across-flight axis (rx, 0, rz)
+  //         → tilts local X upward to the slope direction (ux·cos, sin, uz·cos)
+  // This is mathematically correct for all headings; plain Euler [0,yAngle,pitch]
+  // only works for East-facing flights.
+  const stringerQuat = useMemo(() => {
+    const q1 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yAngle);
+    const q2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(rx, 0, rz), pitch);
+    return q2.multiply(q1);
+  }, [yAngle, pitch, rx, rz]);
 
-  // Render each step at its exact world position.
-  const steps = Array.from({ length: stepCount }).map((_, i) => {
-    // Along-flight offset to the step centre.
-    const at = (i + 0.5) * going; // metres along flight
-    // Tread top surface Y.
-    const topY = oy + (i + 1) * rise;
+  // Handrail dims.
+  const railH = 0.9;       // handrail height above tread nosing
+  const railThick = 0.045; // rail bar section
 
-    // Step centre in world XZ.
-    const cx = ox + ux * at;
-    const cz = oz + uz * at;
+  // ---- Treads & risers -------------------------------------------------------
+  const steps = Array.from({ length: stepCount }, (_, i) => {
+    // Centre of tread in along-flight space.
+    const tAt = i * going + (going + nosing) / 2; // along-flight centre of tread
+    const tTopY = oy + (i + 1) * rise;
 
-    // Tread: horizontal board, centred at (cx, topY - tt/2, cz + nosing/2 along-flight).
-    const treadCx = cx + ux * (nosing / 2);
-    const treadCz = cz + uz * (nosing / 2);
+    // Tread world position.
+    const tcx = ox + ux * tAt;
+    const tcz = oz + uz * tAt;
+    const tcy = tTopY - treadT / 2;
 
-    // Riser: vertical board at back of step.
-    const riserT = (i + 0) * going; // back edge of step
-    const riserCx = ox + ux * riserT + ux * (rt / 2);
-    const riserCz = oz + uz * riserT + uz * (rt / 2);
-    const riserTopY = oy + (i + 1) * rise - rise / 2;
+    // Riser world position (at the FRONT face of step i).
+    const rAt = i * going + riserT / 2;
+    const rcx = ox + ux * rAt;
+    const rcz = oz + uz * rAt;
+    const rcy = oy + (i + 0.5) * rise;
 
     return (
       <group key={i}>
         {/* Tread */}
-        <mesh
-          position={[treadCx, topY - tt / 2, treadCz]}
-          rotation={[0, Math.atan2(uz, ux), 0]}
-          material={lightWoodMat}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[going + nosing, tt, treadW]} />
+        <mesh position={[tcx, tcy, tcz]} rotation={[0, yAngle, 0]} material={treadMat} castShadow receiveShadow>
+          <boxGeometry args={[going + nosing, treadT, treadW]} />
         </mesh>
         {/* Riser */}
-        <mesh
-          position={[riserCx, riserTopY, riserCz]}
-          rotation={[0, Math.atan2(uz, ux), 0]}
-          material={whiteMat}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[rt, rise, treadW]} />
+        <mesh position={[rcx, rcy, rcz]} rotation={[0, yAngle, 0]} material={riserMat} castShadow receiveShadow>
+          <boxGeometry args={[riserT, rise, treadW]} />
         </mesh>
       </group>
     );
   });
 
-  // Stringers: one on each side of the flight, raked along the slope.
-  // Rotation: Three.js Euler XYZ — Y-rotation aligns local +X with flight direction in XZ,
-  // then Z-rotation tilts local +X up the slope. Box X-axis (slopeLen) runs along the slope.
-  const flightAngle = Math.atan2(uz, ux);
-  const stringer = (side: 1 | -1) => {
-    const sideOffset = side * (w / 2 - stringerW / 2);
-    const scx = ox + rx * sideOffset + ux * (going * stepCount / 2);
-    const scz = oz + rz * sideOffset + uz * (going * stepCount / 2);
-    const midY = oy + rise * stepCount / 2;
+  // ---- Closed stringers (solid side boards) ---------------------------------
+  // midY: stringer centre placed so its top edge sits on the nosing line.
+  // stringerQuat gives the correct slope orientation for all flight headings.
+  const midY = oy + rise * stepCount / 2 - (stringerH / 2) * Math.cos(pitch);
+
+  const stringerMesh = (side: 1 | -1) => {
+    const sOff = side * (w / 2 + stringerW / 2); // just outside the tread edge
+    const scx = ox + rx * sOff + ux * (going * stepCount / 2);
+    const scz = oz + rz * sOff + uz * (going * stepCount / 2);
     return (
-      <group
-        key={side}
-        position={[scx, midY, scz]}
-        rotation={[0, flightAngle, -pitch]}
-      >
-        {/* Stringer board running along the slope */}
-        <mesh position={[0, 0, 0]} material={darkWoodMat} castShadow receiveShadow>
+      <group key={side}>
+        {/* Stringer board */}
+        <mesh
+          position={[scx, midY, scz]}
+          quaternion={stringerQuat}
+          material={stringerMat}
+          castShadow
+          receiveShadow
+        >
           <boxGeometry args={[slopeLen, stringerH, stringerW]} />
         </mesh>
-        {/* Handrail running along the slope above the stringer */}
-        <mesh position={[0, stringerH / 2 + railH, 0]} material={metalMat} castShadow>
-          <boxGeometry args={[slopeLen, 0.04, stringerW * 1.3]} />
+        {/* Handrail post at bottom */}
+        <mesh
+          position={[ox + rx * sOff, oy + railH / 2, oz + rz * sOff]}
+          material={railMat}
+          castShadow
+        >
+          <boxGeometry args={[railThick, railH, railThick]} />
         </mesh>
-        {/* Balusters (vertical posts) */}
-        {Array.from({ length: posts }).map((_, i) => (
-          <mesh
-            key={i}
-            position={[-slopeLen / 2 + (slopeLen * (i + 0.5)) / posts, (stringerH / 2 + railH) / 2, 0]}
-            material={metalMat}
-            castShadow
-          >
-            <boxGeometry args={[stringerW * 0.5, stringerH / 2 + railH, stringerW * 0.5]} />
-          </mesh>
-        ))}
+        {/* Handrail post at top */}
+        <mesh
+          position={[
+            ox + rx * sOff + ux * going * stepCount,
+            oy + rise * stepCount + railH / 2,
+            oz + rz * sOff + uz * going * stepCount,
+          ]}
+          material={railMat}
+          castShadow
+        >
+          <boxGeometry args={[railThick, railH, railThick]} />
+        </mesh>
+        {/* Continuous handrail bar (angled along slope, at railH above nosing line) */}
+        <mesh
+          position={[
+            scx,
+            oy + rise * stepCount / 2 + railH,
+            scz,
+          ]}
+          quaternion={stringerQuat}
+          material={railMat}
+          castShadow
+        >
+          <boxGeometry args={[slopeLen, railThick, railThick * 1.5]} />
+        </mesh>
       </group>
     );
   };
@@ -150,14 +183,14 @@ const FlightMesh: React.FC<FlightMeshProps> = ({ flight, floorElevationCm }) => 
   return (
     <group>
       {steps}
-      {stringer(-1)}
-      {stringer(1)}
+      {stringerMesh(-1)}
+      {stringerMesh(1)}
     </group>
   );
 };
 
 // ---------------------------------------------------------------------------
-// Landing geometry
+// Landing mesh
 // ---------------------------------------------------------------------------
 
 interface LandingMeshProps {
@@ -172,22 +205,53 @@ const LandingMesh: React.FC<LandingMeshProps> = ({ landing, floorElevationCm }) 
   const cy = (elevationCm - floorElevationCm) * CM;
   const w = widthCm * CM;
   const d = depthCm * CM;
-  const thickness = 0.05;
+  const thick = 0.06;
   const railH = 0.9;
+  const railThick = 0.045;
+
+  // Landing rotation: plan angle converts to 3D Y-rotation.
+  // The landing.rotation is the plan angle of the incoming segment, which was
+  // computed as Math.atan2(dy, dx) in plan space. In 3D this becomes atan2(-dz, dx)
+  // but since the landing is symmetric we just use atan2(-uz, ux) equivalent.
+  // For the landing visual it's fine to keep the raw plan rotation value (±π).
+  const yRot = -rotation; // negate because plan Y → 3D -Z flips the sense
 
   return (
-    <group position={[cx, cy, cz]} rotation={[0, rotation, 0]}>
+    <group position={[cx, cy, cz]} rotation={[0, yRot, 0]}>
       {/* Platform slab */}
-      <mesh position={[0, -thickness / 2, 0]} material={landingMat} castShadow receiveShadow>
-        <boxGeometry args={[w, thickness, d]} />
+      <mesh position={[0, -thick / 2, 0]} material={landingMat} castShadow receiveShadow>
+        <boxGeometry args={[w, thick, d]} />
       </mesh>
-      {/* Simple handrail on two sides */}
-      <mesh position={[-(w / 2 - 0.02), railH / 2, 0]} material={metalMat} castShadow>
-        <boxGeometry args={[0.04, railH, d]} />
+      {/* Guardrail on all 4 sides */}
+      {/* Front */}
+      <mesh position={[0, railH / 2, -d / 2]} material={railMat} castShadow>
+        <boxGeometry args={[w, railThick, railThick]} />
       </mesh>
-      <mesh position={[w / 2 - 0.02, railH / 2, 0]} material={metalMat} castShadow>
-        <boxGeometry args={[0.04, railH, d]} />
+      {/* Back */}
+      <mesh position={[0, railH / 2, d / 2]} material={railMat} castShadow>
+        <boxGeometry args={[w, railThick, railThick]} />
       </mesh>
+      {/* Left */}
+      <mesh position={[-w / 2, railH / 2, 0]} material={railMat} castShadow>
+        <boxGeometry args={[railThick, railThick, d]} />
+      </mesh>
+      {/* Right */}
+      <mesh position={[w / 2, railH / 2, 0]} material={railMat} castShadow>
+        <boxGeometry args={[railThick, railThick, d]} />
+      </mesh>
+      {/* Vertical corner posts */}
+      {([-1, 1] as const).map((sx) =>
+        ([-1, 1] as const).map((sz) => (
+          <mesh
+            key={`${sx}${sz}`}
+            position={[sx * (w / 2), railH / 2, sz * (d / 2)]}
+            material={railMat}
+            castShadow
+          >
+            <boxGeometry args={[railThick, railH, railThick]} />
+          </mesh>
+        ))
+      )}
     </group>
   );
 };
@@ -201,17 +265,15 @@ interface StairMeshProps {
   floorElevationCm: number;
 }
 
-export const StairMesh: React.FC<StairMeshProps> = React.memo(({ stair, floorElevationCm }) => {
-  return (
-    <group>
-      {stair.flights.map((flight) => (
-        <FlightMesh key={flight.id} flight={flight} floorElevationCm={floorElevationCm} />
-      ))}
-      {stair.landings.map((landing) => (
-        <LandingMesh key={landing.id} landing={landing} floorElevationCm={floorElevationCm} />
-      ))}
-    </group>
-  );
-});
+export const StairMesh: React.FC<StairMeshProps> = React.memo(({ stair, floorElevationCm }) => (
+  <group>
+    {stair.flights.map((flight) => (
+      <FlightMesh key={flight.id} flight={flight} floorElevationCm={floorElevationCm} />
+    ))}
+    {stair.landings.map((landing) => (
+      <LandingMesh key={landing.id} landing={landing} floorElevationCm={floorElevationCm} />
+    ))}
+  </group>
+));
 
 StairMesh.displayName = 'StairMesh';
