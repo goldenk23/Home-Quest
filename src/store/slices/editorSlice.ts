@@ -6,6 +6,7 @@ import { generateId } from '@/utils/id';
 import type { SnapConfig } from '@/domains/editor/hooks/useSnapping';
 import { castDraft } from 'immer';
 import { validateAddWall } from '@/store/guards/storeGuards';
+import type { StairEntity } from '@/types/stair';
 
 export interface EditorSlice {
     // State
@@ -15,6 +16,7 @@ export interface EditorSlice {
     furniture: Record<EntityId, FurnitureItem>;
     openings: Record<EntityId, import('@/types/editor').Opening>;
     roads: Record<EntityId, Road>;
+    stairs: Record<EntityId, StairEntity>;
     selectedIds: EntityId[];
     snapConfig: SnapConfig;
     currentMouseWorld: Point2D | null;
@@ -30,13 +32,17 @@ export interface EditorSlice {
     moveFurniture: (id: EntityId, position: Point2D) => void;
     rotateFurniture: (id: EntityId, rotation: number) => void;
     scaleFurniture: (id: EntityId, scale: number) => void;
-    
+
     addOpening: (opening: Omit<import('@/types/editor').Opening, 'id'>) => EntityId;
     removeOpening: (id: EntityId) => void;
 
     /** Add a road segment (standalone; not part of the wall/vertex graph). */
     addRoad: (start: Point2D, end: Point2D, width?: number) => EntityId;
     removeRoad: (id: EntityId) => void;
+
+    /** Place a computed StairEntity (from stairBuilder) on the active floor. */
+    addStair: (stair: StairEntity) => void;
+    removeStair: (id: EntityId) => void;
 
     setRooms: (rooms: Record<EntityId, Room>) => void;
     updateRoom: (id: EntityId, patch: Partial<Pick<Room, 'roomType' | 'label' | 'floorMaterialId'>>) => void;
@@ -86,6 +92,7 @@ export const createEditorSlice: StateCreator<
     furniture: {},
     openings: {},
     roads: {},
+    stairs: {},
     selectedIds: [],
     snapConfig: {
         gridSize: 10,
@@ -282,6 +289,18 @@ export const createEditorSlice: StateCreator<
         });
     },
 
+    addStair: (stair) => {
+        set((state) => {
+            state.stairs[stair.id] = castDraft(stair);
+        });
+    },
+
+    removeStair: (id) => {
+        set((state) => {
+            delete state.stairs[id];
+        });
+    },
+
     setRooms: (rooms) => {
         set((state) => {
             state.rooms = castDraft(rooms);
@@ -355,6 +374,7 @@ export const createEditorSlice: StateCreator<
             state.furniture = {};
             state.openings = {};
             state.roads = {};
+            state.stairs = {};
             state.selectedIds = [];
         });
     },

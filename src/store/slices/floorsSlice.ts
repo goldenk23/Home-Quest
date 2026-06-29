@@ -19,7 +19,7 @@ export const STORY_HEIGHT_CM = 300;
 
 /** An empty floor's geometry. */
 export function emptyFloorGeometry(): FloorGeometry {
-  return { vertices: {}, walls: {}, rooms: {}, furniture: {}, openings: {}, roads: {} };
+  return { vertices: {}, walls: {}, rooms: {}, furniture: {}, openings: {}, roads: {}, stairs: {} };
 }
 
 /** Pull the active floor's geometry out of the live working set. */
@@ -31,6 +31,7 @@ function readWorkingGeometry(state: AppStore): FloorGeometry {
     furniture: state.furniture,
     openings: state.openings,
     roads: state.roads,
+    stairs: state.stairs,
   };
 }
 
@@ -83,6 +84,7 @@ export const createFloorsSlice: StateCreator<
         s.furniture = castDraft(empty.furniture);
         s.openings = castDraft(empty.openings);
         s.roads = castDraft(empty.roads);
+        s.stairs = castDraft(empty.stairs);
         delete s.floorData[id];
         s.activeFloorId = id;
         s.selectedIds = [];
@@ -109,6 +111,7 @@ export const createFloorsSlice: StateCreator<
           s.furniture = castDraft(incoming.furniture);
           s.openings = castDraft(incoming.openings);
           s.roads = castDraft(incoming.roads);
+          s.stairs = castDraft(incoming.stairs ?? {});
           delete s.floorData[fallback.id];
           delete s.floorData[id];
           s.activeFloorId = fallback.id;
@@ -138,6 +141,7 @@ export const createFloorsSlice: StateCreator<
         s.furniture = castDraft(incoming.furniture);
         s.openings = castDraft(incoming.openings);
         s.roads = castDraft(incoming.roads);
+        s.stairs = castDraft(incoming.stairs ?? {});
         delete s.floorData[id];
         s.activeFloorId = id;
         s.selectedIds = [];

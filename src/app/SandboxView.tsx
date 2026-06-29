@@ -195,6 +195,10 @@ export const SandboxView: React.FC = () => {
   const setFurnitureCatalogId = useAppStore((s) => s.setFurnitureCatalogId);
   const roadWidth = useAppStore((s) => s.roadWidth);
   const setRoadWidth = useAppStore((s) => s.setRoadWidth);
+  const stairWidthCm = useAppStore((s) => s.stairWidthCm);
+  const setStairWidth = useAppStore((s) => s.setStairWidth);
+  const stairError = useAppStore((s) => s.activeTool === 'stair' ? null : null); // sourced from tool state in EditorCanvas
+  void stairError;
   const paintFinishId = useAppStore((s) => s.paintFinishId);
   const setPaintFinishId = useAppStore((s) => s.setPaintFinishId);
 
@@ -350,6 +354,7 @@ export const SandboxView: React.FC = () => {
           <button style={btn(activeTool === 'ac')} onClick={() => setActiveTool('ac')}>❄️ AC</button>
           <button style={btn(activeTool === 'paint')} onClick={() => setActiveTool('paint')}>🎨 Paint</button>
           <button style={btn(activeTool === 'room')} onClick={() => setActiveTool('room')}>🏷️ Name Room</button>
+          <button style={btn(activeTool === 'stair', '#7c3aed')} onClick={() => setActiveTool('stair')}>🪜 Stair</button>
           <label style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', fontSize: '0.82rem', color: '#374151', cursor: 'pointer' }}>
             <input type="checkbox" checked={isChainModeEnabled} onChange={(e) => setChainMode(e.target.checked)} />
             Chain mode
@@ -438,6 +443,32 @@ export const SandboxView: React.FC = () => {
               Click a room in the 2D editor to select it, then set its type and name in the popup.
             </span>
           </Row>
+        )}
+
+        {activeTool === 'stair' && (
+          <>
+            <Row label="Stair width">
+              <input
+                type="range" min={60} max={500} step={10}
+                value={stairWidthCm}
+                onChange={(e) => setStairWidth(parseFloat(e.target.value))}
+                style={{ width: '160px' }}
+                aria-label="Stair width"
+              />
+              <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '60px', fontWeight: 600 }}>
+                {stairWidthCm} cm
+              </span>
+            </Row>
+            <Row label="How to draw">
+              <span style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
+                <strong>Requires 2+ floors.</strong> Click in the editor to place points:
+                <br />
+                <strong>2 points</strong> = Straight staircase • <strong>3 points</strong> = L-shaped (1 landing) • <strong>4 points</strong> = U-shaped (2 landings)
+                <br />
+                <strong>Double-click</strong> or press <kbd>Enter</kbd> to finish. <kbd>Esc</kbd> cancels. <kbd>Delete</kbd> removes selected stair.
+              </span>
+            </Row>
+          </>
         )}
 
         {activeTool === 'paint' && (

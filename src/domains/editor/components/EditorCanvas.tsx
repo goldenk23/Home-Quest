@@ -26,6 +26,9 @@ import { FurnitureLayer } from './FurnitureLayer';
 import { SelectionLayer } from './SelectionLayer';
 import { DrawingPreview } from './DrawingPreview';
 import { GhostFloorLayer } from './GhostFloorLayer';
+import { StairLayer } from './StairLayer';
+import { StairToolOverlay } from './StairToolOverlay';
+import { useStairTool } from '../hooks/useStairTool';
 import { VastuOverlay2D } from '@/domains/vastu/components/VastuOverlay2D';
 import { CompassRose } from './CompassRose';
 
@@ -240,6 +243,8 @@ export const EditorCanvas: React.FC = () => {
 
   const { drawStart, chainOrigin, handleClick, cancel } = useWallDrawing();
   const { drawStart: roadStart, handleClick: handleRoadClick, cancel: cancelRoad } = useRoadDrawing();
+  const [stairToolState, stairHandles] = useStairTool();
+  const stairWidthCm = useAppStore((s) => s.stairWidthCm);
 
   const viewTransformRef = useRef(viewTransform);
   viewTransformRef.current = viewTransform;
@@ -322,7 +327,7 @@ export const EditorCanvas: React.FC = () => {
       if (!svgRef.current) return null;
       const rect = svgRef.current.getBoundingClientRect();
       const raw = screenToWorld({ px: e.clientX, py: e.clientY }, rect, viewTransformRef.current);
-      const origin = activeTool === 'wall' ? drawStart : activeTool === 'road' ? roadStart : null;
+      const origin = activeTool === 'wall' ? drawStart : activeTool === 'road' ? roadStart : activeTool === 'stair' ? (stairToolState.pathPoints[stairToolState.pathPoints.length - 1] ?? null) : null;
       // When drawing, allow snapping onto existing wall centerlines so a wall drawn
       // across a room connects cleanly and splits it. (Not needed for select/furniture.)
       const st = useAppStore.getState();
@@ -413,6 +418,7 @@ export const EditorCanvas: React.FC = () => {
       const snapped = computeWorld(e);
       if (!snapped) return;
       useAppStore.setState({ currentMouseWorld: snapped });
+      if (activeTool === 'stair') stairHandles.handleMove(snapped);
 
       // Drag the selected component by the world-space delta (smooth — no jump-to-cursor).
       const drag = dragRef.current;
@@ -455,7 +461,7 @@ export const EditorCanvas: React.FC = () => {
         setDragHud((prev) => (prev ? { ...prev, cx: snapped.x, cy: snapped.y } : prev));
       }
     },
-    [handlers, computeWorld, panBy]
+    [handlers, computeWorld, panBy, activeTool, stairHandles]
   );
 
   const handleMouseUp = useCallback(
@@ -497,6 +503,11 @@ export const EditorCanvas: React.FC = () => {
       const state = useAppStore.getState();
       const cursor = state.currentMouseWorld;
       if (!cursor) return;
+
+      if (activeTool === 'stair') {
+        stairHandles.handleClick(cursor);
+        return;
+      }
 
       if (activeTool === 'wall') {
         handleClick(cursor);
@@ -649,7 +660,7 @@ export const EditorCanvas: React.FC = () => {
         }
       }
     },
-    [activeTool, handleClick, handleRoadClick]
+    [activeTool, handleClick, handleRoadClick, stairHandles]
   );
 
   // Keyboard: Escape cancels drawing; Delete/Backspace erases selection; R rotates furniture.
@@ -658,7 +669,13 @@ export const EditorCanvas: React.FC = () => {
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
 
-      if (e.key === 'Escape') { cancel(); cancelRoad(); }
+      if (e.key === 'Escape') { cancel(); cancelRoad(); stairHandles.cancel(); }
+
+      if (e.key === 'Enter' && activeTool === 'stair' && stairToolState.inProgress) {
+        const pts = stairToolState.pathPoints;
+        if (pts.length >= 2) stairHandles.handleFinish(pts[pts.length - 1]);
+        return;
+      }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const state = useAppStore.getState();
@@ -669,6 +686,7 @@ export const EditorCanvas: React.FC = () => {
               if (state.furniture[id]) state.removeFurniture(id);
               if (state.roads[id]) state.removeRoad(id);
               if (state.openings[id]) state.removeOpening(id);
+              if (state.stairs[id]) state.removeStair(id);
             });
             state.clearSelection();
           });
@@ -690,10 +708,10 @@ export const EditorCanvas: React.FC = () => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [cancel, cancelRoad]);
+  }, [cancel, cancelRoad, stairHandles, stairToolState, activeTool]);
 
   const cursorClass =
-    activeTool === 'wall' || activeTool === 'road' || activeTool === 'furniture' || activeTool === 'paint'
+    activeTool === 'wall' || activeTool === 'road' || activeTool === 'furniture' || activeTool === 'paint' || activeTool === 'stair'
       ? 'cursor-crosshair'
       : 'cursor-grab';
 
@@ -725,9 +743,16 @@ export const EditorCanvas: React.FC = () => {
         if (svgRef.current) svgRef.current.style.cursor = '';
       }}
       onClick={handleSvgClick}
+      onDoubleClick={(e) => {
+        if (activeTool !== 'stair') return;
+        const cursor = useAppStore.getState().currentMouseWorld;
+        if (cursor) stairHandles.handleFinish(cursor);
+        e.preventDefault();
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
         cancel();
+        stairHandles.cancel();
       }}
     >
       <g transform={`translate(${viewTransform.offsetX}, ${viewTransform.offsetY}) scale(${viewTransform.scale})`}>
@@ -737,12 +762,16 @@ export const EditorCanvas: React.FC = () => {
         <RoomLayer />
         <WallLayer />
         <OpeningsLayer />
+        <StairLayer />
         <FurnitureLayer />
         <SelectionLayer />
         {showDimensions && <DimensionLayer />}
         <VastuOverlay2D />
         {activeTool === 'wall' && <DrawingPreview start={drawStart} chainOrigin={chainOrigin} />}
         {activeTool === 'road' && <DrawingPreview start={roadStart} />}
+        {activeTool === 'stair' && (
+          <StairToolOverlay toolState={stairToolState} stairWidthCm={stairWidthCm} />
+        )}
         {dragHud && <DragReadout {...dragHud} />}
       </g>
       {/* Screen-anchored compass (outside the pan/zoom group) so it never moves or scales. */}

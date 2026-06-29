@@ -10,12 +10,13 @@ import { emptyFloorGeometry } from '@/store/slices/floorsSlice';
 import { getCatalogEntry, STAIRS_CATALOG_ID } from '../hooks/useAssetLoader';
 import { stairFootprint } from '../services/transform';
 import type { EntityId, FurnitureItem } from '@/types/editor';
+import type { StairEntity } from '@/types/stair';
 import type { Point2D } from '@/types/geometry';
 
 /** Extra footprint margin (cm) so the player and the railings clear the cut stairwell edges. */
 const STAIR_WELL_MARGIN_CM = 10;
 
-/** The plan-cm stairwell footprints of every staircase in a floor's furniture. */
+/** The plan-cm stairwell footprints of every staircase in a floor's furniture (legacy). */
 function stairWellFootprints(furniture: Record<EntityId, FurnitureItem>): Point2D[][] {
   const wells: Point2D[][] = [];
   for (const item of Object.values(furniture)) {
@@ -26,6 +27,11 @@ function stairWellFootprints(furniture: Record<EntityId, FurnitureItem>): Point2
     wells.push(stairFootprint(item.position.x, item.position.y, item.rotation, halfW, halfD));
   }
   return wells;
+}
+
+/** Stairwell void polygons from new-style StairEntity records. */
+function stairEntityWells(stairs: Record<EntityId, StairEntity>): Point2D[][] {
+  return Object.values(stairs).map((s) => s.stairwellVoid).filter((v) => v.length >= 3);
 }
 
 /**
@@ -43,6 +49,7 @@ const ActiveFloorScene: React.FC<{
   const rooms = useAppStore((s) => s.rooms);
   const furniture = useAppStore((s) => s.furniture);
   const openings = useAppStore((s) => s.openings);
+  const stairs = useAppStore((s) => s.stairs);
   return (
     <FloorScene
       vertices={vertices}
@@ -50,6 +57,7 @@ const ActiveFloorScene: React.FC<{
       rooms={rooms}
       furniture={furniture}
       openings={openings}
+      stairs={stairs}
       elevationCm={elevationCm}
       ceilingTopCm={ceilingTopCm}
       ceilingHoles={ceilingHoles}
@@ -69,19 +77,21 @@ export const SceneContent: React.FC = () => {
   const activeFloorId = useAppStore((s) => s.activeFloorId);
   const floorData = useAppStore((s) => s.floorData);
   const activeFurniture = useAppStore((s) => s.furniture);
+  const activeStairs = useAppStore((s) => s.stairs);
   const showVastu = useAppStore((s) => s.showVastuOverlay3D);
 
-  // Each storey's stairwell footprints (from its live or parked furniture). A flight cuts a
-  // void in its OWN ceiling slab and in the floor finish of the storey directly above, so it
-  // reads as one continuous shaft connecting the two levels.
+  // Each storey's stairwell footprints: legacy furniture-based stairs + new StairEntity voids.
+  // A flight cuts a void in its OWN ceiling slab and in the floor finish of the storey directly
+  // above, so it reads as one continuous shaft connecting the two levels.
   const wellsByFloor = useMemo(() => {
     const map: Record<EntityId, Point2D[][]> = {};
     for (const f of floors) {
       const fur = f.id === activeFloorId ? activeFurniture : floorData[f.id]?.furniture ?? {};
-      map[f.id] = stairWellFootprints(fur);
+      const sta = f.id === activeFloorId ? activeStairs : floorData[f.id]?.stairs ?? {};
+      map[f.id] = [...stairWellFootprints(fur), ...stairEntityWells(sta)];
     }
     return map;
-  }, [floors, activeFloorId, activeFurniture, floorData]);
+  }, [floors, activeFloorId, activeFurniture, activeStairs, floorData]);
 
   return (
     <group>
@@ -129,6 +139,7 @@ export const SceneContent: React.FC = () => {
             rooms={data.rooms}
             furniture={data.furniture}
             openings={data.openings}
+            stairs={data.stairs ?? {}}
             elevationCm={floor.elevationCm}
             ceilingTopCm={ceilingTopCm}
             ceilingHoles={ceilingHoles}

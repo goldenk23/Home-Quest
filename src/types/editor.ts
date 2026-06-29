@@ -151,4 +151,5 @@ export interface FloorGeometry {
   furniture: Record<EntityId, FurnitureItem>;
   openings: Record<EntityId, Opening>;
   roads: Record<EntityId, Road>;
+  stairs: Record<EntityId, import('./stair').StairEntity>;
 }

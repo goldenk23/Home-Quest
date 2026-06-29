@@ -52,6 +52,7 @@ export const useAppStore = create<AppStore>()(
           furniture: state.furniture,
           openings: state.openings,
           roads: state.roads,
+          stairs: state.stairs,
           floors: state.floors,
           activeFloorId: state.activeFloorId,
           floorData: state.floorData,

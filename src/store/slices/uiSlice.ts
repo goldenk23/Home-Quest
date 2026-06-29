@@ -26,7 +26,7 @@ import type { OpeningFamily } from '@/domains/shared/openings/openingCatalog';
 import { defaultKindForFamily } from '@/domains/shared/openings/openingCatalog';
 
 /** What the user is currently holding in their cursor (e.g. wall tool, select tool) */
-export type Tool = 'select' | 'wall' | 'road' | 'furniture' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'ac' | 'paint' | 'room';
+export type Tool = 'select' | 'wall' | 'road' | 'furniture' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'ac' | 'paint' | 'room' | 'stair';
 
 /** The different side-menus the user can open and close */
 export type PanelId = 'properties' | 'vastu' | 'catalog' | 'layers';
@@ -42,6 +42,8 @@ export interface UISlice {
   furnitureCatalogId: string;
   /** Width (cm) applied to the next road segment drawn with the Road tool. */
   roadWidth: number;
+  /** Width (cm) of staircases placed with the Stair tool. */
+  stairWidthCm: number;
   /** The finish id (wall paint or floor tile) the Paint tool applies on the next click. */
   paintFinishId: string;
   /** The selected opening kind id per family, used by the door/window/vent/ac tools. */
@@ -65,6 +67,8 @@ export interface UISlice {
   setFurnitureCatalogId: (catalogId: string) => void;
   /** Set the width (cm) used for newly drawn roads. */
   setRoadWidth: (width: number) => void;
+  /** Set the width (cm) for the Stair tool. */
+  setStairWidth: (width: number) => void;
   setPaintFinishId: (finishId: string) => void;
   /** Choose which opening kind a family's tool will place next. */
   setOpeningKind: (family: OpeningFamily, kindId: string) => void;
@@ -92,6 +96,7 @@ export const createUISlice: StateCreator<
   isChainModeEnabled: false,
   furnitureCatalogId: 'sofa-3seat',
   roadWidth: 300,
+  stairWidthCm: 110,
   showDimensions: true,
   paintFinishId: 'paint-white',
   selectedOpeningKinds: {
@@ -146,6 +151,12 @@ export const createUISlice: StateCreator<
   setRoadWidth: (width) => {
     set((state) => {
       state.roadWidth = Math.max(30, Math.min(2000, Math.round(width)));
+    });
+  },
+
+  setStairWidth: (width) => {
+    set((state) => {
+      state.stairWidthCm = Math.max(60, Math.min(500, Math.round(width)));
     });
   },
 

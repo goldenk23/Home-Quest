@@ -6,9 +6,11 @@ import { FloorMesh } from './FloorMesh';
 import { SlabMesh } from './SlabMesh';
 import { WallCapMesh } from './WallCapMesh';
 import { FurnitureInstances } from './FurnitureModel';
+import { StairMesh } from './StairMesh';
 import { computeMiterOffsets } from '@/domains/editor/services/wallOps';
 import { ceilingSlabRange, pointInPolygon } from '../services/transform';
 import type { EntityId, Vertex, Wall, Room, FurnitureItem, Opening } from '@/types/editor';
+import type { StairEntity } from '@/types/stair';
 import type { Point2D } from '@/types/geometry';
 
 const CM_TO_M = 0.01;
@@ -24,6 +26,7 @@ export interface FloorSceneProps {
   rooms: Record<EntityId, Room>;
   furniture: Record<EntityId, FurnitureItem>;
   openings: Record<EntityId, Opening>;
+  stairs?: Record<EntityId, StairEntity>;
   /** Base elevation of this storey in cm; the whole floor is lifted onto the Y axis by it. */
   elevationCm: number;
   /**
@@ -54,7 +57,7 @@ export interface FloorSceneProps {
  * parked floor identically, which is what lets the 3D view stack a whole multi-storey house.
  */
 export const FloorScene: React.FC<FloorSceneProps> = React.memo(
-  ({ vertices, walls, rooms, furniture, openings, elevationCm, ceilingTopCm, isActive = false, ceilingHoles = [], floorHoles = [] }) => {
+  ({ vertices, walls, rooms, furniture, openings, stairs = {}, elevationCm, ceilingTopCm, isActive = false, ceilingHoles = [], floorHoles = [] }) => {
     // Room polygons (plan cm) — for floor slabs and for orienting main gates outward.
     const roomData = useMemo(
       () =>
@@ -196,6 +199,10 @@ export const FloorScene: React.FC<FloorSceneProps> = React.memo(
         )}
 
         <FurnitureInstances items={furnitureList} highlightCollisions={isActive} />
+
+        {Object.values(stairs).map((stair) => (
+          <StairMesh key={stair.id} stair={stair} floorElevationCm={elevationCm} />
+        ))}
       </group>
     );
   }

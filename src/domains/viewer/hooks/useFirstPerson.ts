@@ -7,6 +7,7 @@ import { useAppStore } from '@/store';
 import { planTo3D, stairRampHeightAt } from '../services/transform';
 import { getCatalogEntry, STAIRS_CATALOG_ID } from '../hooks/useAssetLoader';
 import { computeSignedArea } from '@/domains/editor/services/roomDetection';
+import type { StairEntity } from '@/types/stair';
 
 interface FirstPersonConfig {
   moveSpeed: number; // meters / second
@@ -273,7 +274,7 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
       }
     }
 
-    // Stairs override: ride the ramp of any staircase whose footprint we're standing on.
+    // Legacy furniture-based stairs: ride the ramp of any staircase footprint we're on.
     for (const f of floors) {
       const fur = f.id === activeFloorId ? state.furniture : floorData[f.id]?.furniture;
       if (!fur) continue;
@@ -288,11 +289,65 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
         const cz = -item.position.y / CM_PER_M; // plan y → 3D z
         const rampM = stairRampHeightAt(x, z, cx, cz, item.rotation, halfW, halfD, baseM, riseM);
         if (rampM === null) continue;
-        // Pick the ramp height closest to where the player already is, so the floor↔stair
-        // handoff (and any overlap) never teleports them.
         if (Math.abs(rampM - feetGuessM) < Math.abs(groundM - feetGuessM)) groundM = rampM;
       }
     }
+
+    // New StairEntity stairs: ride each flight or stand on each landing.
+    for (const f of floors) {
+      const sta: Record<string, StairEntity> =
+        f.id === activeFloorId ? state.stairs : (floorData[f.id]?.stairs ?? {});
+      for (const stair of Object.values(sta)) {
+        // Check each flight (linear ramp).
+        for (const flight of stair.flights) {
+          const dx = flight.endPoint.x - flight.startPoint.x;
+          const dy = flight.endPoint.y - flight.startPoint.y;
+          const planLen = Math.hypot(dx, dy);
+          if (planLen < 0.001) continue;
+          const ux = dx / planLen;
+          const uy = dy / planLen;
+          const nx = -uy;
+          const ny = ux;
+
+          const ox = flight.startPoint.x / CM_PER_M;
+          const oz = -flight.startPoint.y / CM_PER_M;
+
+          // Local coords relative to flight start (in 3D metres).
+          // Plan +X → 3D +X; plan +Y → 3D -Z, so the 3D direction along the flight is (ux, -uy).
+          const along = (x - ox) * ux + (z - oz) * (-uy);
+          const across = (x - ox) * nx + (z - oz) * (-ny);
+
+          const flightLenM = planLen / CM_PER_M;
+          const halfWidthM = flight.widthCm / 2 / CM_PER_M;
+          if (along < 0 || along > flightLenM) continue;
+          if (Math.abs(across) > halfWidthM) continue;
+
+          const progress = along / flightLenM;
+          // bottomElevationCm / topElevationCm are absolute (global) elevations in cm.
+          const bottomM = flight.bottomElevationCm / CM_PER_M;
+          const topM = flight.topElevationCm / CM_PER_M;
+          const rampM = bottomM + progress * (topM - bottomM);
+          if (Math.abs(rampM - feetGuessM) < Math.abs(groundM - feetGuessM)) groundM = rampM;
+        }
+
+        // Check each landing (flat platform).
+        for (const landing of stair.landings) {
+          const cx = landing.center.x / CM_PER_M;
+          const cz = -landing.center.y / CM_PER_M;
+          const halfW = landing.widthCm / 2 / CM_PER_M;
+          const halfD = landing.depthCm / 2 / CM_PER_M;
+          const rot = landing.rotation;
+          const cos = Math.cos(rot);
+          const sin = Math.sin(rot);
+          const lx = (x - cx) * cos + (z - cz) * (-sin);
+          const lz = (x - cx) * sin + (z - cz) * cos;
+          if (Math.abs(lx) > halfW || Math.abs(lz) > halfD) continue;
+          const landM = landing.elevationCm / CM_PER_M;
+          if (Math.abs(landM - feetGuessM) < Math.abs(groundM - feetGuessM)) groundM = landM;
+        }
+      }
+    }
+
     return groundM;
   }, [camera, config.eyeHeight]);
 
