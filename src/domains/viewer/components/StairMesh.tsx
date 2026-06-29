@@ -18,10 +18,13 @@ const CM = 0.01; // cm → m
 
 // Shared materials.
 const treadMat = new THREE.MeshStandardMaterial({ color: '#c8a96e', roughness: 0.65, metalness: 0 });
-const riserMat = new THREE.MeshStandardMaterial({ color: '#f0ece4', roughness: 0.55, metalness: 0 });
+// polygonOffset pushes risers and the landing slab slightly behind treads in the depth buffer,
+// eliminating Z-fighting at the nosing overlap (riser bottom ↔ previous tread top, same Y plane).
+const riserMat = new THREE.MeshStandardMaterial({ color: '#f0ece4', roughness: 0.55, metalness: 0, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 4 });
 const stringerMat = new THREE.MeshStandardMaterial({ color: '#5a4230', roughness: 0.7, metalness: 0 });
 const railMat = new THREE.MeshStandardMaterial({ color: '#8b9cad', roughness: 0.25, metalness: 0.7 });
-const landingMat = new THREE.MeshStandardMaterial({ color: '#b8a99a', roughness: 0.7, metalness: 0 });
+// Landing slab top face coincides with the last tread top face — same polygonOffset fix.
+const landingMat = new THREE.MeshStandardMaterial({ color: '#b8a99a', roughness: 0.7, metalness: 0, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 4 });
 
 // ---------------------------------------------------------------------------
 // Flight mesh
@@ -222,9 +225,32 @@ const FlightMesh: React.FC<FlightMeshProps> = ({ flight, floorElevationCm, hasTo
 interface LandingMeshProps {
   landing: StairLanding;
   floorElevationCm: number;
+  /** Plan-space angle (radians) of the outgoing flight, so we can suppress rails where flights connect. */
+  outgoingAngle: number;
 }
 
-const LandingMesh: React.FC<LandingMeshProps> = ({ landing, floorElevationCm }) => {
+/**
+ * Maps any plan-space angle θ to the landing local face that the corresponding
+ * 3D flight direction "points toward" from the landing center.
+ *
+ * Derivation: plan angle θ → 3D world dir (cos θ, 0, −sin θ).
+ * Landing group rotation = yRot = −inA (inA = landing.rotation).
+ * World-to-local transform (inverse of group rotation = rotate by +inA around Y):
+ *   lx = wx·cos(inA) + wz·sin(inA)
+ *   lz = −wx·sin(inA) + wz·cos(inA)
+ * For (wx, wz) = (cos θ, −sin θ): lx = cos(θ+inA), lz = −sin(θ+inA).
+ */
+function planAngleToLocalFace(
+  planAngle: number,
+  inA: number
+): 'posX' | 'negX' | 'posZ' | 'negZ' {
+  const lx = Math.cos(planAngle + inA);
+  const lz = -Math.sin(planAngle + inA);
+  if (Math.abs(lx) >= Math.abs(lz)) return lx > 0 ? 'posX' : 'negX';
+  return lz > 0 ? 'posZ' : 'negZ';
+}
+
+const LandingMesh: React.FC<LandingMeshProps> = ({ landing, floorElevationCm, outgoingAngle }) => {
   const { center, widthCm, depthCm, elevationCm, rotation } = landing;
   const cx = center.x * CM;
   const cz = -center.y * CM;
@@ -232,20 +258,84 @@ const LandingMesh: React.FC<LandingMeshProps> = ({ landing, floorElevationCm }) 
   const w = widthCm * CM;
   const d = depthCm * CM;
   const thick = 0.06;
+  const railH = 0.9;
+  const railThick = 0.045;
 
-  // Landing rotation: plan angle converts to 3D Y-rotation.
-  // The landing.rotation is the plan angle of the incoming segment, which was
-  // computed as Math.atan2(dy, dx) in plan space. In 3D this becomes atan2(-dz, dx)
-  // but since the landing is symmetric we just use atan2(-uz, ux) equivalent.
-  // For the landing visual it's fine to keep the raw plan rotation value (±π).
-  const yRot = -rotation; // negate because plan Y → 3D -Z flips the sense
+  // Landing group rotation: plan angle → 3D Y-rotation (negate for plan-Y → 3D -Z).
+  const yRot = -rotation;
+
+  // Determine which local faces connect to flights (no rail there) and which are open (rail needed).
+  // Incoming flight arrives FROM the negative of its travel direction, so the face it occupies
+  // is in the direction OPPOSITE to the incoming flight's local direction.
+  // Local direction of plan angle θ = (cos(θ+inA), −sin(θ+inA)), so the opposite face:
+  const inA = rotation;
+  // Incoming: travel direction is inA, body is behind landing → face in −incoming direction.
+  // That's plan angle = inA + π (flip 180°).
+  const incomingFace = planAngleToLocalFace(inA + Math.PI, inA);
+  // Outgoing: flight body extends FORWARD from center in the outgoing direction.
+  const outgoingFace = planAngleToLocalFace(outgoingAngle, inA);
+
+  const showPosX = incomingFace !== 'posX' && outgoingFace !== 'posX';
+  const showNegX = incomingFace !== 'negX' && outgoingFace !== 'negX';
+  const showPosZ = incomingFace !== 'posZ' && outgoingFace !== 'posZ';
+  const showNegZ = incomingFace !== 'negZ' && outgoingFace !== 'negZ';
+
+  // Corner posts: show at a corner if at least one adjacent rail side is open.
+  const showCornerNX_NZ = showNegX || showNegZ;
+  const showCornerPX_NZ = showPosX || showNegZ;
+  const showCornerPX_PZ = showPosX || showPosZ;
+  const showCornerNX_PZ = showNegX || showPosZ;
 
   return (
     <group position={[cx, cy, cz]} rotation={[0, yRot, 0]}>
-      {/* Platform slab only — flight stringers and handrails frame the open sides */}
+      {/* Platform slab */}
       <mesh position={[0, -thick / 2, 0]} material={landingMat} castShadow receiveShadow>
         <boxGeometry args={[w, thick, d]} />
       </mesh>
+
+      {/* Guardrails — only on the sides NOT connected to an incoming or outgoing flight */}
+      {showPosX && (
+        <mesh position={[w / 2, railH, 0]} material={railMat} castShadow>
+          <boxGeometry args={[railThick, railThick, d]} />
+        </mesh>
+      )}
+      {showNegX && (
+        <mesh position={[-w / 2, railH, 0]} material={railMat} castShadow>
+          <boxGeometry args={[railThick, railThick, d]} />
+        </mesh>
+      )}
+      {showPosZ && (
+        <mesh position={[0, railH, d / 2]} material={railMat} castShadow>
+          <boxGeometry args={[w, railThick, railThick]} />
+        </mesh>
+      )}
+      {showNegZ && (
+        <mesh position={[0, railH, -d / 2]} material={railMat} castShadow>
+          <boxGeometry args={[w, railThick, railThick]} />
+        </mesh>
+      )}
+
+      {/* Corner posts only where at least one adjacent side has a rail */}
+      {showCornerNX_NZ && (
+        <mesh position={[-w / 2, railH / 2, -d / 2]} material={railMat} castShadow>
+          <boxGeometry args={[railThick, railH, railThick]} />
+        </mesh>
+      )}
+      {showCornerPX_NZ && (
+        <mesh position={[w / 2, railH / 2, -d / 2]} material={railMat} castShadow>
+          <boxGeometry args={[railThick, railH, railThick]} />
+        </mesh>
+      )}
+      {showCornerPX_PZ && (
+        <mesh position={[w / 2, railH / 2, d / 2]} material={railMat} castShadow>
+          <boxGeometry args={[railThick, railH, railThick]} />
+        </mesh>
+      )}
+      {showCornerNX_PZ && (
+        <mesh position={[-w / 2, railH / 2, d / 2]} material={railMat} castShadow>
+          <boxGeometry args={[railThick, railH, railThick]} />
+        </mesh>
+      )}
     </group>
   );
 };
@@ -270,9 +360,24 @@ export const StairMesh: React.FC<StairMeshProps> = React.memo(({ stair, floorEle
         hasBottomLanding={idx > 0}
       />
     ))}
-    {stair.landings.map((landing) => (
-      <LandingMesh key={landing.id} landing={landing} floorElevationCm={floorElevationCm} />
-    ))}
+    {stair.landings.map((landing, idx) => {
+      // The outgoing flight from landing idx is flight idx+1 (landings are between flights).
+      const outFlight = stair.flights[idx + 1];
+      const outgoingAngle = outFlight
+        ? Math.atan2(
+            outFlight.endPoint.y - outFlight.startPoint.y,
+            outFlight.endPoint.x - outFlight.startPoint.x
+          )
+        : landing.rotation + Math.PI / 2; // fallback: 90° turn
+      return (
+        <LandingMesh
+          key={landing.id}
+          landing={landing}
+          floorElevationCm={floorElevationCm}
+          outgoingAngle={outgoingAngle}
+        />
+      );
+    })}
   </group>
 ));
 
