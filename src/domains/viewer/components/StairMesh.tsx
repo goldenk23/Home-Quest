@@ -30,9 +30,13 @@ const landingMat = new THREE.MeshStandardMaterial({ color: '#b8a99a', roughness:
 interface FlightMeshProps {
   flight: StairFlight;
   floorElevationCm: number;
+  /** True if there is a landing platform immediately at the top of this flight. */
+  hasTopLanding?: boolean;
+  /** True if there is a landing platform immediately at the bottom of this flight. */
+  hasBottomLanding?: boolean;
 }
 
-const FlightMesh: React.FC<FlightMeshProps> = ({ flight, floorElevationCm }) => {
+const FlightMesh: React.FC<FlightMeshProps> = ({ flight, floorElevationCm, hasTopLanding = false, hasBottomLanding = false }) => {
   const {
     startPoint, endPoint, widthCm,
     bottomElevationCm, stepCount, risePerStepCm, goingPerStepCm,
@@ -71,8 +75,10 @@ const FlightMesh: React.FC<FlightMeshProps> = ({ flight, floorElevationCm }) => 
   const stringerH = Math.max(0.22, rise * 1.3); // board depth (perpendicular to slope)
   const pitch = Math.atan2(rise, going);         // slope angle
 
-  // Slope length of the entire flight.
+  // Full slope length of the flight.
   const slopeLen = stepCount * Math.hypot(going, rise);
+  // Full horizontal length of the flight (m).
+  const horizLen = going * stepCount;
 
   // Quaternion that correctly orients a box's local X along the slope direction
   // for any flight heading. Steps:
@@ -90,6 +96,22 @@ const FlightMesh: React.FC<FlightMeshProps> = ({ flight, floorElevationCm }) => 
   // Handrail dims.
   const railH = 0.9;       // handrail height above tread nosing
   const railThick = 0.045; // rail bar section
+
+  // Trim stringer/rail so they stop at the landing edge instead of extending
+  // into the landing platform from either end.
+  const landingTrim = w / 2; // half the landing depth = half the stair width
+  const bottomTrimH = hasBottomLanding ? landingTrim : 0;
+  const topTrimH    = hasTopLanding    ? landingTrim : 0;
+  // Horizontal and slope lengths covered by the (possibly trimmed) stringer.
+  const trimmedHorizLen = horizLen - bottomTrimH - topTrimH;
+  const trimmedSlopeLen = trimmedHorizLen > 0 ? slopeLen * (trimmedHorizLen / horizLen) : 0;
+  // Horizontal midpoint of the trimmed stringer (measured from flight origin).
+  const hCenter = bottomTrimH + trimmedHorizLen / 2;
+  // Elevation at hCenter above the floor reference.
+  const elevCenter = oy + (hCenter / going) * rise;
+  // Horizontal positions of rail posts (clamped to flight extent).
+  const hPostBottom = bottomTrimH;
+  const hPostTop    = horizLen - topTrimH;
 
   // ---- Treads & risers -------------------------------------------------------
   const steps = Array.from({ length: stepCount }, (_, i) => {
@@ -123,59 +145,63 @@ const FlightMesh: React.FC<FlightMeshProps> = ({ flight, floorElevationCm }) => 
   });
 
   // ---- Closed stringers (solid side boards) ---------------------------------
-  // midY: stringer centre placed so its top edge sits on the nosing line.
-  // stringerQuat gives the correct slope orientation for all flight headings.
-  const midY = oy + rise * stepCount / 2 - (stringerH / 2) * Math.cos(pitch);
+  // Stringer centre placed so its top edge sits on the nosing line, trimmed at
+  // both ends where a landing platform sits (so it doesn't intrude into the slab).
+  const midY = elevCenter - (stringerH / 2) * Math.cos(pitch);
 
   const stringerMesh = (side: 1 | -1) => {
     const sOff = side * (w / 2 + stringerW / 2); // just outside the tread edge
-    const scx = ox + rx * sOff + ux * (going * stepCount / 2);
-    const scz = oz + rz * sOff + uz * (going * stepCount / 2);
+    // Stringer (trimmed) centre in world space.
+    const scx = ox + rx * sOff + ux * hCenter;
+    const scz = oz + rz * sOff + uz * hCenter;
+    // Post positions at the trimmed ends.
+    const elevBottom = oy + (hPostBottom / going) * rise;
+    const elevTop    = oy + (hPostTop    / going) * rise;
+    const postBx = ox + rx * sOff + ux * hPostBottom;
+    const postBz = oz + rz * sOff + uz * hPostBottom;
+    const postTx = ox + rx * sOff + ux * hPostTop;
+    const postTz = oz + rz * sOff + uz * hPostTop;
     return (
       <group key={side}>
-        {/* Stringer board */}
+        {/* Stringer board (trimmed where landings attach) */}
+        {trimmedSlopeLen > 0 && (
+          <mesh
+            position={[scx, midY, scz]}
+            quaternion={stringerQuat}
+            material={stringerMat}
+            castShadow
+            receiveShadow
+          >
+            <boxGeometry args={[trimmedSlopeLen, stringerH, stringerW]} />
+          </mesh>
+        )}
+        {/* Handrail post at flight bottom */}
         <mesh
-          position={[scx, midY, scz]}
-          quaternion={stringerQuat}
-          material={stringerMat}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[slopeLen, stringerH, stringerW]} />
-        </mesh>
-        {/* Handrail post at bottom */}
-        <mesh
-          position={[ox + rx * sOff, oy + railH / 2, oz + rz * sOff]}
+          position={[postBx, elevBottom + railH / 2, postBz]}
           material={railMat}
           castShadow
         >
           <boxGeometry args={[railThick, railH, railThick]} />
         </mesh>
-        {/* Handrail post at top */}
+        {/* Handrail post at flight top */}
         <mesh
-          position={[
-            ox + rx * sOff + ux * going * stepCount,
-            oy + rise * stepCount + railH / 2,
-            oz + rz * sOff + uz * going * stepCount,
-          ]}
+          position={[postTx, elevTop + railH / 2, postTz]}
           material={railMat}
           castShadow
         >
           <boxGeometry args={[railThick, railH, railThick]} />
         </mesh>
-        {/* Continuous handrail bar (angled along slope, at railH above nosing line) */}
-        <mesh
-          position={[
-            scx,
-            oy + rise * stepCount / 2 + railH,
-            scz,
-          ]}
-          quaternion={stringerQuat}
-          material={railMat}
-          castShadow
-        >
-          <boxGeometry args={[slopeLen, railThick, railThick * 1.5]} />
-        </mesh>
+        {/* Continuous handrail bar (angled along trimmed slope) */}
+        {trimmedSlopeLen > 0 && (
+          <mesh
+            position={[scx, elevCenter + railH, scz]}
+            quaternion={stringerQuat}
+            material={railMat}
+            castShadow
+          >
+            <boxGeometry args={[trimmedSlopeLen, railThick, railThick * 1.5]} />
+          </mesh>
+        )}
       </group>
     );
   };
@@ -206,8 +232,6 @@ const LandingMesh: React.FC<LandingMeshProps> = ({ landing, floorElevationCm }) 
   const w = widthCm * CM;
   const d = depthCm * CM;
   const thick = 0.06;
-  const railH = 0.9;
-  const railThick = 0.045;
 
   // Landing rotation: plan angle converts to 3D Y-rotation.
   // The landing.rotation is the plan angle of the incoming segment, which was
@@ -218,40 +242,10 @@ const LandingMesh: React.FC<LandingMeshProps> = ({ landing, floorElevationCm }) 
 
   return (
     <group position={[cx, cy, cz]} rotation={[0, yRot, 0]}>
-      {/* Platform slab */}
+      {/* Platform slab only — flight stringers and handrails frame the open sides */}
       <mesh position={[0, -thick / 2, 0]} material={landingMat} castShadow receiveShadow>
         <boxGeometry args={[w, thick, d]} />
       </mesh>
-      {/* Guardrail on all 4 sides */}
-      {/* Front */}
-      <mesh position={[0, railH / 2, -d / 2]} material={railMat} castShadow>
-        <boxGeometry args={[w, railThick, railThick]} />
-      </mesh>
-      {/* Back */}
-      <mesh position={[0, railH / 2, d / 2]} material={railMat} castShadow>
-        <boxGeometry args={[w, railThick, railThick]} />
-      </mesh>
-      {/* Left */}
-      <mesh position={[-w / 2, railH / 2, 0]} material={railMat} castShadow>
-        <boxGeometry args={[railThick, railThick, d]} />
-      </mesh>
-      {/* Right */}
-      <mesh position={[w / 2, railH / 2, 0]} material={railMat} castShadow>
-        <boxGeometry args={[railThick, railThick, d]} />
-      </mesh>
-      {/* Vertical corner posts */}
-      {([-1, 1] as const).map((sx) =>
-        ([-1, 1] as const).map((sz) => (
-          <mesh
-            key={`${sx}${sz}`}
-            position={[sx * (w / 2), railH / 2, sz * (d / 2)]}
-            material={railMat}
-            castShadow
-          >
-            <boxGeometry args={[railThick, railH, railThick]} />
-          </mesh>
-        ))
-      )}
     </group>
   );
 };
@@ -267,8 +261,14 @@ interface StairMeshProps {
 
 export const StairMesh: React.FC<StairMeshProps> = React.memo(({ stair, floorElevationCm }) => (
   <group>
-    {stair.flights.map((flight) => (
-      <FlightMesh key={flight.id} flight={flight} floorElevationCm={floorElevationCm} />
+    {stair.flights.map((flight, idx) => (
+      <FlightMesh
+        key={flight.id}
+        flight={flight}
+        floorElevationCm={floorElevationCm}
+        hasTopLanding={idx < stair.flights.length - 1}
+        hasBottomLanding={idx > 0}
+      />
     ))}
     {stair.landings.map((landing) => (
       <LandingMesh key={landing.id} landing={landing} floorElevationCm={floorElevationCm} />

@@ -319,20 +319,24 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
 
           const flightLenM = planLen / CM_PER_M;
           const halfWidthM = flight.widthCm / 2 / CM_PER_M;
-          if (along < 0 || along > flightLenM) continue;
-          if (Math.abs(across) > halfWidthM) continue;
+          // Allow a small overshoot at both ends so the player doesn't fall through
+          // the gap at the very edge of a flight footprint.
+          const edgeTol = 0.15;
+          if (along < -edgeTol || along > flightLenM + edgeTol) continue;
+          if (Math.abs(across) > halfWidthM + edgeTol) continue;
 
-          const progress = along / flightLenM;
+          // Clamp along so progress stays in [0,1] even in the tolerance band.
+          const clampedAlong = Math.max(0, Math.min(flightLenM, along));
+          const progress = clampedAlong / flightLenM;
           // bottomElevationCm / topElevationCm are absolute (global) elevations in cm.
           const bottomM = flight.bottomElevationCm / CM_PER_M;
           const topM = flight.topElevationCm / CM_PER_M;
           const rampM = bottomM + progress * (topM - bottomM);
-          // Accept the ramp if it is within a step's reach above or a half-storey
-          // below the player's current feet. This lets the player both ascend
-          // (ramp is slightly above feet) and descend (ramp drops below feet)
-          // without being blocked by the nearest-floor heuristic.
+          // Accept the ramp if within one step above OR the full flight height below.
+          // The old maxDropM=0.6 caused descent to break once the player was >60cm
+          // below the upper floor — the ramp was never re-engaged and they floated up.
           const maxStepUpM = 0.28;
-          const maxDropM = 0.6;
+          const maxDropM = Math.max(4.5, (topM - bottomM) + 0.5);
           if (rampM >= feetGuessM - maxDropM && rampM <= feetGuessM + maxStepUpM) {
             groundM = rampM;
           }
@@ -349,10 +353,11 @@ export function useFirstPersonControls(config = DEFAULT_CONFIG) {
           const sin = Math.sin(rot);
           const lx = (x - cx) * cos + (z - cz) * (-sin);
           const lz = (x - cx) * sin + (z - cz) * cos;
-          if (Math.abs(lx) > halfW || Math.abs(lz) > halfD) continue;
+          const edgeTolL = 0.15;
+          if (Math.abs(lx) > halfW + edgeTolL || Math.abs(lz) > halfD + edgeTolL) continue;
           const landM = landing.elevationCm / CM_PER_M;
           const maxStepUpL = 0.28;
-          const maxDropL = 0.6;
+          const maxDropL = 4.5;
           if (landM >= feetGuessM - maxDropL && landM <= feetGuessM + maxStepUpL) {
             groundM = landM;
           }
