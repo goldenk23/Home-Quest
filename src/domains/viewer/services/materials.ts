@@ -1,6 +1,7 @@
 // src/domains/viewer/services/materials.ts
 
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {
   ALL_FINISHES,
   FLOOR_FINISHES,
@@ -12,6 +13,128 @@ import {
 const materialCache = new Map<string, THREE.Material>();
 /** Floors get their own cached material instance: same finish look, different depth bias. */
 const floorMaterialCache = new Map<string, THREE.Material>();
+
+// ----------------------------------------------------------------------------
+// GLB wall loading — per-finish cache.
+//
+// Each GLB finish is loaded lazily on first use. Extracted PBR maps are cached
+// in _glbMapsCache keyed by finish id. When a GLB finishes loading the stale
+// materialCache entry is evicted and all WallMesh instances are notified to
+// re-clone (they share a single subscribeToWallTexture listener set).
+// ----------------------------------------------------------------------------
+
+let _glbLoader: GLTFLoader | null = null;
+function getGlbLoader(): GLTFLoader {
+  if (!_glbLoader) _glbLoader = new GLTFLoader();
+  return _glbLoader;
+}
+
+type WallGlbMaps = {
+  map?: THREE.Texture;
+  normalMap?: THREE.Texture;
+  roughnessMap?: THREE.Texture;
+  metalnessMap?: THREE.Texture;
+  color: THREE.Color;
+  roughness: number;
+  metalness: number;
+  transparent: boolean;
+  opacity: number;
+  isPhysical: boolean;
+  transmission: number;
+  ior: number;
+  thickness: number;
+};
+
+/** Per-finish GLB map cache. Populated after each GLB loads successfully. */
+const _glbMapsCache = new Map<string, WallGlbMaps>();
+
+/** Listeners notified when ANY GLB finish finishes loading. */
+const _wallTextureListeners = new Set<() => void>();
+
+export function subscribeToWallTexture(cb: () => void): () => void {
+  _wallTextureListeners.add(cb);
+  return () => _wallTextureListeners.delete(cb);
+}
+
+/** Apply cached GLB maps to a material synchronously. */
+function applyGlbMapsToMaterial(m: WallGlbMaps, target: THREE.MeshStandardMaterial): void {
+  if (m.map)          { target.map          = m.map;          }
+  if (m.normalMap)    { target.normalMap    = m.normalMap;    }
+  if (m.roughnessMap) { target.roughnessMap = m.roughnessMap; }
+  if (m.metalnessMap) { target.metalnessMap = m.metalnessMap; }
+  target.color.copy(m.color);
+  target.roughness   = m.roughness;
+  target.metalness   = m.metalness;
+  target.transparent = m.transparent;
+  target.opacity     = m.opacity;
+  if (m.isPhysical && target instanceof THREE.MeshPhysicalMaterial) {
+    target.transmission = m.transmission;
+    target.ior          = m.ior;
+    target.thickness    = m.thickness;
+  }
+  target.needsUpdate = true;
+}
+
+/**
+ * Loads a GLB for a specific finish id. On completion stores the maps in the
+ * per-finish cache, evicts the stale material, and notifies all WallMesh instances.
+ */
+function loadGlbForFinish(finishId: string, glbPath: string): void {
+  getGlbLoader().load(
+    glbPath,
+    (gltf) => {
+      let withTransmission: THREE.MeshPhysicalMaterial | null = null;
+      let withMap: THREE.MeshStandardMaterial | null = null;
+      let first: THREE.MeshStandardMaterial | null = null;
+
+      gltf.scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+          for (const mat of mats) {
+            if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
+            if (!first) first = mat;
+            if (!withMap && mat.map) withMap = mat;
+            if (!withTransmission && mat instanceof THREE.MeshPhysicalMaterial && mat.transmission > 0.01) {
+              withTransmission = mat;
+            }
+          }
+        }
+      });
+
+      const src = withTransmission ?? withMap ?? first;
+      if (!src) return;
+
+      const hasUsableData = !!src.map || !!src.normalMap || ((src instanceof THREE.MeshPhysicalMaterial ? src.transmission : 0) > 0.01);
+      if (!hasUsableData) {
+        console.warn(`[HomeQuest] GLB ${glbPath} has no usable textures — skipped.`);
+        return;
+      }
+
+      const srcPhys = src instanceof THREE.MeshPhysicalMaterial ? src : null;
+      const maps: WallGlbMaps = {
+        map:          src.map          ?? undefined,
+        normalMap:    src.normalMap    ?? undefined,
+        roughnessMap: src.roughnessMap ?? undefined,
+        metalnessMap: src.metalnessMap ?? undefined,
+        color:        src.color.clone(),
+        roughness:    src.roughness,
+        metalness:    src.metalness,
+        transparent:  src.transparent || (srcPhys?.transmission ?? 0) > 0,
+        opacity:      src.opacity,
+        isPhysical:   !!srcPhys,
+        transmission: srcPhys?.transmission ?? 0,
+        ior:          srcPhys?.ior          ?? 1.5,
+        thickness:    srcPhys?.thickness    ?? 0.5,
+      };
+
+      _glbMapsCache.set(finishId, maps);
+      materialCache.delete(finishId);
+      _wallTextureListeners.forEach(cb => cb());
+    },
+    undefined,
+    (err) => { console.error(`[HomeQuest] GLB load failed: ${glbPath}`, err); },
+  );
+}
 
 // ----------------------------------------------------------------------------
 // Procedural texture generators. Each draws a 512×512 tile onto a <canvas> (works in
@@ -935,10 +1058,20 @@ function buildFinishMaterial(finish: FinishMaterial, kind: 'wall' | 'floor' = 'w
   const roughness = finish.roughness ?? 0.7;
   let material: THREE.MeshStandardMaterial;
 
-  if (!finish.texture) {
+  if (finish.glbPath) {
+    // GLB-sourced finish (from public/walls/). Check the per-finish cache first.
+    const cached = _glbMapsCache.get(finish.id);
+    if (cached) {
+      const MatClass = cached.isPhysical ? THREE.MeshPhysicalMaterial : THREE.MeshStandardMaterial;
+      material = new MatClass({ color: finish.color, roughness, metalness: 0 });
+      applyGlbMapsToMaterial(cached, material);
+    } else {
+      material = new THREE.MeshStandardMaterial({ color: finish.color, roughness, metalness: 0 });
+      loadGlbForFinish(finish.id, finish.glbPath);
+    }
+  } else if (!finish.texture) {
     material = new THREE.MeshStandardMaterial({ color: finish.color, roughness, metalness: 0 });
   } else if (finish.id === 'default-wall') {
-    // The brick id keeps its dedicated brick texture + bump map (legacy look).
     material = new THREE.MeshStandardMaterial({
       map: getBrickTexture(),
       bumpMap: getBrickBumpMap(),

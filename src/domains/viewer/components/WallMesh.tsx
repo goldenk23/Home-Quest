@@ -1,9 +1,9 @@
 // src/domains/viewer/components/WallMesh.tsx
 
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { createWallGeometry } from '../services/extrusion';
-import { getMaterial } from '../services/materials';
+import { getMaterial, subscribeToWallTexture } from '../services/materials';
 import { furnitureMaterialProps, getFurnitureMaterial } from '../services/furnitureMaterials';
 import { resolveKind } from '@/domains/shared/openings/openingCatalog';
 import type { Point2D } from '@/types/geometry';
@@ -606,6 +606,12 @@ export const WallMesh: React.FC<WallMeshProps> = React.memo(
       [start.x, start.y, end.x, end.y, thickness, height, offsets?.startLeft, offsets?.startRight, offsets?.endLeft, offsets?.endRight, id, openingsStr]
     );
 
+    // Incremented when a GLB wall texture finishes loading. Including it as a dep
+    // forces the materials useMemo below to re-clone from the freshly rebuilt cache,
+    // so the GLB textures actually appear on existing walls (not just newly drawn ones).
+    const [wallTextureVersion, setWallTextureVersion] = useState(0);
+    useEffect(() => subscribeToWallTexture(() => setWallTextureVersion(v => v + 1)), []);
+
     // Material array matches the geometry's groups: [edges/sides, −z face (B), +z face (A)].
     // Faces that haven't been painted individually fall back to the wall's base material.
     // We clone the cached materials so this wall can carry its own depth-offset slot.
@@ -629,7 +635,9 @@ export const WallMesh: React.FC<WallMeshProps> = React.memo(
       const sideA = materialSideA ? make(materialSideA) : base;
       const sideB = materialSideB ? make(materialSideB) : base;
       return { array: [base, sideB, sideA] as THREE.Material[], clones };
-    }, [materialId, materialSideA, materialSideB, id, depthSlot]);
+    // wallTextureVersion intentionally included: forces re-clone when GLB loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [materialId, materialSideA, materialSideB, id, depthSlot, wallTextureVersion]);
 
     // Dispose the previous wall's cloned materials when they're replaced or the wall unmounts.
     useEffect(() => () => materials.clones.forEach((m) => m.dispose()), [materials]);

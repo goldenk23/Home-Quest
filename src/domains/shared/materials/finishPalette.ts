@@ -44,15 +44,29 @@ export interface FinishMaterial {
   readonly category: FinishCategory;
   /** Hex color used for the 2D editor swatch/fill. */
   readonly swatch: string;
-  /** Hex color the viewer's MeshStandardMaterial is tinted. */
+  /** Hex color the viewer's MeshStandardMaterial is tinted. Also shown while a GLB loads. */
   readonly color: string;
-  /** Optional procedural texture. */
+  /** Optional procedural texture. Ignored when `glbPath` is set. */
   readonly texture?: FinishTexture;
   /** Physical tile/plank size in meters. Floor geometry UVs are in meters, so setting
    *  `repeat = 1 / repeatMeters` tiles every floor at a correct real-world size. */
   readonly repeatMeters?: number;
   /** Surface roughness for the 3D material (0 glossy … 1 matte). */
   readonly roughness?: number;
+  /**
+   * Path to a GLB file served from public/ (e.g. '/walls/brick-wall.glb').
+   * When set, the viewer loads the GLB on first use and extracts texture maps
+   * (map, normalMap, roughnessMap, metalnessMap) from its first mesh material.
+   * The `color` is rendered as a solid placeholder until the file finishes loading.
+   * The `swatch` is always used in the 2D editor (plan view) — no change there.
+   *
+   * To add a new GLB wall finish:
+   *   1. Drop the .glb file in public/walls/
+   *   2. Add an entry here: { id: 'wall-my-finish', name: '...', category: 'wall',
+   *        swatch: '#hex', color: '#hex', glbPath: '/walls/my-finish.glb', roughness: 0.8 }
+   *   3. The finish appears in the Paint tool palette automatically.
+   */
+  readonly glbPath?: string;
 }
 
 /**
@@ -93,6 +107,8 @@ export const WALL_FINISHES: readonly FinishMaterial[] = [
   { id: 'paint-navy', name: 'Navy', category: 'wall', swatch: '#1e3a5f', color: '#1c365a', roughness: 0.8 },
   { id: 'paint-lavender', name: 'Lavender', category: 'wall', swatch: '#c4b5fd', color: '#b8a8f5', roughness: 0.85 },
   // --- Textured / material accent walls ------------------------------------
+  // GLB example (uncomment + drop the file in public/walls/ to activate):
+  // { id: 'wall-glb-brick', name: 'Brick (GLB)', category: 'wall', swatch: '#b34730', color: '#b34730', glbPath: '/walls/brick-wall.glb', roughness: 0.9 },
   { id: 'wall-concrete', name: 'Concrete', category: 'wall', swatch: '#9a9a98', color: '#9a9a98', texture: 'concrete', repeatMeters: 1.5, roughness: 0.9 },
   { id: 'wall-plaster', name: 'Venetian Plaster', category: 'wall', swatch: '#e6ddd0', color: '#e6ddd0', texture: 'concrete', repeatMeters: 2.0, roughness: 0.7 },
   { id: 'wall-stone', name: 'Stone Cladding', category: 'wall', swatch: '#8d8579', color: '#8d8579', texture: 'stone', repeatMeters: 0.5, roughness: 0.95 },
@@ -143,14 +159,34 @@ const FINISH_INDEX: ReadonlyMap<string, FinishMaterial> = new Map(
   ALL_FINISHES.map((f) => [f.id, f])
 );
 
+// ---------------------------------------------------------------------------
+// Dynamic finish registry — populated at runtime from discovered GLB/GLTF
+// files in public/walls/. Supplements the static WALL_FINISHES above.
+// ---------------------------------------------------------------------------
+
+const _dynamicFinishes: FinishMaterial[] = [];
+const _dynamicIndex = new Map<string, FinishMaterial>();
+
+/** Register a GLB-discovered finish at runtime. Skips if an id already exists. */
+export function registerDynamicFinish(finish: FinishMaterial): void {
+  if (FINISH_INDEX.has(finish.id) || _dynamicIndex.has(finish.id)) return;
+  _dynamicFinishes.push(finish);
+  _dynamicIndex.set(finish.id, finish);
+}
+
+/** Returns all dynamically registered finishes (GLB wall textures). */
+export function getDynamicFinishes(): readonly FinishMaterial[] {
+  return _dynamicFinishes;
+}
+
 /** Returns the finish registered under `id`, or null when no finish uses that id. */
 export function getFinishById(id: string): FinishMaterial | null {
-  return FINISH_INDEX.get(id) ?? null;
+  return FINISH_INDEX.get(id) ?? _dynamicIndex.get(id) ?? null;
 }
 
 /** The category of a finish id; null when the id isn't a registered finish. */
 export function categoryOf(id: string): FinishCategory | null {
-  return FINISH_INDEX.get(id)?.category ?? null;
+  return (FINISH_INDEX.get(id) ?? _dynamicIndex.get(id))?.category ?? null;
 }
 
 /**
@@ -160,7 +196,7 @@ export function categoryOf(id: string): FinishCategory | null {
  */
 export function getFinishSwatch(id: string | undefined, fallback: string): string {
   if (!id) return fallback;
-  return FINISH_INDEX.get(id)?.swatch ?? fallback;
+  return (FINISH_INDEX.get(id) ?? _dynamicIndex.get(id))?.swatch ?? fallback;
 }
 
 /** True when `id` is one of the default/legacy ids a surface starts with (not a paint). */

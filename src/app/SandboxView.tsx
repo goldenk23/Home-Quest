@@ -9,6 +9,7 @@ import { VastuLegend } from '../domains/vastu/components/VastuLegend';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { FURNITURE_CATALOG_IDS, getCatalogEntry } from '../domains/viewer/hooks/useAssetLoader';
 import { WALL_FINISHES, FLOOR_FINISHES, categoryOf } from '../domains/shared/materials/finishPalette';
+import { useGlbWallDiscovery } from '../domains/shared/hooks/useGlbWallDiscovery';
 import { kindsForFamily, getOpeningKind, type OpeningFamily } from '../domains/shared/openings/openingCatalog';
 import { formatClock, azimuthLabel, dayPhase } from '../domains/viewer/services/sun';
 import { loadSampleHouse } from '../domains/editor/services/samplePlan';
@@ -201,6 +202,7 @@ export const SandboxView: React.FC = () => {
   void stairError;
   const paintFinishId = useAppStore((s) => s.paintFinishId);
   const setPaintFinishId = useAppStore((s) => s.setPaintFinishId);
+  const glbWallFinishes = useGlbWallDiscovery();
 
   // Picking a finish swatch sets it as the active paint, AND immediately applies it to any
   // compatible surface that's already selected. This enables the "select the floor, then
@@ -478,6 +480,13 @@ export const SandboxView: React.FC = () => {
                 <Swatch key={f.id} finish={f} selected={paintFinishId === f.id} onClick={() => pickFinish(f.id)} />
               ))}
             </Row>
+            {glbWallFinishes.length > 0 && (
+              <Row label="Custom walls">
+                {glbWallFinishes.map((f) => (
+                  <Swatch key={f.id} finish={f} selected={paintFinishId === f.id} onClick={() => pickFinish(f.id)} />
+                ))}
+              </Row>
+            )}
             <Row label="Floor tile">
               {FLOOR_FINISHES.map((f) => (
                 <Swatch key={f.id} finish={f} selected={paintFinishId === f.id} onClick={() => pickFinish(f.id)} />

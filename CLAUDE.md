@@ -2,73 +2,91 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## What this is
-
-Home Quest is a browser app where you draw a 2D floor plan, watch it become a navigable 3D house in real time, and get an automatic **Vastu** (traditional Indian architectural alignment) score per room. Single-screen sandbox: 2D editor + live 3D viewer + Vastu panel.
-
-Stack: React 19, TypeScript, Zustand 5 (+ Immer middleware), Three.js via React Three Fiber (`@react-three/fiber`, `@react-three/drei`), Vite 8, Tailwind 4. Persistence via IndexedDB (`idb-keyval`). No backend.
-
-`ARCHITECTURE.md` is a long, accurate deep-dive written from the source — read it for any non-trivial feature work. `features.md` is the user-facing capability list.
-
 ## Commands
 
 ```bash
-npm run dev              # Vite dev server at http://localhost:5173
-npm run build            # tsc -b && vite build (type-checks the whole project)
+npm run dev              # Vite dev server (http://localhost:5173)
+npm run build            # TypeScript check + production build
+npm run preview          # Serve production build locally
 npm run lint             # ESLint
-npm test                 # Vitest watch mode
+
+npm run test             # Vitest in watch mode
 npm run test:run         # Vitest single run (CI)
-npm run storybook        # Storybook at :6006
-npm run test:visual      # Playwright visual-regression (auto-starts dev server)
-npm run test:visual:update   # Update screenshot baselines after intentional UI changes
+npm run test:visual      # Playwright visual regression
+npm run test:visual:update  # Update Playwright baselines
+
+npm run storybook        # Component sandbox (http://localhost:6006)
 ```
 
-Run a single unit test: `npx vitest run src/path/to/file.test.ts` (or `npx vitest run -t "test name"`).
-
-Unit tests live next to source as `*.test.ts(x)` or under `__tests__/`. Vitest uses jsdom + `src/test/setup.ts`. Coverage is enforced (80% statements/functions/lines, 75% branches) but scoped to `services/`, `hooks/`, `store/`, and `utils/` only — UI components are excluded.
+Run a single test file: `npx vitest run src/domains/editor/services/__tests__/roomDetection.test.ts`
 
 ## Architecture
 
-**Everything flows through one central Zustand store.** Domains never talk to each other directly — the 2D editor never imports 3D code and vice-versa. UI calls store actions → actions mutate state via Immer drafts → engine hooks react to changes and write results back → all views read from the store. Data flows one way (down).
+Home Quest is a 2D floor-plan editor with live 3D visualization and Vastu compliance scoring.
 
-### The store (`src/store/`)
+**One-way data flow:** UI → Zustand store action → Immer mutation → derived hooks (room detection, Vastu scoring) → pure math services → results written back to store → components re-render → IndexedDB auto-save.
 
-`useAppStore` (`store/index.ts`) is composed from slices, each owning one topic of state + its actions:
+### Central Store (`src/store/`)
 
-- `editorSlice` — floor-plan geometry + mutations (addWall, moveFurniture, paint, split, etc.)
-- `floorsSlice` — multi-storey support (see below)
-- `uiSlice` — active tool/panel (transient)
-- `viewerSlice` — 3D camera mode, render quality
-- `vastuSlice` — overlay toggles + computed score
-- `settingsSlice` — feature flags, `activeView`
-- `historySlice` — undo/redo
+Single Zustand store with Immer + devtools + persist middleware. Six slices:
 
-Only floor-plan data is persisted to IndexedDB (`partialize` in `store/index.ts`); UI and history are transient. Schema changes go through `store/persistence/migrations.ts` (bump `CURRENT_SCHEMA_VERSION`); incoming plans are validated/repaired in `persistence/validation.ts` and `store/guards/`.
+| Slice | Owns |
+|-------|------|
+| `editorSlice` | vertices, walls, rooms, furniture, openings (core geometry) |
+| `uiSlice` | active tool, panel visibility, chain mode |
+| `viewerSlice` | 3D camera mode, render quality |
+| `vastuSlice` | overlay toggles, computed scores |
+| `settingsSlice` | feature flags, dev mode, `activeView` |
+| `historySlice` | undo/redo snapshot stacks |
 
-### Data model (`src/types/editor.ts`)
+State is normalized hash maps (`Record<EntityId, T>`) for O(1) lookup. Persistence via `idb-keyval` (IndexedDB); UI state and history are transient.
 
-The floor plan is a **graph**, stored as flat `Record<id, T>` maps (not nested):
-- `Vertex` — a point; tracks `connectedWalls`.
-- `Wall` — connects two vertex IDs; has thickness/height (cm), a base `materialId`, and optional per-face paint (`materialSideA`/`materialSideB`).
-- `Room` — a closed polygon (ordered `boundaryVertexIds`) **detected automatically**, plus a `roomType` that drives Vastu.
-- `FurnitureItem` — position/rotation/scale + catalog ref + collision `bounds`.
-- `Opening` — door/window/vent/ac on a wall, positioned by `offsetCm` along the wall.
-- `Road` — standalone exterior segment, NOT part of the vertex graph.
+Selectors in `src/store/selectors/` are memoized views over the raw store. Prefer selectors over reading store slices directly in components.
 
-### Domains (`src/domains/{editor,viewer,vastu,shared}/`)
+### Three Domains (`src/domains/`)
 
-Each domain has `components/`, `hooks/`, `services/`. **Services are pure logic (the math); they expose a public API through `services/index.ts` — import from that barrel, not deep paths.** Key engine hooks that recompute derived state on store changes: `useRoomDetection` (editor), `useVastuAnalysis` (vastu). Key services: `roomDetection`, `wallOps`, `wallGuides`, `collision` (editor); `extrusion`, `transform`, `sun` (viewer); `scoring`, `brahmasthan`, `zones` (vastu).
+Each domain has `components/`, `hooks/`, and `services/` subdirectories with a `services/index.ts` barrel exporting the public API.
 
-### Coordinate systems — important
+**Editor** (`src/domains/editor/`) — 2D drawing, room detection, snapping, collision detection.
+- `EditorCanvas.tsx` — main canvas; pan/zoom; hit testing
+- `useWallDrawing.ts` — wall placement with automatic splitting at crossings
+- `useSnapping.ts` — priority pipeline: endpoint → wall-edge → angle → grid (15 cm, 10 cm thresholds)
+- `useRoomDetection.ts` — re-runs face extraction when wall graph changes; preserves existing room labels
+- `services/roomDetection.ts` — planar-graph face extraction (directed edges, sharpest-turn cycle tracing, Shoelace signed area)
+- `services/wallOps.ts` — wall splitting, intersection math, miter offsets
+- `services/geometry.ts` — screen ↔ world coordinate transforms
 
-- **2D editor world units are centimeters.** Layers render inside a zoom/pan `<g>` where 1 unit = 1 cm. `Point2D` = cm.
-- **3D world units are meters.** `Point3D` = meters. The viewer's `transform` service maps 2D→3D: a 2D `(x, y)` becomes 3D `(x, 0, z)` — the 2D y-axis becomes the 3D **z**-axis, and 3D y is vertical height.
-- Path alias `@/` → `src/` (in `vite.config.ts`, `vitest.config.ts`, `tsconfig`).
+**Viewer** (`src/domains/viewer/`) — React Three Fiber 3D scene.
+- `ViewerCanvas.tsx` — R3F scene root
+- `WallMesh.tsx` — extrudes 2D walls to 3D; punches door/window holes via `THREE.ExtrudeGeometry`
+- `useFirstPerson.tsx` — WASD + mouse look (YXZ Euler to avoid gimbal lock), wall sliding collision
+- `services/extrusion.ts` — 2D → 3D wall geometry; miter shearing; hole cutting
+- `services/transform.ts` — plan cm ↔ 3D meters (`3D.x = plan.x × 0.01`, `3D.z = -plan.y × 0.01`)
+- `services/materials.ts` — PBR material library
 
-## Gotchas (verify against current code before relying on these)
+**Vastu** (`src/domains/vastu/`) — Compass-direction scoring of room placements.
+- `useVastuAnalysis.ts` — recomputes on room or boundary change
+- `services/scoring.ts` — maps each room's area-weighted centroid to a 3×3 Vastu grid direction, scores 0–100 per rule, weighted average overall
+- `services/planBoundary.ts` — largest-loop outer outline detection
 
-- **Two `App.tsx` files.** `main.tsx` renders `src/App.tsx`, which shows the **SandboxView** dev harness (`activeView` defaults to `'sandbox'`). The polished three-pane production shell at `src/app/App.tsx` is **not wired as root**.
-- **Two undo systems.** The live one is snapshot-based (`store/slices/historySlice.ts` + `history/snapshot.ts`). A separate command-pattern implementation (`history/historyManager.ts`, `history/commands.ts`) exists but is **unused** — don't confuse them.
-- **Furniture renders as procedural boxes**, not `.glb` models — sized in real centimeters from the catalog. No GLTF assets are shipped.
-- **Collision today is furniture-vs-furniture only** (spatial-hash broad phase + SAT for oriented boxes). Furniture-vs-wall is not implemented.
-- **`.kiro/specs/`** holds feature spec docs (e.g. stair-builder requirements) — check there for in-progress feature intent.
+### Types (`src/types/`)
+
+- `geometry.ts` — `Point2D`, `Point3D`, `AABB`, `OBB`, `ViewTransform`
+- `editor.ts` — `Vertex`, `Wall`, `Room`, `FurnitureItem`, `Opening`, `RoomType`
+
+## Known Rough Edges
+
+1. **Two `App.tsx` files:** `src/App.tsx` is the current root and renders `SandboxView` (dev harness). `src/app/App.tsx` is the production 3-pane layout, not yet wired as default. Controlled by `activeView` setting (defaults to `'sandbox'`).
+
+2. **Two undo systems:** Snapshot-based (`store/slices/historySlice.ts` + `history/snapshot.ts`) is live. Command-pattern (`history/historyManager.ts`, `history/commands.ts`) is unused dead code.
+
+3. **Furniture is procedural boxes:** No `.glb` assets shipped. `FurnitureModel` component renders placeholder geometry only.
+
+4. **Test config:** The `vite.config.ts` has no `test` block. `vitest.config.ts` is the sole source of truth for test configuration.
+
+## Testing
+
+- Unit tests live in `src/**/__tests__/*.test.ts(x)` or alongside files as `*.test.ts`.
+- `src/test/setup.ts` mocks `ResizeObserver`, `IntersectionObserver`, and pointer lock APIs.
+- Coverage threshold is 80% (statements, lines, functions, branches).
+- Visual regression baselines are in `tests/visual/__screenshots__/`; update with `npm run test:visual:update` after intentional visual changes.
