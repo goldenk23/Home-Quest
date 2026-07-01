@@ -247,9 +247,15 @@ export const SandboxView: React.FC = () => {
   const selectedIds = useAppStore((s) => s.selectedIds);
   const furniture = useAppStore((s) => s.furniture);
   const walls = useAppStore((s) => s.walls);
+  const pillars = useAppStore((s) => s.pillars);
+  const beams = useAppStore((s) => s.beams);
+  const deckSlabs = useAppStore((s) => s.deckSlabs);
   const rotateFurniture = useAppStore((s) => s.rotateFurniture);
   const removeFurniture = useAppStore((s) => s.removeFurniture);
   const removeWall = useAppStore((s) => s.removeWall);
+  const removePillar = useAppStore((s) => s.removePillar);
+  const removeBeam = useAppStore((s) => s.removeBeam);
+  const removeDeckSlab = useAppStore((s) => s.removeDeckSlab);
   const clearSelection = useAppStore((s) => s.clearSelection);
   const clearAll = useAppStore((s) => s.clearAll);
 
@@ -294,6 +300,9 @@ export const SandboxView: React.FC = () => {
 
   const selectedFurnitureId = selectedIds.find((id) => furniture[id]);
   const selectedWallId = selectedIds.find((id) => walls[id]);
+  const selectedPillarId = selectedIds.find((id) => pillars[id]);
+  const selectedBeamId = selectedIds.find((id) => beams[id]);
+  const selectedDeckId = selectedIds.find((id) => deckSlabs[id]);
   const openings = useAppStore((s) => s.openings);
   const removeOpening = useAppStore((s) => s.removeOpening);
   const selectedOpeningId = selectedIds.find((id) => openings[id]);
@@ -301,6 +310,12 @@ export const SandboxView: React.FC = () => {
     ? getCatalogEntry(furniture[selectedFurnitureId].catalogId).label
     : selectedOpeningId
       ? (getOpeningKind(openings[selectedOpeningId].kind ?? '')?.label ?? openings[selectedOpeningId].type)
+      : selectedPillarId
+        ? 'Pillar'
+      : selectedBeamId
+        ? 'Beam'
+      : selectedDeckId
+        ? 'Deck slab'
       : selectedWallId
         ? 'Wall'
         : 'nothing selected';
@@ -321,6 +336,9 @@ export const SandboxView: React.FC = () => {
         if (state.walls[id]) removeWall(id);
         if (state.furniture[id]) removeFurniture(id);
         if (state.openings[id]) removeOpening(id);
+        if (state.pillars[id]) removePillar(id);
+        if (state.beams[id]) removeBeam(id);
+        if (state.deckSlabs[id]) removeDeckSlab(id);
       });
       clearSelection();
     });
@@ -349,6 +367,9 @@ export const SandboxView: React.FC = () => {
           <button style={btn(activeTool === 'select')} onClick={() => setActiveTool('select')}>🖱️ Select</button>
           <button style={btn(activeTool === 'wall')} onClick={() => setActiveTool('wall')}>📏 Draw Wall</button>
           <button style={btn(activeTool === 'road')} onClick={() => setActiveTool('road')}>🛣️ Road</button>
+          <button style={btn(activeTool === 'pillar', '#475569')} onClick={() => setActiveTool('pillar')}>🏛️ Pillar</button>
+          <button style={btn(activeTool === 'beam', '#475569')} onClick={() => setActiveTool('beam')}>━ Beam</button>
+          <button style={btn(activeTool === 'deck', '#0284c7')} onClick={() => setActiveTool('deck')}>▱ Deck</button>
           <button style={btn(activeTool === 'furniture')} onClick={() => setActiveTool('furniture')}>🛋️ Furniture</button>
           <button style={btn(activeTool === 'door')} onClick={() => setActiveTool('door')}>🚪 Door</button>
           <button style={btn(activeTool === 'window')} onClick={() => setActiveTool('window')}>🪟 Window</button>
@@ -421,6 +442,30 @@ export const SandboxView: React.FC = () => {
             </span>
             <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
               Click to start, click to end. Hold <kbd>Shift</kbd> for angle snap. Chain mode keeps paving. <kbd>Esc</kbd> cancels.
+            </span>
+          </Row>
+        )}
+
+        {activeTool === 'pillar' && (
+          <Row label="Pillar">
+            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+              Click to place a 35×35 cm structural pillar. Use Select to move/delete. Property controls will be expanded after beams.
+            </span>
+          </Row>
+        )}
+
+        {activeTool === 'beam' && (
+          <Row label="Beam">
+            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+              Click start and end points to place a 25 cm wide beam at 2.8 m height. Use Select to move/delete.
+            </span>
+          </Row>
+        )}
+
+        {activeTool === 'deck' && (
+          <Row label="Deck">
+            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+              Click polygon corners; click near the first point to close and create a slab/deck. Esc cancels.
             </span>
           </Row>
         )}
@@ -703,6 +748,9 @@ export const SandboxView: React.FC = () => {
         <Card title="⌨️ How to test">
           <ul style={{ margin: 0, paddingLeft: '1.1rem', color: '#475569', fontSize: '0.82rem', lineHeight: 1.7 }}>
             <li><strong>Draw Wall:</strong> click to start, click to end. Hold <kbd>Shift</kbd> for angle snap. <kbd>Esc</kbd> / right-click cancels.</li>
+            <li><strong>Pillar:</strong> click to place a structural column; select and drag to align it to the grid.</li>
+            <li><strong>Beam:</strong> click start and end to draw a horizontal structural member above the floor.</li>
+            <li><strong>Deck:</strong> click corners to outline a custom balcony/corridor/roof slab, then click the first point to close it.</li>
             <li><strong>Chain mode:</strong> keeps drawing connected walls.</li>
             <li><strong>Rooms:</strong> close a loop → auto-detected with area. Set its type in the Rooms panel to drive Vastu.</li>
             <li><strong>Furniture:</strong> pick a catalog item, click to place. Overlapping pieces turn <span style={{ color: '#ef4444', fontWeight: 700 }}>red</span> (collision).</li>

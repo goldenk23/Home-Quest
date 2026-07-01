@@ -15,6 +15,9 @@ export function validateFloorPlanIntegrity(data: any): ValidationResult {
   if (!data.walls || typeof data.walls !== 'object') errors.push('Missing or invalid walls field');
   if (!data.rooms || typeof data.rooms !== 'object') errors.push('Missing or invalid rooms field');
   if (!data.furniture || typeof data.furniture !== 'object') errors.push('Missing or invalid furniture field');
+  if (data.pillars && typeof data.pillars !== 'object') errors.push('Invalid pillars field');
+  if (data.beams && typeof data.beams !== 'object') errors.push('Invalid beams field');
+  if (data.deckSlabs && typeof data.deckSlabs !== 'object') errors.push('Invalid deckSlabs field');
   if (errors.length > 0) return { valid: false, errors, warnings };
 
   for (const [id, vertex] of Object.entries(data.vertices as Record<string, any>)) {
@@ -44,6 +47,23 @@ export function validateFloorPlanIntegrity(data: any): ValidationResult {
   for (const [id, item] of Object.entries(data.furniture as Record<string, any>)) {
     if (!item.position || typeof item.position.x !== 'number') errors.push(`Furniture ${id}: invalid position`);
     if (item.roomId && !data.rooms[item.roomId]) warnings.push(`Furniture ${id}: references non-existent room ${item.roomId}`);
+  }
+
+  for (const [id, pillar] of Object.entries((data.pillars ?? {}) as Record<string, any>)) {
+    const pos = pillar.position;
+    if (!pos || typeof pos.x !== 'number' || typeof pos.y !== 'number') errors.push(`Pillar ${id}: invalid position`);
+    if (pillar.width <= 0 || pillar.depth <= 0) errors.push(`Pillar ${id}: invalid footprint`);
+    if (pillar.height <= 0 || pillar.height > 3000) warnings.push(`Pillar ${id}: unusual height ${pillar.height}cm`);
+  }
+
+  for (const [id, beam] of Object.entries((data.beams ?? {}) as Record<string, any>)) {
+    if (!beam.start || typeof beam.start.x !== 'number' || !beam.end || typeof beam.end.x !== 'number') errors.push(`Beam ${id}: invalid endpoints`);
+    if (beam.width <= 0 || beam.depth <= 0) errors.push(`Beam ${id}: invalid profile`);
+  }
+
+  for (const [id, slab] of Object.entries((data.deckSlabs ?? {}) as Record<string, any>)) {
+    if (!Array.isArray(slab.polygon) || slab.polygon.length < 3) errors.push(`Deck slab ${id}: invalid polygon`);
+    if (slab.thicknessCm <= 0) errors.push(`Deck slab ${id}: invalid thickness`);
   }
 
   for (const [id, vertex] of Object.entries(data.vertices as Record<string, any>)) {

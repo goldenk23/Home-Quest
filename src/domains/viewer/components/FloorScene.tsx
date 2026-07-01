@@ -5,11 +5,14 @@ import { WallMesh } from './WallMesh';
 import { FloorMesh } from './FloorMesh';
 import { SlabMesh } from './SlabMesh';
 import { WallCapMesh } from './WallCapMesh';
+import { PillarMesh } from './PillarMesh';
+import { BeamMesh } from './BeamMesh';
+import { DeckSlabMesh } from './DeckSlabMesh';
 import { FurnitureInstances } from './FurnitureModel';
 import { StairMesh } from './StairMesh';
 import { computeMiterOffsets } from '@/domains/editor/services/wallOps';
 import { ceilingSlabRange, pointInPolygon } from '../services/transform';
-import type { EntityId, Vertex, Wall, Room, FurnitureItem, Opening } from '@/types/editor';
+import type { EntityId, Vertex, Wall, Room, FurnitureItem, Opening, Pillar, Beam, DeckSlab } from '@/types/editor';
 import type { StairEntity } from '@/types/stair';
 import type { Point2D } from '@/types/geometry';
 
@@ -26,6 +29,9 @@ export interface FloorSceneProps {
   rooms: Record<EntityId, Room>;
   furniture: Record<EntityId, FurnitureItem>;
   openings: Record<EntityId, Opening>;
+  pillars?: Record<EntityId, Pillar>;
+  beams?: Record<EntityId, Beam>;
+  deckSlabs?: Record<EntityId, DeckSlab>;
   stairs?: Record<EntityId, StairEntity>;
   /** Base elevation of this storey in cm; the whole floor is lifted onto the Y axis by it. */
   elevationCm: number;
@@ -57,7 +63,7 @@ export interface FloorSceneProps {
  * parked floor identically, which is what lets the 3D view stack a whole multi-storey house.
  */
 export const FloorScene: React.FC<FloorSceneProps> = React.memo(
-  ({ vertices, walls, rooms, furniture, openings, stairs = {}, elevationCm, ceilingTopCm, isActive = false, ceilingHoles = [], floorHoles = [] }) => {
+  ({ vertices, walls, rooms, furniture, openings, pillars = {}, beams = {}, deckSlabs = {}, stairs = {}, elevationCm, ceilingTopCm, isActive = false, ceilingHoles = [], floorHoles = [] }) => {
     // Room polygons (plan cm) — for floor slabs and for orienting main gates outward.
     const roomData = useMemo(
       () =>
@@ -197,6 +203,18 @@ export const FloorScene: React.FC<FloorSceneProps> = React.memo(
             />
           ) : null
         )}
+
+        {Object.values(pillars).map((pillar) => (
+          <PillarMesh key={pillar.id} pillar={pillar} />
+        ))}
+
+        {Object.values(beams).map((beam) => (
+          <BeamMesh key={beam.id} beam={beam} />
+        ))}
+
+        {Object.values(deckSlabs).map((slab) => (
+          <DeckSlabMesh key={slab.id} slab={slab} />
+        ))}
 
         <FurnitureInstances items={furnitureList} highlightCollisions={isActive} />
 

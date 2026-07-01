@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AppStore } from '../index';
-import type { EntityId, Vertex, Wall, Room, FurnitureItem, Road } from '@/types/editor';
+import type { EntityId, Vertex, Wall, Room, FurnitureItem, Road, Pillar, Beam, DeckSlab } from '@/types/editor';
 import type { Point2D } from '@/types/geometry';
 import { generateId } from '@/utils/id';
 import type { SnapConfig } from '@/domains/editor/hooks/useSnapping';
@@ -17,6 +17,9 @@ export interface EditorSlice {
     openings: Record<EntityId, import('@/types/editor').Opening>;
     roads: Record<EntityId, Road>;
     stairs: Record<EntityId, StairEntity>;
+    pillars: Record<EntityId, Pillar>;
+    beams: Record<EntityId, Beam>;
+    deckSlabs: Record<EntityId, DeckSlab>;
     selectedIds: EntityId[];
     snapConfig: SnapConfig;
     currentMouseWorld: Point2D | null;
@@ -43,6 +46,19 @@ export interface EditorSlice {
     /** Place a computed StairEntity (from stairBuilder) on the active floor. */
     addStair: (stair: StairEntity) => void;
     removeStair: (id: EntityId) => void;
+
+    addPillar: (pillar: Omit<Pillar, 'id'>) => EntityId;
+    updatePillar: (id: EntityId, patch: Partial<Omit<Pillar, 'id'>>) => void;
+    removePillar: (id: EntityId) => void;
+    movePillar: (id: EntityId, position: Point2D) => void;
+    addBeam: (beam: Omit<Beam, 'id'>) => EntityId;
+    updateBeam: (id: EntityId, patch: Partial<Omit<Beam, 'id'>>) => void;
+    removeBeam: (id: EntityId) => void;
+    moveBeam: (id: EntityId, delta: Point2D) => void;
+    addDeckSlab: (slab: Omit<DeckSlab, 'id'>) => EntityId;
+    updateDeckSlab: (id: EntityId, patch: Partial<Omit<DeckSlab, 'id'>>) => void;
+    removeDeckSlab: (id: EntityId) => void;
+    moveDeckSlab: (id: EntityId, delta: Point2D) => void;
 
     setRooms: (rooms: Record<EntityId, Room>) => void;
     updateRoom: (id: EntityId, patch: Partial<Pick<Room, 'roomType' | 'label' | 'floorMaterialId'>>) => void;
@@ -93,6 +109,9 @@ export const createEditorSlice: StateCreator<
     openings: {},
     roads: {},
     stairs: {},
+    pillars: {},
+    beams: {},
+    deckSlabs: {},
     selectedIds: [],
     snapConfig: {
         gridSize: 10,
@@ -301,6 +320,73 @@ export const createEditorSlice: StateCreator<
         });
     },
 
+    addPillar: (pillar) => {
+        const pillarId = generateId('pillar');
+        set((state) => {
+            state.pillars[pillarId] = { ...pillar, id: pillarId };
+        });
+        return pillarId;
+    },
+
+    updatePillar: (id, patch) => {
+        set((state) => {
+            const pillar = state.pillars[id];
+            if (pillar) Object.assign(pillar, patch);
+        });
+    },
+
+    removePillar: (id) => {
+        set((state) => {
+            delete state.pillars[id];
+        });
+    },
+
+    movePillar: (id, position) => {
+        set((state) => {
+            const pillar = state.pillars[id];
+            if (pillar) pillar.position = position;
+        });
+    },
+
+    addBeam: (beam) => {
+        const beamId = generateId('beam');
+        set((state) => { state.beams[beamId] = { ...beam, id: beamId }; });
+        return beamId;
+    },
+    updateBeam: (id, patch) => {
+        set((state) => { const beam = state.beams[id]; if (beam) Object.assign(beam, patch); });
+    },
+    removeBeam: (id) => {
+        set((state) => { delete state.beams[id]; });
+    },
+    moveBeam: (id, delta) => {
+        set((state) => {
+            const beam = state.beams[id];
+            if (beam) {
+                beam.start = { x: beam.start.x + delta.x, y: beam.start.y + delta.y };
+                beam.end = { x: beam.end.x + delta.x, y: beam.end.y + delta.y };
+            }
+        });
+    },
+
+    addDeckSlab: (slab) => {
+        const slabId = generateId('deck-slab');
+        set((state) => { state.deckSlabs[slabId] = { ...slab, id: slabId }; });
+        return slabId;
+    },
+    updateDeckSlab: (id, patch) => {
+        set((state) => { const slab = state.deckSlabs[id]; if (slab) Object.assign(slab, patch); });
+    },
+    removeDeckSlab: (id) => {
+        set((state) => { delete state.deckSlabs[id]; });
+    },
+    moveDeckSlab: (id, delta) => {
+        set((state) => {
+            const slab = state.deckSlabs[id];
+            if (slab) slab.polygon = slab.polygon.map((p) => ({ x: p.x + delta.x, y: p.y + delta.y }));
+        });
+    },
+
     setRooms: (rooms) => {
         set((state) => {
             state.rooms = castDraft(rooms);
@@ -364,6 +450,16 @@ export const createEditorSlice: StateCreator<
                 r.start = { x: cx + (r.start.x - cx) * factor, y: cy + (r.start.y - cy) * factor };
                 r.end = { x: cx + (r.end.x - cx) * factor, y: cy + (r.end.y - cy) * factor };
             }
+            for (const p of Object.values(state.pillars)) {
+                p.position = { x: cx + (p.position.x - cx) * factor, y: cy + (p.position.y - cy) * factor };
+            }
+            for (const b of Object.values(state.beams)) {
+                b.start = { x: cx + (b.start.x - cx) * factor, y: cy + (b.start.y - cy) * factor };
+                b.end = { x: cx + (b.end.x - cx) * factor, y: cy + (b.end.y - cy) * factor };
+            }
+            for (const s of Object.values(state.deckSlabs)) {
+                s.polygon = s.polygon.map((p) => ({ x: cx + (p.x - cx) * factor, y: cy + (p.y - cy) * factor }));
+            }
         });
     },
     clearAll: () => {
@@ -375,6 +471,9 @@ export const createEditorSlice: StateCreator<
             state.openings = {};
             state.roads = {};
             state.stairs = {};
+            state.pillars = {};
+            state.beams = {};
+            state.deckSlabs = {};
             state.selectedIds = [];
         });
     },

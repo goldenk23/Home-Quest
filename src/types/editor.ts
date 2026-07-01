@@ -50,6 +50,46 @@ export interface Road {
   readonly width: number;
 }
 
+/** A free-standing structural vertical member for columns/pillars. */
+export interface Pillar {
+  readonly id: EntityId;
+  /** Centre point in 2D world space (cm). */
+  position: Point2D;
+  /** Footprint width in centimeters. */
+  width: number;
+  /** Footprint depth in centimeters. */
+  depth: number;
+  /** Vertical height in centimeters. */
+  height: number;
+  /** Base offset above the current storey's floor in centimeters. */
+  elevationCm: number;
+  /** Rectangular or circular column. */
+  shape: 'rect' | 'round';
+  /** Finish/material id; currently reuses wall finishes. */
+  materialId: string;
+}
+
+/** A horizontal structural member connecting supports/walls at an elevation. */
+export interface Beam {
+  readonly id: EntityId;
+  start: Point2D;
+  end: Point2D;
+  width: number;
+  depth: number;
+  elevationCm: number;
+  materialId: string;
+}
+
+/** A custom exterior/interior horizontal slab/deck such as corridor, balcony, roof, or landing. */
+export interface DeckSlab {
+  readonly id: EntityId;
+  polygon: Point2D[];
+  thicknessCm: number;
+  elevationCm: number;
+  materialId: string;
+  type: 'corridor' | 'balcony' | 'landing' | 'roof' | 'custom';
+}
+
 /** 
  * A room is a closed polygon formed by connected walls.
  * Stored as an ordered list of vertex IDs forming the boundary.
@@ -128,6 +168,9 @@ export interface FloorPlan {
   readonly rooms: Record<EntityId, Room>;
   readonly furniture: Record<EntityId, FurnitureItem>;
   readonly openings: Record<EntityId, Opening>;
+  readonly pillars: Record<EntityId, Pillar>;
+  readonly beams: Record<EntityId, Beam>;
+  readonly deckSlabs: Record<EntityId, DeckSlab>;
 }
 
 /**
@@ -152,4 +195,7 @@ export interface FloorGeometry {
   openings: Record<EntityId, Opening>;
   roads: Record<EntityId, Road>;
   stairs: Record<EntityId, import('./stair').StairEntity>;
+  pillars: Record<EntityId, Pillar>;
+  beams: Record<EntityId, Beam>;
+  deckSlabs: Record<EntityId, DeckSlab>;
 }

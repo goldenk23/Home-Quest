@@ -26,7 +26,7 @@ import type { OpeningFamily } from '@/domains/shared/openings/openingCatalog';
 import { defaultKindForFamily } from '@/domains/shared/openings/openingCatalog';
 
 /** What the user is currently holding in their cursor (e.g. wall tool, select tool) */
-export type Tool = 'select' | 'wall' | 'road' | 'furniture' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'ac' | 'paint' | 'room' | 'stair';
+export type Tool = 'select' | 'wall' | 'road' | 'pillar' | 'beam' | 'deck' | 'furniture' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'ac' | 'paint' | 'room' | 'stair';
 
 /** The different side-menus the user can open and close */
 export type PanelId = 'properties' | 'vastu' | 'catalog' | 'layers';

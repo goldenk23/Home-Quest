@@ -21,6 +21,9 @@ export const SelectionLayer: React.FC = React.memo(() => {
   const vertices = useAppStore((s) => s.vertices);
   const furniture = useAppStore((s) => s.furniture);
   const openings = useAppStore((s) => s.openings);
+  const pillars = useAppStore((s) => s.pillars);
+  const beams = useAppStore((s) => s.beams);
+  const deckSlabs = useAppStore((s) => s.deckSlabs);
 
   if (selectedIds.length === 0) return null;
 
@@ -70,6 +73,64 @@ export const SelectionLayer: React.FC = React.memo(() => {
               <line x1={0} y1={-d/2} x2={0} y2={-d/2 - 20} stroke={EDITOR_STYLE.selectionStroke} strokeWidth={2} />
               <circle cx={0} cy={-d/2 - 20} r={5} fill="#fff" stroke={EDITOR_STYLE.selectionStroke} strokeWidth={2} />
             </g>
+          );
+        }
+
+        const pillar = pillars[id];
+        if (pillar) {
+          const pad = EDITOR_STYLE.selectionStrokeWidth * 2;
+          if (pillar.shape === 'round') {
+            return (
+              <circle
+                key={id}
+                cx={pillar.position.x}
+                cy={-pillar.position.y}
+                r={Math.max(pillar.width, pillar.depth) / 2 + pad}
+                fill={EDITOR_STYLE.selectionGlow}
+                stroke={EDITOR_STYLE.selectionStroke}
+                strokeWidth={EDITOR_STYLE.selectionStrokeWidth}
+              />
+            );
+          }
+          return (
+            <rect
+              key={id}
+              x={pillar.position.x - pillar.width / 2 - pad}
+              y={-pillar.position.y - pillar.depth / 2 - pad}
+              width={pillar.width + pad * 2}
+              height={pillar.depth + pad * 2}
+              fill={EDITOR_STYLE.selectionGlow}
+              stroke={EDITOR_STYLE.selectionStroke}
+              strokeWidth={EDITOR_STYLE.selectionStrokeWidth}
+            />
+          );
+        }
+
+        const beam = beams[id];
+        if (beam) {
+          const q = computeWallQuad(beam.start, beam.end, beam.width + EDITOR_STYLE.selectionStrokeWidth * 2);
+          return (
+            <path
+              key={id}
+              d={quadPath(q.topLeft, q.topRight, q.bottomRight, q.bottomLeft)}
+              fill={EDITOR_STYLE.selectionGlow}
+              stroke={EDITOR_STYLE.selectionStroke}
+              strokeWidth={EDITOR_STYLE.selectionStrokeWidth}
+            />
+          );
+        }
+
+        const slab = deckSlabs[id];
+        if (slab) {
+          const d = slab.polygon.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${-p.y}`).join(' ');
+          return (
+            <path
+              key={id}
+              d={`${d} Z`}
+              fill={EDITOR_STYLE.selectionGlow}
+              stroke={EDITOR_STYLE.selectionStroke}
+              strokeWidth={EDITOR_STYLE.selectionStrokeWidth}
+            />
           );
         }
 

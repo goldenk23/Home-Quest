@@ -1,9 +1,9 @@
 // src/store/persistence/migrations.ts
 
-import type { EntityId, Vertex, Wall, Room, FurnitureItem, Floor, FloorGeometry } from '@/types';
+import type { EntityId, Vertex, Wall, Room, FurnitureItem, Floor, FloorGeometry, Pillar, Beam, DeckSlab } from '@/types';
 
 /** Bump this whenever the persisted shape changes. */
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 7;
 
 export interface PersistedStateV1 {
   version: 1;
@@ -29,7 +29,19 @@ export interface PersistedStateV4 extends Omit<PersistedStateV3, 'version'> {
   activeFloorId: EntityId;
   floorData: Record<EntityId, FloorGeometry>;
 }
-export type PersistedState = PersistedStateV4;
+export interface PersistedStateV5 extends Omit<PersistedStateV4, 'version'> {
+  version: 5;
+  pillars: Record<EntityId, Pillar>;
+}
+export interface PersistedStateV6 extends Omit<PersistedStateV5, 'version'> {
+  version: 6;
+  beams: Record<EntityId, Beam>;
+}
+export interface PersistedStateV7 extends Omit<PersistedStateV6, 'version'> {
+  version: 7;
+  deckSlabs: Record<EntityId, DeckSlab>;
+}
+export type PersistedState = PersistedStateV7;
 
 /** Upgrades any older persisted blob to the current shape. Each step is idempotent. */
 export function migrateState(state: any): PersistedState {
@@ -37,7 +49,38 @@ export function migrateState(state: any): PersistedState {
   if (!current.version || current.version < 2) current = migrateV1ToV2(current);
   if (current.version < 3) current = migrateV2ToV3(current);
   if (current.version < 4) current = migrateV3ToV4(current);
+  if (current.version < 5) current = migrateV4ToV5(current);
+  if (current.version < 6) current = migrateV5ToV6(current);
+  if (current.version < 7) current = migrateV6ToV7(current);
   return current as PersistedState;
+}
+
+/** v7: introduce custom deck/corridor/balcony slab polygons. */
+function migrateV6ToV7(state: PersistedStateV6): PersistedStateV7 {
+  const floorData: Record<EntityId, FloorGeometry> = {};
+  for (const [id, geo] of Object.entries(state.floorData ?? {})) {
+    floorData[id] = { ...geo, deckSlabs: (geo as Partial<FloorGeometry>).deckSlabs ?? {} };
+  }
+  return {
+    ...state,
+    version: 7,
+    deckSlabs: (state as unknown as { deckSlabs?: Record<EntityId, DeckSlab> }).deckSlabs ?? {},
+    floorData,
+  };
+}
+
+/** v6: introduce standalone horizontal structural beams. */
+function migrateV5ToV6(state: PersistedStateV5): PersistedStateV6 {
+  const floorData: Record<EntityId, FloorGeometry> = {};
+  for (const [id, geo] of Object.entries(state.floorData ?? {})) {
+    floorData[id] = { ...geo, beams: (geo as Partial<FloorGeometry>).beams ?? {} };
+  }
+  return {
+    ...state,
+    version: 6,
+    beams: (state as unknown as { beams?: Record<EntityId, Beam> }).beams ?? {},
+    floorData,
+  };
 }
 
 function migrateV1ToV2(state: PersistedStateV1): PersistedStateV2 {
@@ -65,5 +108,19 @@ function migrateV3ToV4(state: PersistedStateV3): PersistedStateV4 {
     floors: [{ id: groundId, name: 'Ground Floor', elevationCm: 0 }],
     activeFloorId: groundId,
     floorData: {},
+  };
+}
+
+/** v5: introduce standalone structural pillars/columns. */
+function migrateV4ToV5(state: PersistedStateV4): PersistedStateV5 {
+  const floorData: Record<EntityId, FloorGeometry> = {};
+  for (const [id, geo] of Object.entries(state.floorData ?? {})) {
+    floorData[id] = { ...geo, pillars: (geo as Partial<FloorGeometry>).pillars ?? {} };
+  }
+  return {
+    ...state,
+    version: 5,
+    pillars: (state as unknown as { pillars?: Record<EntityId, Pillar> }).pillars ?? {},
+    floorData,
   };
 }

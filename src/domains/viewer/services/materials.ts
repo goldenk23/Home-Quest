@@ -101,10 +101,11 @@ function loadGlbForFinish(finishId: string, glbPath: string): void {
         }
       });
 
-      const src = withTransmission ?? withMap ?? first;
+      const src = (withTransmission ?? withMap ?? first) as THREE.MeshStandardMaterial | THREE.MeshPhysicalMaterial | null;
       if (!src) return;
 
-      const hasUsableData = !!src.map || !!src.normalMap || ((src instanceof THREE.MeshPhysicalMaterial ? src.transmission : 0) > 0.01);
+      const srcAny = src as THREE.MeshStandardMaterial & Partial<THREE.MeshPhysicalMaterial>;
+      const hasUsableData = !!srcAny.map || !!srcAny.normalMap || ((srcAny.transmission ?? 0) > 0.01);
       if (!hasUsableData) {
         console.warn(`[HomeQuest] GLB ${glbPath} has no usable textures — skipped.`);
         return;
@@ -112,15 +113,15 @@ function loadGlbForFinish(finishId: string, glbPath: string): void {
 
       const srcPhys = src instanceof THREE.MeshPhysicalMaterial ? src : null;
       const maps: WallGlbMaps = {
-        map:          src.map          ?? undefined,
-        normalMap:    src.normalMap    ?? undefined,
-        roughnessMap: src.roughnessMap ?? undefined,
-        metalnessMap: src.metalnessMap ?? undefined,
-        color:        src.color.clone(),
-        roughness:    src.roughness,
-        metalness:    src.metalness,
-        transparent:  src.transparent || (srcPhys?.transmission ?? 0) > 0,
-        opacity:      src.opacity,
+        map:          srcAny.map          ?? undefined,
+        normalMap:    srcAny.normalMap    ?? undefined,
+        roughnessMap: srcAny.roughnessMap ?? undefined,
+        metalnessMap: srcAny.metalnessMap ?? undefined,
+        color:        srcAny.color.clone(),
+        roughness:    srcAny.roughness,
+        metalness:    srcAny.metalness,
+        transparent:  srcAny.transparent || (srcPhys?.transmission ?? 0) > 0,
+        opacity:      srcAny.opacity,
         isPhysical:   !!srcPhys,
         transmission: srcPhys?.transmission ?? 0,
         ior:          srcPhys?.ior          ?? 1.5,
