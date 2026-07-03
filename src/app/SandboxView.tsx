@@ -204,6 +204,8 @@ export const SandboxView: React.FC = () => {
   const setRailingHeight = useAppStore((s) => s.setRailingHeight);
   const setRailingElevation = useAppStore((s) => s.setRailingElevation);
   const setRailingStyle = useAppStore((s) => s.setRailingStyle);
+  const beamElevationCm = useAppStore((s) => s.beamElevationCm);
+  const setBeamElevation = useAppStore((s) => s.setBeamElevation);
   // Array tool
   const arrayConfig = useAppStore((s) => s.arrayConfig);
   const setArrayConfig = useAppStore((s) => s.setArrayConfig);
@@ -227,6 +229,8 @@ export const SandboxView: React.FC = () => {
         state.recordHistory('Paint Wall', () => state.updateWall(id, { materialId: finishId }));
       } else if (category === 'floor' && state.rooms[id]) {
         state.recordHistory('Paint Floor', () => state.updateRoom(id, { floorMaterialId: finishId }));
+      } else if (category === 'floor' && state.deckSlabs[id]) {
+        state.recordHistory('Paint Deck', () => state.updateDeckSlab(id, { materialId: finishId }));
       }
     });
   };
@@ -544,12 +548,73 @@ export const SandboxView: React.FC = () => {
           })()
         )}
 
+        {/* Selected beam: lower the height to seat the beam INTO the pillar at any level
+            (the beam's bottom sits at this elevation), or raise it to rest on the pillar top. */}
+        {activeTool === 'select' && selectedBeamId && (
+          (() => {
+            const b = beams[selectedBeamId];
+            if (!b) return null;
+            return (
+              <Row label="Beam Height">
+                <input
+                  type="range" min={0} max={600} step={5}
+                  value={b.elevationCm}
+                  onChange={(e) => {
+                    const ev = parseInt(e.target.value);
+                    useAppStore.getState().recordHistory('Set Beam Height', () => {
+                      useAppStore.getState().updateBeam(selectedBeamId, { elevationCm: ev });
+                    });
+                  }}
+                  style={{ width: '160px' }}
+                  aria-label="Selected beam height"
+                />
+                <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '70px', fontWeight: 600 }}>
+                  {b.elevationCm} cm
+                </span>
+              </Row>
+            );
+          })()
+        )}
+
         {activeTool === 'beam' && (
-          <Row label="Beam">
-            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
-              Click start and end points to place a 25 cm wide beam at 2.8 m height. Use Select to move/delete.
-            </span>
-          </Row>
+          <>
+            <Row label="Beam">
+              <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                Click start and end points; snap the ends to pillars and the beam seats onto them. Drag <strong>Beam Height</strong> down to sink it into the pillars.
+              </span>
+            </Row>
+            {/* When a beam is selected (e.g. the one just placed), this slider edits THAT
+                beam's height live; with nothing selected it sets the default height used for
+                the next beam. Without this the just-placed beam couldn't be lowered from here
+                — the slider only touched the next-placement default, which read as "broken". */}
+            {(() => {
+              const selBeam = selectedBeamId ? beams[selectedBeamId] : null;
+              const value = selBeam ? selBeam.elevationCm : beamElevationCm;
+              return (
+                <Row label="Beam Height">
+                  <input
+                    type="range" min={0} max={600} step={10}
+                    value={value}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      if (selBeam && selectedBeamId) {
+                        useAppStore.getState().recordHistory('Set Beam Height', () => {
+                          useAppStore.getState().updateBeam(selectedBeamId, { elevationCm: v });
+                        });
+                      } else {
+                        setBeamElevation(v);
+                      }
+                    }}
+                    style={{ width: '160px' }}
+                    aria-label="Beam height"
+                  />
+                  <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '90px', fontWeight: 600 }}>
+                    {selBeam ? `${selBeam.elevationCm} cm` : beamElevationCm === 0 ? 'Auto (top)' : `${beamElevationCm} cm`}
+                  </span>
+                </Row>
+              );
+            })()}
+          </>
         )}
 
         {activeTool === 'deck' && (
@@ -558,6 +623,33 @@ export const SandboxView: React.FC = () => {
               Click polygon corners; click near the first point to close and create a slab/deck. Esc cancels.
             </span>
           </Row>
+        )}
+
+        {/* Selected deck properties: same finish palette as room floors, since decks are
+            rendered with getFloorMaterial(slab.materialId) too. */}
+        {activeTool === 'select' && selectedDeckId && (
+          (() => {
+            const slab = deckSlabs[selectedDeckId];
+            if (!slab) return null;
+            return (
+              <>
+                <Row label="Deck texture">
+                  {FLOOR_FINISHES.map((f) => (
+                    <Swatch
+                      key={f.id}
+                      finish={f}
+                      selected={slab.materialId === f.id}
+                      onClick={() => {
+                        useAppStore.getState().recordHistory('Paint Deck', () => {
+                          useAppStore.getState().updateDeckSlab(selectedDeckId, { materialId: f.id });
+                        });
+                      }}
+                    />
+                  ))}
+                </Row>
+              </>
+            );
+          })()
         )}
 
       {activeTool === 'railing' && (
@@ -617,6 +709,9 @@ export const SandboxView: React.FC = () => {
               <button style={btn(arrayConfig.entityType === 'pillar', '#475569')} onClick={() => setArrayConfig({ entityType: 'pillar', isPreviewing: true })}>
                 🏛️ Pillar
               </button>
+              <button style={btn(arrayConfig.entityType === 'building', '#10b981')} onClick={() => setArrayConfig({ entityType: 'building', isPreviewing: true })}>
+                🏠 Building
+              </button>
               {arrayConfig.entityType === 'furniture' && (
                 <select
                   value={arrayConfig.referenceId ?? furnitureCatalogId}
@@ -643,7 +738,10 @@ export const SandboxView: React.FC = () => {
             </Row>
             <Row label="Spacing">
               <input
-                type="range" min={50} max={500} step={10}
+                type="range"
+                min={50}
+                max={arrayConfig.entityType === 'building' ? 5000 : 500}
+                step={arrayConfig.entityType === 'building' ? 50 : 10}
                 value={arrayConfig.spacing}
                 onChange={(e) => setArrayConfig({ spacing: parseInt(e.target.value) })}
                 style={{ width: '160px' }}

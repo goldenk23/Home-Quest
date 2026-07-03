@@ -16,7 +16,11 @@ export const BeamMesh: React.FC<{ beam: Beam }> = React.memo(({ beam }) => {
   const cz = -((beam.start.y + beam.end.y) / 2) * CM_TO_M;
   const w = beam.width * CM_TO_M;
   const d = beam.depth * CM_TO_M;
-  const y = beam.elevationCm * CM_TO_M;
+  // `elevationCm` is the bearing surface the beam rests ON (the pillar top), so the beam's
+  // BOTTOM face — not its center — belongs there. Centering at elevationCm (the old code)
+  // sank half the beam into the pillar and left the other half floating above it, which is
+  // the gap/misalignment seen at every pillar-beam joint.
+  const y = beam.elevationCm * CM_TO_M + d / 2;
   return (
     <mesh position={[cx, y, cz]} rotation={[0, angle, 0]} material={material} castShadow receiveShadow>
       <boxGeometry args={[len, d, w]} />

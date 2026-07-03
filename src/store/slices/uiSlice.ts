@@ -29,8 +29,8 @@ import { defaultKindForFamily } from '@/domains/shared/openings/openingCatalog';
 export type Tool = 'select' | 'wall' | 'road' | 'pillar' | 'beam' | 'deck' | 'railing' | 'furniture' | 'array' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'ac' | 'paint' | 'room' | 'stair';
 
 export interface ArrayToolConfig {
-  /** Entity type to repeat. */
-  entityType: 'furniture' | 'pillar' | null;
+  /** Entity type to repeat. 'building' clones the whole constructed unit. */
+  entityType: 'furniture' | 'pillar' | 'building' | null;
   /** Catalog id for furniture, entity id for future entity-based arrays. */
   referenceId: string | null;
   /** Number of placed items. */
@@ -76,6 +76,8 @@ export interface UISlice {
   railingElevationCm: number;
   /** Style of railings placed with the Railing tool. */
   railingStyle: 'open' | 'solid';
+  /** Elevation (cm) of beams placed with the Beam tool. 0 = auto (rest on the pillar tops). */
+  beamElevationCm: number;
   /** The finish id (wall paint or floor tile) the Paint tool applies on the next click. */
   paintFinishId: string;
   /** The selected opening kind id per family, used by the door/window/vent/ac tools. */
@@ -109,6 +111,8 @@ export interface UISlice {
   setRailingElevation: (elevation: number) => void;
   /** Set the style for the Railing tool. */
   setRailingStyle: (style: 'open' | 'solid') => void;
+  /** Set the elevation (cm) for the Beam tool. 0 = auto (rest on connecting pillar tops). */
+  setBeamElevation: (elevation: number) => void;
   setPaintFinishId: (finishId: string) => void;
   /** Choose which opening kind a family's tool will place next. */
   setOpeningKind: (family: OpeningFamily, kindId: string) => void;
@@ -141,6 +145,7 @@ export const createUISlice: StateCreator<
   railingHeightCm: 110,
   railingElevationCm: 0,
   railingStyle: 'solid',
+  beamElevationCm: 0,
   showDimensions: true,
   paintFinishId: 'paint-white',
   selectedOpeningKinds: {
@@ -228,6 +233,12 @@ export const createUISlice: StateCreator<
   setRailingElevation: (elevation) => {
     set((state) => {
       state.railingElevationCm = Math.max(0, Math.min(1000, Math.round(elevation)));
+    });
+  },
+
+  setBeamElevation: (elevation) => {
+    set((state) => {
+      state.beamElevationCm = Math.max(0, Math.min(1000, Math.round(elevation)));
     });
   },
 

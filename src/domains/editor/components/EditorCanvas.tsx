@@ -36,6 +36,8 @@ import { useStairTool } from '../hooks/useStairTool';
 import { VastuOverlay2D } from '@/domains/vastu/components/VastuOverlay2D';
 import { CompassRose } from './CompassRose';
 import { PillarSnapIndicator } from './PillarSnapIndicator';
+import { PillarAlignmentGuide } from './PillarAlignmentGuide';
+import { snapDeckCornerOutward, extendBeamEndsToPillars } from '../services/structuralJoints';
 import { useArrayTool } from '../hooks/useArrayTool';
 import { ArrayPreview } from './ArrayPreview';
 
@@ -183,6 +185,26 @@ function hitTestDeckSlab(cursor: Point2D, state: AppStore): string | null {
     if (pointInPolygon(cursor, slab.polygon)) return slab.id;
   }
   return null;
+}
+
+/**
+ * Smart deck-corner attachment. A deck vertex snaps to a pillar's CENTER while drawing, so
+ * the finished slab only covers half of each corner pillar — the pillar's outer half pokes
+ * out past the deck edge (the "unfinished corner"). For every polygon vertex that sits on a
+ * pillar, push it OUTWARD (away from the polygon centroid) to the pillar's outer corner so
+ * the whole post top ends up beneath the slab and the deck edges meet the post faces cleanly.
+ */
+function adjustDeckCornersToPillars(polygon: Point2D[], state: AppStore): Point2D[] {
+  if (polygon.length < 3) return polygon;
+  const cx = polygon.reduce((s, p) => s + p.x, 0) / polygon.length;
+  const cy = polygon.reduce((s, p) => s + p.y, 0) / polygon.length;
+  const centroid = { x: cx, y: cy };
+
+  return polygon.map((pt) => {
+    // Snap radius 1cm: only vertices actually dropped on a pillar center are adjusted.
+    const near = findNearestPillar(pt, state, 1);
+    return near ? snapDeckCornerOutward(pt, centroid, near.pillar) : pt;
+  });
 }
 
 function hitTestRailing(cursor: Point2D, state: AppStore, margin = 0): string | null {
@@ -667,15 +689,29 @@ export const EditorCanvas: React.FC = () => {
           const nearPillar = findNearestPillar(cursor, state);
           const endPoint = nearPillar ? nearPillar.pillar.position : cursor;
           const start = drawStart;
-          // Compute beam elevation from connecting pillars
           const nearPillarStart = findNearestPillar(start, state);
           const nearPillarEnd = nearPillar;
+
+          // Smart corner joint: a beam end snaps to a pillar's CENTER, so half the pillar top
+          // is left uncovered and the beam stops mid-post. Extend each connected end outward
+          // along the beam axis to the pillar's outer face so the beam fully bears on the
+          // post (how a beam actually seats on a column), meeting the post face cleanly.
+          const [adjStart, adjEnd] = extendBeamEndsToPillars(
+            start, endPoint,
+            nearPillarStart?.pillar ?? null,
+            nearPillarEnd?.pillar ?? null,
+          );
+
+          // Elevation: honor the user's chosen beam height when set (>0), else rest the beam
+          // on the tallest connecting pillar top (falling back to a sensible 280cm).
           const pillarTopStart = nearPillarStart ? nearPillarStart.pillar.height + nearPillarStart.pillar.elevationCm : 0;
           const pillarTopEnd = nearPillarEnd ? nearPillarEnd.pillar.height + nearPillarEnd.pillar.elevationCm : 0;
-          const beamElevation = Math.max(pillarTopStart, pillarTopEnd, 280);
+          const beamElevation = state.beamElevationCm > 0
+            ? state.beamElevationCm
+            : Math.max(pillarTopStart, pillarTopEnd, 280);
           let id = '';
           state.recordHistory('Add Beam', () => {
-            id = state.addBeam({ start, end: endPoint, width: 25, depth: 35, elevationCm: beamElevation, materialId: 'paint-white' });
+            id = state.addBeam({ start: adjStart, end: adjEnd, width: 25, depth: 35, elevationCm: beamElevation, materialId: 'paint-white' });
           });
           cancel();
           if (id) state.select([id]);
@@ -731,8 +767,15 @@ export const EditorCanvas: React.FC = () => {
               if (p) maxPillarTop = Math.max(maxPillarTop, p.pillar.height + p.pillar.elevationCm);
             }
             const deckElevation = maxPillarTop > 0 ? maxPillarTop : 0;
+
+            // Smart corner attachment: offset each polygon point from the pillar center to
+            // the pillar's outer edge, so the deck face meets the pillar face cleanly instead
+            // of cutting through the pillar's middle. The offset direction is from the
+            // polygon's centroid outward through each corner.
+            const adjustedPolygon = adjustDeckCornersToPillars(prev, state);
+
             state.recordHistory('Add Deck Slab', () => {
-              const id = state.addDeckSlab({ polygon: prev, thicknessCm: 15, elevationCm: deckElevation, materialId: 'default-floor', type: 'custom' });
+              const id = state.addDeckSlab({ polygon: adjustedPolygon, thicknessCm: 15, elevationCm: deckElevation, materialId: 'default-floor', type: 'custom' });
               if (id) state.select([id]);
             });
             return [];
@@ -852,10 +895,20 @@ export const EditorCanvas: React.FC = () => {
           return;
         }
 
+        // Decks reuse the same floor-tile palette (default-floor materialId), so a floor
+        // finish clicked onto a deck slab paints the deck the same way a room floor works.
+        const deckId = hitTestDeckSlab(cursor, state);
+        if (category === 'floor' && deckId) {
+          state.recordHistory('Paint Deck', () => state.updateDeckSlab(deckId, { materialId: finishId }));
+          state.select([deckId]);
+          return;
+        }
+
         // No finish/surface match: select the surface under the cursor (wall takes
         // priority since it sits on top), so a compatible swatch can be applied next.
         if (wallId) state.select([wallId]);
         else if (roomId) state.select([roomId]);
+        else if (deckId) state.select([deckId]);
         else state.clearSelection();
         return;
       }
@@ -1029,9 +1082,10 @@ export const EditorCanvas: React.FC = () => {
             if (p) maxPillarTopDbl = Math.max(maxPillarTopDbl, p.pillar.height + p.pillar.elevationCm);
           }
           const deckElevationDbl = maxPillarTopDbl > 0 ? maxPillarTopDbl : 0;
+          const adjustedPolygonDbl = adjustDeckCornersToPillars(deckPoints, state);
           state.recordHistory('Add Deck Slab', () => {
             const id = state.addDeckSlab({ 
-              polygon: deckPoints, 
+              polygon: adjustedPolygonDbl, 
               thicknessCm: 15, 
               elevationCm: deckElevationDbl, 
               materialId: 'default-floor', 
@@ -1072,6 +1126,7 @@ export const EditorCanvas: React.FC = () => {
         {activeTool === 'beam' && <PillarSnapIndicator activeTool="beam" currentPoint={useAppStore.getState().currentMouseWorld} />}
         {activeTool === 'deck' && <DeckPreview points={deckPoints} cursor={useAppStore.getState().currentMouseWorld} />}
         {activeTool === 'deck' && <PillarSnapIndicator activeTool="deck" currentPoint={useAppStore.getState().currentMouseWorld} />}
+        {activeTool === 'pillar' && <PillarAlignmentGuide cursor={useAppStore.getState().currentMouseWorld} />}
         {activeTool === 'road' && <DrawingPreview start={roadStart} />}
         {activeTool === 'stair' && (
           <StairToolOverlay toolState={stairToolState} stairWidthCm={stairWidthCm} />

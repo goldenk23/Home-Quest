@@ -7,6 +7,7 @@ import type { SnapConfig } from '@/domains/editor/hooks/useSnapping';
 import { castDraft } from 'immer';
 import { validateAddWall } from '@/store/guards/storeGuards';
 import type { StairEntity } from '@/types/stair';
+import { cloneGeometry, type BuildingGeometry } from '@/domains/editor/services/buildingClone';
 
 export interface EditorSlice {
     // State
@@ -64,6 +65,11 @@ export interface EditorSlice {
     updateRailing: (id: EntityId, patch: Partial<Omit<Railing, 'id'>>) => void;
     removeRailing: (id: EntityId) => void;
     moveRailing: (id: EntityId, delta: Point2D) => void;
+
+    /** Clone the whole building (walls, rooms, openings, pillars, beams, decks, railings,
+     *  furniture) once per offset vector, appending each copy to the current floor. Used by
+     *  the Array tool's "building" mode to duplicate a constructed unit. Returns new ids. */
+    duplicateBuilding: (offsets: Point2D[]) => EntityId[];
 
     setRooms: (rooms: Record<EntityId, Room>) => void;
     updateRoom: (id: EntityId, patch: Partial<Pick<Room, 'roomType' | 'label' | 'floorMaterialId'>>) => void;
@@ -391,6 +397,31 @@ export const createEditorSlice: StateCreator<
             const slab = state.deckSlabs[id];
             if (slab) slab.polygon = slab.polygon.map((p) => ({ x: p.x + delta.x, y: p.y + delta.y }));
         });
+    },
+
+    duplicateBuilding: (offsets) => {
+        const created: EntityId[] = [];
+        set((state) => {
+            const src: BuildingGeometry = {
+                vertices: state.vertices, walls: state.walls, rooms: state.rooms,
+                openings: state.openings, pillars: state.pillars, beams: state.beams,
+                deckSlabs: state.deckSlabs, railings: state.railings, furniture: state.furniture,
+            };
+            for (const offset of offsets) {
+                const clone = cloneGeometry(src, offset, generateId);
+                Object.assign(state.vertices, castDraft(clone.vertices));
+                Object.assign(state.walls, castDraft(clone.walls));
+                Object.assign(state.rooms, castDraft(clone.rooms));
+                Object.assign(state.openings, castDraft(clone.openings));
+                Object.assign(state.pillars, castDraft(clone.pillars));
+                Object.assign(state.beams, castDraft(clone.beams));
+                Object.assign(state.deckSlabs, castDraft(clone.deckSlabs));
+                Object.assign(state.railings, castDraft(clone.railings));
+                Object.assign(state.furniture, castDraft(clone.furniture));
+                created.push(...Object.keys(clone.pillars), ...Object.keys(clone.walls));
+            }
+        });
+        return created;
     },
 
     addRailing: (railing) => {
