@@ -18,6 +18,7 @@ export function validateFloorPlanIntegrity(data: any): ValidationResult {
   if (data.pillars && typeof data.pillars !== 'object') errors.push('Invalid pillars field');
   if (data.beams && typeof data.beams !== 'object') errors.push('Invalid beams field');
   if (data.deckSlabs && typeof data.deckSlabs !== 'object') errors.push('Invalid deckSlabs field');
+  if (data.railings && typeof data.railings !== 'object') errors.push('Invalid railings field');
   if (errors.length > 0) return { valid: false, errors, warnings };
 
   for (const [id, vertex] of Object.entries(data.vertices as Record<string, any>)) {
@@ -64,6 +65,12 @@ export function validateFloorPlanIntegrity(data: any): ValidationResult {
   for (const [id, slab] of Object.entries((data.deckSlabs ?? {}) as Record<string, any>)) {
     if (!Array.isArray(slab.polygon) || slab.polygon.length < 3) errors.push(`Deck slab ${id}: invalid polygon`);
     if (slab.thicknessCm <= 0) errors.push(`Deck slab ${id}: invalid thickness`);
+  }
+
+  for (const [id, railing] of Object.entries((data.railings ?? {}) as Record<string, any>)) {
+    if (!railing.start || typeof railing.start.x !== 'number' || !railing.end || typeof railing.end.x !== 'number') errors.push(`Railing ${id}: invalid endpoints`);
+    if (railing.height <= 0 || railing.height > 300) warnings.push(`Railing ${id}: unusual height ${railing.height}cm`);
+    if (railing.style && railing.style !== 'open' && railing.style !== 'solid') errors.push(`Railing ${id}: invalid style`);
   }
 
   for (const [id, vertex] of Object.entries(data.vertices as Record<string, any>)) {

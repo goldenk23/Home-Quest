@@ -198,6 +198,12 @@ export const SandboxView: React.FC = () => {
   const setRoadWidth = useAppStore((s) => s.setRoadWidth);
   const stairWidthCm = useAppStore((s) => s.stairWidthCm);
   const setStairWidth = useAppStore((s) => s.setStairWidth);
+  const railingHeightCm = useAppStore((s) => s.railingHeightCm);
+  const railingElevationCm = useAppStore((s) => s.railingElevationCm);
+  const railingStyle = useAppStore((s) => s.railingStyle);
+  const setRailingHeight = useAppStore((s) => s.setRailingHeight);
+  const setRailingElevation = useAppStore((s) => s.setRailingElevation);
+  const setRailingStyle = useAppStore((s) => s.setRailingStyle);
   const stairError = useAppStore((s) => s.activeTool === 'stair' ? null : null); // sourced from tool state in EditorCanvas
   void stairError;
   const paintFinishId = useAppStore((s) => s.paintFinishId);
@@ -370,6 +376,7 @@ export const SandboxView: React.FC = () => {
           <button style={btn(activeTool === 'pillar', '#475569')} onClick={() => setActiveTool('pillar')}>🏛️ Pillar</button>
           <button style={btn(activeTool === 'beam', '#475569')} onClick={() => setActiveTool('beam')}>━ Beam</button>
           <button style={btn(activeTool === 'deck', '#0284c7')} onClick={() => setActiveTool('deck')}>▱ Deck</button>
+          <button style={btn(activeTool === 'railing', '#ea580c')} onClick={() => setActiveTool('railing')}>🛡️ Railing</button>
           <button style={btn(activeTool === 'furniture')} onClick={() => setActiveTool('furniture')}>🛋️ Furniture</button>
           <button style={btn(activeTool === 'door')} onClick={() => setActiveTool('door')}>🚪 Door</button>
           <button style={btn(activeTool === 'window')} onClick={() => setActiveTool('window')}>🪟 Window</button>
@@ -469,6 +476,54 @@ export const SandboxView: React.FC = () => {
             </span>
           </Row>
         )}
+
+      {activeTool === 'railing' && (
+        <>
+          <Row label="Railing">
+            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+              Click start and end points to place a safety railing/parapet. Use Select to move/delete.
+            </span>
+          </Row>
+          <Row label="Height">
+            <input
+              type="range" min={50} max={300} step={10}
+              value={railingHeightCm}
+              onChange={(e) => setRailingHeight(parseFloat(e.target.value))}
+              style={{ width: '160px' }}
+              aria-label="Railing height"
+            />
+            <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '70px', fontWeight: 600 }}>
+              {railingHeightCm} cm
+            </span>
+          </Row>
+          <Row label="Elevation">
+            <input
+              type="range" min={0} max={500} step={10}
+              value={railingElevationCm}
+              onChange={(e) => setRailingElevation(parseFloat(e.target.value))}
+              style={{ width: '160px' }}
+              aria-label="Railing elevation"
+            />
+            <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '70px', fontWeight: 600 }}>
+              {railingElevationCm} cm
+            </span>
+          </Row>
+          <Row label="Style">
+            <button 
+              style={btn(railingStyle === 'open', '#ea580c')} 
+              onClick={() => setRailingStyle('open')}
+            >
+              Open (Bars)
+            </button>
+            <button 
+              style={btn(railingStyle === 'solid', '#ea580c')} 
+              onClick={() => setRailingStyle('solid')}
+            >
+              Solid (Parapet)
+            </button>
+          </Row>
+        </>
+      )}
 
         {activeTool === 'furniture' && (
           <Row label="Catalog">

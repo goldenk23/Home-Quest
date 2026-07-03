@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AppStore } from '../index';
-import type { EntityId, Vertex, Wall, Room, FurnitureItem, Road, Pillar, Beam, DeckSlab } from '@/types/editor';
+import type { EntityId, Vertex, Wall, Room, FurnitureItem, Road, Pillar, Beam, DeckSlab, Railing } from '@/types/editor';
 import type { Point2D } from '@/types/geometry';
 import { generateId } from '@/utils/id';
 import type { SnapConfig } from '@/domains/editor/hooks/useSnapping';
@@ -20,6 +20,7 @@ export interface EditorSlice {
     pillars: Record<EntityId, Pillar>;
     beams: Record<EntityId, Beam>;
     deckSlabs: Record<EntityId, DeckSlab>;
+    railings: Record<EntityId, Railing>;
     selectedIds: EntityId[];
     snapConfig: SnapConfig;
     currentMouseWorld: Point2D | null;
@@ -59,6 +60,10 @@ export interface EditorSlice {
     updateDeckSlab: (id: EntityId, patch: Partial<Omit<DeckSlab, 'id'>>) => void;
     removeDeckSlab: (id: EntityId) => void;
     moveDeckSlab: (id: EntityId, delta: Point2D) => void;
+    addRailing: (railing: Omit<Railing, 'id'>) => EntityId;
+    updateRailing: (id: EntityId, patch: Partial<Omit<Railing, 'id'>>) => void;
+    removeRailing: (id: EntityId) => void;
+    moveRailing: (id: EntityId, delta: Point2D) => void;
 
     setRooms: (rooms: Record<EntityId, Room>) => void;
     updateRoom: (id: EntityId, patch: Partial<Pick<Room, 'roomType' | 'label' | 'floorMaterialId'>>) => void;
@@ -112,6 +117,7 @@ export const createEditorSlice: StateCreator<
     pillars: {},
     beams: {},
     deckSlabs: {},
+    railings: {},
     selectedIds: [],
     snapConfig: {
         gridSize: 10,
@@ -387,6 +393,27 @@ export const createEditorSlice: StateCreator<
         });
     },
 
+    addRailing: (railing) => {
+        const railingId = generateId('railing');
+        set((state) => { state.railings[railingId] = { ...railing, id: railingId }; });
+        return railingId;
+    },
+    updateRailing: (id, patch) => {
+        set((state) => { const railing = state.railings[id]; if (railing) Object.assign(railing, patch); });
+    },
+    removeRailing: (id) => {
+        set((state) => { delete state.railings[id]; });
+    },
+    moveRailing: (id, delta) => {
+        set((state) => {
+            const railing = state.railings[id];
+            if (railing) {
+                railing.start = { x: railing.start.x + delta.x, y: railing.start.y + delta.y };
+                railing.end = { x: railing.end.x + delta.x, y: railing.end.y + delta.y };
+            }
+        });
+    },
+
     setRooms: (rooms) => {
         set((state) => {
             state.rooms = castDraft(rooms);
@@ -460,6 +487,10 @@ export const createEditorSlice: StateCreator<
             for (const s of Object.values(state.deckSlabs)) {
                 s.polygon = s.polygon.map((p) => ({ x: cx + (p.x - cx) * factor, y: cy + (p.y - cy) * factor }));
             }
+            for (const r of Object.values(state.railings)) {
+                r.start = { x: cx + (r.start.x - cx) * factor, y: cy + (r.start.y - cy) * factor };
+                r.end = { x: cx + (r.end.x - cx) * factor, y: cy + (r.end.y - cy) * factor };
+            }
         });
     },
     clearAll: () => {
@@ -474,6 +505,7 @@ export const createEditorSlice: StateCreator<
             state.pillars = {};
             state.beams = {};
             state.deckSlabs = {};
+            state.railings = {};
             state.selectedIds = [];
         });
     },

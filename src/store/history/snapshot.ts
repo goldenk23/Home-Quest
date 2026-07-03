@@ -10,7 +10,7 @@
 // has only hundreds of entities and Immer gives us cheap structural sharing, so storing
 // whole-plan snapshots is both simple and correct.
 
-import type { EntityId, Vertex, Wall, Room, FurnitureItem, Opening, Road, Pillar, Beam, DeckSlab } from '@/types/editor';
+import type { EntityId, Vertex, Wall, Room, FurnitureItem, Opening, Road, Pillar, Beam, DeckSlab, Railing } from '@/types/editor';
 
 export interface FloorPlanSnapshot {
   readonly vertices: Record<EntityId, Vertex>;
@@ -22,6 +22,7 @@ export interface FloorPlanSnapshot {
   readonly pillars: Record<EntityId, Pillar>;
   readonly beams: Record<EntityId, Beam>;
   readonly deckSlabs: Record<EntityId, DeckSlab>;
+  readonly railings: Record<EntityId, Railing>;
 }
 
 /** The subset of the store that a snapshot reads from. */
@@ -35,6 +36,7 @@ export interface SnapshotSource {
   pillars: Record<EntityId, Pillar>;
   beams: Record<EntityId, Beam>;
   deckSlabs: Record<EntityId, DeckSlab>;
+  railings: Record<EntityId, Railing>;
 }
 
 /**
@@ -53,6 +55,7 @@ export function captureSnapshot(src: SnapshotSource): FloorPlanSnapshot {
     pillars: src.pillars,
     beams: src.beams,
     deckSlabs: src.deckSlabs,
+    railings: src.railings,
   };
 }
 
@@ -71,6 +74,7 @@ export function snapshotsEqual(a: FloorPlanSnapshot, b: FloorPlanSnapshot): bool
     a.roads === b.roads &&
     a.pillars === b.pillars &&
     a.beams === b.beams &&
-    a.deckSlabs === b.deckSlabs
+    a.deckSlabs === b.deckSlabs &&
+    a.railings === b.railings
   );
 }

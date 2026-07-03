@@ -1,9 +1,9 @@
 // src/store/persistence/migrations.ts
 
-import type { EntityId, Vertex, Wall, Room, FurnitureItem, Floor, FloorGeometry, Pillar, Beam, DeckSlab } from '@/types';
+import type { EntityId, Vertex, Wall, Room, FurnitureItem, Floor, FloorGeometry, Pillar, Beam, DeckSlab, Railing } from '@/types';
 
 /** Bump this whenever the persisted shape changes. */
-export const CURRENT_SCHEMA_VERSION = 7;
+export const CURRENT_SCHEMA_VERSION = 8;
 
 export interface PersistedStateV1 {
   version: 1;
@@ -41,7 +41,11 @@ export interface PersistedStateV7 extends Omit<PersistedStateV6, 'version'> {
   version: 7;
   deckSlabs: Record<EntityId, DeckSlab>;
 }
-export type PersistedState = PersistedStateV7;
+export interface PersistedStateV8 extends Omit<PersistedStateV7, 'version'> {
+  version: 8;
+  railings: Record<EntityId, Railing>;
+}
+export type PersistedState = PersistedStateV8;
 
 /** Upgrades any older persisted blob to the current shape. Each step is idempotent. */
 export function migrateState(state: any): PersistedState {
@@ -52,7 +56,22 @@ export function migrateState(state: any): PersistedState {
   if (current.version < 5) current = migrateV4ToV5(current);
   if (current.version < 6) current = migrateV5ToV6(current);
   if (current.version < 7) current = migrateV6ToV7(current);
+  if (current.version < 8) current = migrateV7ToV8(current);
   return current as PersistedState;
+}
+
+/** v8: introduce safety railings/parapets. */
+function migrateV7ToV8(state: PersistedStateV7): PersistedStateV8 {
+  const floorData: Record<EntityId, FloorGeometry> = {};
+  for (const [id, geo] of Object.entries(state.floorData ?? {})) {
+    floorData[id] = { ...geo, railings: (geo as Partial<FloorGeometry>).railings ?? {} };
+  }
+  return {
+    ...state,
+    version: 8,
+    railings: (state as unknown as { railings?: Record<EntityId, Railing> }).railings ?? {},
+    floorData,
+  };
 }
 
 /** v7: introduce custom deck/corridor/balcony slab polygons. */

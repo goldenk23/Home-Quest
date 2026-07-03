@@ -22,6 +22,7 @@ export type {
   Pillar,
   Beam,
   DeckSlab,
+  Railing,
   FloorPlan,
   Floor,
   FloorGeometry,

@@ -26,7 +26,31 @@ import type { OpeningFamily } from '@/domains/shared/openings/openingCatalog';
 import { defaultKindForFamily } from '@/domains/shared/openings/openingCatalog';
 
 /** What the user is currently holding in their cursor (e.g. wall tool, select tool) */
-export type Tool = 'select' | 'wall' | 'road' | 'pillar' | 'beam' | 'deck' | 'furniture' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'ac' | 'paint' | 'room' | 'stair';
+export type Tool = 'select' | 'wall' | 'road' | 'pillar' | 'beam' | 'deck' | 'railing' | 'furniture' | 'array' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'ac' | 'paint' | 'room' | 'stair';
+
+export interface ArrayToolConfig {
+  /** Entity type to repeat. */
+  entityType: 'furniture' | 'pillar' | null;
+  /** Catalog id for furniture, entity id for future entity-based arrays. */
+  referenceId: string | null;
+  /** Number of placed items. */
+  count: number;
+  /** Spacing between item centers in centimeters. */
+  spacing: number;
+  /** Direction angle in radians. */
+  angle: number;
+  /** Whether the editor should show a live preview. */
+  isPreviewing: boolean;
+}
+
+const defaultArrayConfig: ArrayToolConfig = {
+  entityType: null,
+  referenceId: null,
+  count: 3,
+  spacing: 100,
+  angle: 0,
+  isPreviewing: false,
+};
 
 /** The different side-menus the user can open and close */
 export type PanelId = 'properties' | 'vastu' | 'catalog' | 'layers';
@@ -40,10 +64,18 @@ export interface UISlice {
   showDimensions: boolean;
   /** The catalog id that the furniture tool will place on the next click. */
   furnitureCatalogId: string;
+  /** Array/repeat tool configuration. */
+  arrayConfig: ArrayToolConfig;
   /** Width (cm) applied to the next road segment drawn with the Road tool. */
   roadWidth: number;
   /** Width (cm) of staircases placed with the Stair tool. */
   stairWidthCm: number;
+  /** Height (cm) of railings placed with the Railing tool. */
+  railingHeightCm: number;
+  /** Elevation (cm) of railings placed with the Railing tool. */
+  railingElevationCm: number;
+  /** Style of railings placed with the Railing tool. */
+  railingStyle: 'open' | 'solid';
   /** The finish id (wall paint or floor tile) the Paint tool applies on the next click. */
   paintFinishId: string;
   /** The selected opening kind id per family, used by the door/window/vent/ac tools. */
@@ -65,10 +97,18 @@ export interface UISlice {
   setChainMode: (enabled: boolean) => void;
   toggleDimensions: () => void;
   setFurnitureCatalogId: (catalogId: string) => void;
+  setArrayConfig: (config: Partial<ArrayToolConfig>) => void;
+  resetArrayConfig: () => void;
   /** Set the width (cm) used for newly drawn roads. */
   setRoadWidth: (width: number) => void;
   /** Set the width (cm) for the Stair tool. */
   setStairWidth: (width: number) => void;
+  /** Set the height (cm) for the Railing tool. */
+  setRailingHeight: (height: number) => void;
+  /** Set the elevation (cm) for the Railing tool. */
+  setRailingElevation: (elevation: number) => void;
+  /** Set the style for the Railing tool. */
+  setRailingStyle: (style: 'open' | 'solid') => void;
   setPaintFinishId: (finishId: string) => void;
   /** Choose which opening kind a family's tool will place next. */
   setOpeningKind: (family: OpeningFamily, kindId: string) => void;
@@ -95,8 +135,12 @@ export const createUISlice: StateCreator<
   },
   isChainModeEnabled: false,
   furnitureCatalogId: 'sofa-3seat',
+  arrayConfig: defaultArrayConfig,
   roadWidth: 300,
   stairWidthCm: 110,
+  railingHeightCm: 110,
+  railingElevationCm: 0,
+  railingStyle: 'solid',
   showDimensions: true,
   paintFinishId: 'paint-white',
   selectedOpeningKinds: {
@@ -148,6 +192,21 @@ export const createUISlice: StateCreator<
       state.furnitureCatalogId = catalogId;    });
   },
 
+  setArrayConfig: (config) => {
+    set((state) => {
+      state.arrayConfig = { ...state.arrayConfig, ...config };
+      state.arrayConfig.count = Math.max(1, Math.min(20, Math.round(state.arrayConfig.count)));
+      state.arrayConfig.spacing = Math.max(1, Math.min(5000, Math.round(state.arrayConfig.spacing)));
+      if (!Number.isFinite(state.arrayConfig.angle)) state.arrayConfig.angle = 0;
+    });
+  },
+
+  resetArrayConfig: () => {
+    set((state) => {
+      state.arrayConfig = defaultArrayConfig;
+    });
+  },
+
   setRoadWidth: (width) => {
     set((state) => {
       state.roadWidth = Math.max(30, Math.min(2000, Math.round(width)));
@@ -157,6 +216,24 @@ export const createUISlice: StateCreator<
   setStairWidth: (width) => {
     set((state) => {
       state.stairWidthCm = Math.max(60, Math.min(500, Math.round(width)));
+    });
+  },
+
+  setRailingHeight: (height) => {
+    set((state) => {
+      state.railingHeightCm = Math.max(50, Math.min(300, Math.round(height)));
+    });
+  },
+
+  setRailingElevation: (elevation) => {
+    set((state) => {
+      state.railingElevationCm = Math.max(0, Math.min(1000, Math.round(elevation)));
+    });
+  },
+
+  setRailingStyle: (style) => {
+    set((state) => {
+      state.railingStyle = style;
     });
   },
 

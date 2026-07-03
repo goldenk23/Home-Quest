@@ -90,6 +90,17 @@ export interface DeckSlab {
   type: 'corridor' | 'balcony' | 'landing' | 'roof' | 'custom';
 }
 
+/** A safety railing/parapet for balconies, decks, stairs, or elevated areas. */
+export interface Railing {
+  readonly id: EntityId;
+  start: Point2D;
+  end: Point2D;
+  height: number;
+  elevationCm: number;
+  style: 'open' | 'solid';
+  materialId: string;
+}
+
 /** 
  * A room is a closed polygon formed by connected walls.
  * Stored as an ordered list of vertex IDs forming the boundary.
@@ -171,6 +182,7 @@ export interface FloorPlan {
   readonly pillars: Record<EntityId, Pillar>;
   readonly beams: Record<EntityId, Beam>;
   readonly deckSlabs: Record<EntityId, DeckSlab>;
+  readonly railings: Record<EntityId, Railing>;
 }
 
 /**
@@ -198,4 +210,5 @@ export interface FloorGeometry {
   pillars: Record<EntityId, Pillar>;
   beams: Record<EntityId, Beam>;
   deckSlabs: Record<EntityId, DeckSlab>;
+  railings: Record<EntityId, Railing>;
 }

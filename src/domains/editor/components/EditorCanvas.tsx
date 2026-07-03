@@ -23,6 +23,7 @@ import { RoadLayer } from './RoadLayer';
 import { PillarLayer } from './PillarLayer';
 import { BeamLayer } from './BeamLayer';
 import { DeckLayer } from './DeckLayer';
+import { RailingLayer } from './RailingLayer';
 import { DimensionLayer } from './DimensionLayer';
 import { OpeningsLayer } from './OpeningsLayer';
 import { FurnitureLayer } from './FurnitureLayer';
@@ -34,6 +35,27 @@ import { StairToolOverlay } from './StairToolOverlay';
 import { useStairTool } from '../hooks/useStairTool';
 import { VastuOverlay2D } from '@/domains/vastu/components/VastuOverlay2D';
 import { CompassRose } from './CompassRose';
+import { PillarSnapIndicator } from './PillarSnapIndicator';
+
+/** Find nearest pillar to a given point within a maximum distance */
+function findNearestPillar(cursor: Point2D, state: AppStore, maxDistance: number = 50): { pillar: typeof state.pillars[string]; distance: number } | null {
+  let nearest: { pillar: typeof state.pillars[string]; distance: number } | null = null;
+  
+  for (const pillar of Object.values(state.pillars)) {
+    const dx = cursor.x - pillar.position.x;
+    const dy = cursor.y - pillar.position.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Snap distance should be pillar radius/half-width + tolerance
+    const snapRadius = Math.max(pillar.width, pillar.depth) / 2 + maxDistance;
+    
+    if (distance <= snapRadius && (!nearest || distance < nearest.distance)) {
+      nearest = { pillar, distance };
+    }
+  }
+  
+  return nearest;
+}
 
 /** Point-in-(rotated)-rectangle test for furniture footprints (with a grab margin in cm). */
 function hitTestFurniture(cursor: Point2D, furniture: AppStore['furniture'], margin = 0): string | null {
@@ -157,6 +179,20 @@ function hitTestBeam(cursor: Point2D, state: AppStore, margin = 0): string | nul
 function hitTestDeckSlab(cursor: Point2D, state: AppStore): string | null {
   for (const slab of Object.values(state.deckSlabs)) {
     if (pointInPolygon(cursor, slab.polygon)) return slab.id;
+  }
+  return null;
+}
+
+function hitTestRailing(cursor: Point2D, state: AppStore, margin = 0): string | null {
+  for (const railing of Object.values(state.railings)) {
+    const { start, end } = railing;
+    const l2 = (end.x - start.x) ** 2 + (end.y - start.y) ** 2;
+    if (l2 <= 0.01) continue;
+    let t = ((cursor.x - start.x) * (end.x - start.x) + (cursor.y - start.y) * (end.y - start.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    const projX = start.x + t * (end.x - start.x);
+    const projY = start.y + t * (end.y - start.y);
+    if (Math.hypot(cursor.x - projX, cursor.y - projY) <= 10 + margin) return railing.id;
   }
   return null;
 }
@@ -288,7 +324,7 @@ export const EditorCanvas: React.FC = () => {
   viewTransformRef.current = viewTransform;
 
   // Drag state (refs avoid re-renders on every mouse move).
-  const dragRef = useRef<{ kind: 'furniture' | 'wall' | 'pillar' | 'beam' | 'deck' | 'gizmo-rotate' | 'gizmo-scale'; id: string; baseScale?: number; baseDist?: number } | null>(null);
+  const dragRef = useRef<{ kind: 'furniture' | 'wall' | 'pillar' | 'beam' | 'deck' | 'railing' | 'gizmo-rotate' | 'gizmo-scale'; id: string; baseScale?: number; baseDist?: number } | null>(null);
   const dragLastWorldRef = useRef<Point2D | null>(null);
   const didDragRef = useRef(false);
   // Grab-to-pan state (left-drag on empty space while using the Select tool).
@@ -308,7 +344,7 @@ export const EditorCanvas: React.FC = () => {
    *  - Walls: snaps the moved endpoints to the grid and straightens every wall meeting
    *    them that is near-axis-aligned (horizontal/vertical), restoring orthogonality.
    */
-  const smartAlign = useCallback((drag: { kind: 'furniture' | 'wall' | 'pillar' | 'beam' | 'deck' | 'gizmo-rotate' | 'gizmo-scale'; id: string }) => {
+  const smartAlign = useCallback((drag: { kind: 'furniture' | 'wall' | 'pillar' | 'beam' | 'deck' | 'railing' | 'gizmo-rotate' | 'gizmo-scale'; id: string }) => {
     const st = useAppStore.getState();
     const grid = st.snapConfig.gridSize || 10;
     const snap = (v: number) => Math.round(v / grid) * grid;
@@ -329,7 +365,7 @@ export const EditorCanvas: React.FC = () => {
       return;
     }
 
-    if (drag.kind === 'beam' || drag.kind === 'deck') return;
+    if (drag.kind === 'beam' || drag.kind === 'deck' || drag.kind === 'railing') return;
     
     if (drag.kind === 'gizmo-rotate' || drag.kind === 'gizmo-scale') return;
 
@@ -464,6 +500,16 @@ export const EditorCanvas: React.FC = () => {
           setDragHud({ sx: cursor.x, sy: cursor.y, cx: cursor.x, cy: cursor.y });
           return;
         }
+        const railingId = hitTestRailing(cursor, state, GRAB_MARGIN);
+        if (railingId) {
+          state.select([railingId]);
+          state.beginTransaction();
+          dragRef.current = { kind: 'railing', id: railingId };
+          dragLastWorldRef.current = cursor;
+          didDragRef.current = false;
+          setDragHud({ sx: cursor.x, sy: cursor.y, cx: cursor.x, cy: cursor.y });
+          return;
+        }
 
         // 2) Empty space → grab the whole diagram to pan it.
         panningRef.current = true;
@@ -530,6 +576,8 @@ export const EditorCanvas: React.FC = () => {
             state.moveBeam(drag.id, { x: dx, y: dy });
           } else if (drag.kind === 'deck') {
             state.moveDeckSlab(drag.id, { x: dx, y: dy });
+          } else if (drag.kind === 'railing') {
+            state.moveRailing(drag.id, { x: dx, y: dy });
           } else {
             const wall = state.walls[drag.id];
             if (wall) {
@@ -564,6 +612,7 @@ export const EditorCanvas: React.FC = () => {
           drag.kind === 'wall' ? 'Move Wall' :
           drag.kind === 'beam' ? 'Move Beam' :
           drag.kind === 'deck' ? 'Move Deck' :
+          drag.kind === 'railing' ? 'Move Railing' :
           drag.kind === 'pillar' ? 'Move Pillar' : 'Move Furniture';
         state.commitTransaction(label);
       } else {
@@ -603,12 +652,42 @@ export const EditorCanvas: React.FC = () => {
 
       if (activeTool === 'beam') {
         if (!drawStart) {
-          handleClick(cursor);
+          // Starting beam - snap to pillar if nearby
+          const nearPillar = findNearestPillar(cursor, state);
+          const startPoint = nearPillar ? nearPillar.pillar.position : cursor;
+          handleClick(startPoint);
         } else {
+          // Ending beam - snap to pillar if nearby
+          const nearPillar = findNearestPillar(cursor, state);
+          const endPoint = nearPillar ? nearPillar.pillar.position : cursor;
           const start = drawStart;
           let id = '';
           state.recordHistory('Add Beam', () => {
-            id = state.addBeam({ start, end: cursor, width: 25, depth: 35, elevationCm: 280, materialId: 'paint-white' });
+            id = state.addBeam({ start, end: endPoint, width: 25, depth: 35, elevationCm: 280, materialId: 'paint-white' });
+          });
+          cancel();
+          if (id) state.select([id]);
+        }
+        return;
+      }
+
+      if (activeTool === 'railing') {
+        if (!drawStart) {
+          // Starting railing
+          handleClick(cursor);
+        } else {
+          // Ending railing
+          const start = drawStart;
+          let id = '';
+          state.recordHistory('Add Railing', () => {
+            id = state.addRailing({ 
+              start, 
+              end: cursor, 
+              height: state.railingHeightCm, 
+              elevationCm: state.railingElevationCm, 
+              style: state.railingStyle, 
+              materialId: 'paint-white' 
+            });
           });
           cancel();
           if (id) state.select([id]);
@@ -622,15 +701,19 @@ export const EditorCanvas: React.FC = () => {
       }
 
       if (activeTool === 'deck') {
+        // Snap deck points to pillars if nearby
+        const nearPillar = findNearestPillar(cursor, state);
+        const snappedPoint = nearPillar ? nearPillar.pillar.position : cursor;
+        
         setDeckPoints((prev) => {
-          if (prev.length >= 3 && Math.hypot(cursor.x - prev[0].x, cursor.y - prev[0].y) <= GRAB_MARGIN * 2) {
+          if (prev.length >= 3 && Math.hypot(snappedPoint.x - prev[0].x, snappedPoint.y - prev[0].y) <= GRAB_MARGIN * 2) {
             state.recordHistory('Add Deck Slab', () => {
               const id = state.addDeckSlab({ polygon: prev, thicknessCm: 15, elevationCm: 0, materialId: 'default-floor', type: 'custom' });
               if (id) state.select([id]);
             });
             return [];
           }
-          return [...prev, cursor];
+          return [...prev, snappedPoint];
         });
         return;
       }
@@ -799,6 +882,11 @@ export const EditorCanvas: React.FC = () => {
           state.select([deckId]);
           return;
         }
+        const railingId = hitTestRailing(cursor, state, GRAB_MARGIN);
+        if (railingId) {
+          state.select([railingId]);
+          return;
+        }
         // Lowest priority: clicking inside a room selects that room (so it can be assigned).
         const roomId = hitTestRoom(cursor, state);
         if (roomId) {
@@ -817,7 +905,7 @@ export const EditorCanvas: React.FC = () => {
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
 
-      if (e.key === 'Escape') { cancel(); cancelRoad(); stairHandles.cancel(); }
+      if (e.key === 'Escape') { cancel(); cancelRoad(); stairHandles.cancel(); setDeckPoints([]); }
 
       if (e.key === 'Enter' && activeTool === 'stair' && stairToolState.inProgress) {
         const pts = stairToolState.pathPoints;
@@ -838,6 +926,7 @@ export const EditorCanvas: React.FC = () => {
               if (state.pillars[id]) state.removePillar(id);
               if (state.beams[id]) state.removeBeam(id);
               if (state.deckSlabs[id]) state.removeDeckSlab(id);
+              if (state.railings[id]) state.removeRailing(id);
             });
             state.clearSelection();
           });
@@ -885,6 +974,7 @@ export const EditorCanvas: React.FC = () => {
             drag.kind === 'wall' ? 'Move Wall' :
             drag.kind === 'beam' ? 'Move Beam' :
             drag.kind === 'deck' ? 'Move Deck' :
+            drag.kind === 'railing' ? 'Move Railing' :
             drag.kind === 'pillar' ? 'Move Pillar' : 'Move Furniture';
           state.commitTransaction(label);
         } else {
@@ -898,10 +988,31 @@ export const EditorCanvas: React.FC = () => {
       }}
       onClick={handleSvgClick}
       onDoubleClick={(e) => {
-        if (activeTool !== 'stair') return;
-        const cursor = useAppStore.getState().currentMouseWorld;
-        if (cursor) stairHandles.handleFinish(cursor);
-        e.preventDefault();
+        const state = useAppStore.getState();
+        const cursor = state.currentMouseWorld;
+        
+        if (activeTool === 'stair') {
+          if (cursor) stairHandles.handleFinish(cursor);
+          e.preventDefault();
+          return;
+        }
+        
+        if (activeTool === 'deck' && deckPoints.length >= 3) {
+          // Double-click to close deck polygon
+          state.recordHistory('Add Deck Slab', () => {
+            const id = state.addDeckSlab({ 
+              polygon: deckPoints, 
+              thicknessCm: 15, 
+              elevationCm: 0, 
+              materialId: 'default-floor', 
+              type: 'custom' 
+            });
+            if (id) state.select([id]);
+          });
+          setDeckPoints([]);
+          e.preventDefault();
+          return;
+        }
       }}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -915,6 +1026,7 @@ export const EditorCanvas: React.FC = () => {
         <GhostFloorLayer />
         <RoadLayer />
         <DeckLayer />
+        <RailingLayer />
         <PillarLayer />
         <BeamLayer />
         <RoomLayer />
@@ -927,7 +1039,9 @@ export const EditorCanvas: React.FC = () => {
         <VastuOverlay2D />
         {activeTool === 'wall' && <DrawingPreview start={drawStart} chainOrigin={chainOrigin} />}
         {activeTool === 'beam' && <DrawingPreview start={drawStart} chainOrigin={null} />}
+        {activeTool === 'beam' && <PillarSnapIndicator activeTool="beam" currentPoint={useAppStore.getState().currentMouseWorld} />}
         {activeTool === 'deck' && <DeckPreview points={deckPoints} cursor={useAppStore.getState().currentMouseWorld} />}
+        {activeTool === 'deck' && <PillarSnapIndicator activeTool="deck" currentPoint={useAppStore.getState().currentMouseWorld} />}
         {activeTool === 'road' && <DrawingPreview start={roadStart} />}
         {activeTool === 'stair' && (
           <StairToolOverlay toolState={stairToolState} stairWidthCm={stairWidthCm} />

@@ -53,6 +53,7 @@ const ActiveFloorScene: React.FC<{
   const pillars = useAppStore((s) => s.pillars);
   const beams = useAppStore((s) => s.beams);
   const deckSlabs = useAppStore((s) => s.deckSlabs);
+  const railings = useAppStore((s) => s.railings);
   return (
     <FloorScene
       vertices={vertices}
@@ -63,6 +64,7 @@ const ActiveFloorScene: React.FC<{
       pillars={pillars}
       beams={beams}
       deckSlabs={deckSlabs}
+      railings={railings}
       stairs={stairs}
       elevationCm={elevationCm}
       ceilingTopCm={ceilingTopCm}
@@ -148,6 +150,7 @@ export const SceneContent: React.FC = () => {
             pillars={data.pillars ?? {}}
             beams={data.beams ?? {}}
             deckSlabs={data.deckSlabs ?? {}}
+            railings={data.railings ?? {}}
             stairs={data.stairs ?? {}}
             elevationCm={floor.elevationCm}
             ceilingTopCm={ceilingTopCm}
