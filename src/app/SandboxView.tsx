@@ -204,6 +204,10 @@ export const SandboxView: React.FC = () => {
   const setRailingHeight = useAppStore((s) => s.setRailingHeight);
   const setRailingElevation = useAppStore((s) => s.setRailingElevation);
   const setRailingStyle = useAppStore((s) => s.setRailingStyle);
+  // Array tool
+  const arrayConfig = useAppStore((s) => s.arrayConfig);
+  const setArrayConfig = useAppStore((s) => s.setArrayConfig);
+  const resetArrayConfig = useAppStore((s) => s.resetArrayConfig);
   const stairError = useAppStore((s) => s.activeTool === 'stair' ? null : null); // sourced from tool state in EditorCanvas
   void stairError;
   const paintFinishId = useAppStore((s) => s.paintFinishId);
@@ -385,6 +389,7 @@ export const SandboxView: React.FC = () => {
           <button style={btn(activeTool === 'paint')} onClick={() => setActiveTool('paint')}>🎨 Paint</button>
           <button style={btn(activeTool === 'room')} onClick={() => setActiveTool('room')}>🏷️ Name Room</button>
           <button style={btn(activeTool === 'stair', '#7c3aed')} onClick={() => setActiveTool('stair')}>🪜 Stair</button>
+          <button style={btn(activeTool === 'array', '#f59e0b')} onClick={() => { resetArrayConfig(); setActiveTool('array'); }}>🔁 Array</button>
           <label style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', fontSize: '0.82rem', color: '#374151', cursor: 'pointer' }}>
             <input type="checkbox" checked={isChainModeEnabled} onChange={(e) => setChainMode(e.target.checked)} />
             Chain mode
@@ -454,11 +459,89 @@ export const SandboxView: React.FC = () => {
         )}
 
         {activeTool === 'pillar' && (
-          <Row label="Pillar">
-            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
-              Click to place a 35×35 cm structural pillar. Use Select to move/delete. Property controls will be expanded after beams.
-            </span>
-          </Row>
+          <>
+            <Row label="Pillar">
+              <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                Click to place a structural pillar. Use Select to adjust height/elevation.
+              </span>
+            </Row>
+            <Row label="Height">
+              <input
+                type="range" min={100} max={600} step={10}
+                value={300}
+                onChange={(e) => {
+                  const h = parseInt(e.target.value);
+                  useAppStore.getState().recordHistory('Set Pillar Height', () => {
+                    const pillarId = useAppStore.getState().selectedIds.find((id) => useAppStore.getState().pillars[id]);
+                    if (pillarId) useAppStore.getState().updatePillar(pillarId, { height: h });
+                  });
+                }}
+                style={{ width: '160px' }}
+                aria-label="Pillar height"
+              />
+              <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '70px', fontWeight: 600 }}>
+                300 cm (default)
+              </span>
+            </Row>
+            <Row label="Elevation">
+              <input
+                type="range" min={0} max={300} step={10}
+                value={0}
+                disabled
+                style={{ width: '160px', opacity: 0.5 }}
+                aria-label="Pillar elevation"
+              />
+              <span style={{ fontSize: '0.8rem', color: '#94a3b8', minWidth: '70px', fontWeight: 600 }}>
+                0 cm
+              </span>
+            </Row>
+          </>
+        )}
+
+        {/* Selected pillar properties (visible when a pillar is selected in select mode) */}
+        {activeTool === 'select' && selectedPillarId && (
+          (() => {
+            const p = pillars[selectedPillarId];
+            if (!p) return null;
+            return (
+              <>
+                <Row label="Pillar Height">
+                  <input
+                    type="range" min={100} max={600} step={10}
+                    value={p.height}
+                    onChange={(e) => {
+                      const h = parseInt(e.target.value);
+                      useAppStore.getState().recordHistory('Set Pillar Height', () => {
+                        useAppStore.getState().updatePillar(selectedPillarId, { height: h });
+                      });
+                    }}
+                    style={{ width: '160px' }}
+                    aria-label="Selected pillar height"
+                  />
+                  <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '60px', fontWeight: 600 }}>
+                    {p.height} cm
+                  </span>
+                </Row>
+                <Row label="Pillar Elev">
+                  <input
+                    type="range" min={0} max={300} step={10}
+                    value={p.elevationCm}
+                    onChange={(e) => {
+                      const ev = parseInt(e.target.value);
+                      useAppStore.getState().recordHistory('Set Pillar Elevation', () => {
+                        useAppStore.getState().updatePillar(selectedPillarId, { elevationCm: ev });
+                      });
+                    }}
+                    style={{ width: '160px' }}
+                    aria-label="Selected pillar elevation"
+                  />
+                  <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '60px', fontWeight: 600 }}>
+                    {p.elevationCm} cm
+                  </span>
+                </Row>
+              </>
+            );
+          })()
         )}
 
         {activeTool === 'beam' && (
@@ -524,6 +607,75 @@ export const SandboxView: React.FC = () => {
           </Row>
         </>
       )}
+
+        {activeTool === 'array' && (
+          <>
+            <Row label="Entity">
+              <button style={btn(arrayConfig.entityType === 'furniture', '#0ea5e9')} onClick={() => setArrayConfig({ entityType: 'furniture', isPreviewing: true })}>
+                🛋️ Furniture
+              </button>
+              <button style={btn(arrayConfig.entityType === 'pillar', '#475569')} onClick={() => setArrayConfig({ entityType: 'pillar', isPreviewing: true })}>
+                🏛️ Pillar
+              </button>
+              {arrayConfig.entityType === 'furniture' && (
+                <select
+                  value={arrayConfig.referenceId ?? furnitureCatalogId}
+                  onChange={(e) => setArrayConfig({ referenceId: e.target.value })}
+                  style={{ padding: '3px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.8rem' }}
+                >
+                  {FURNITURE_CATALOG_IDS.map((id) => (
+                    <option key={id} value={id}>{getCatalogEntry(id).label}</option>
+                  ))}
+                </select>
+              )}
+            </Row>
+            <Row label="Count">
+              <input
+                type="range" min={2} max={20} step={1}
+                value={arrayConfig.count}
+                onChange={(e) => setArrayConfig({ count: parseInt(e.target.value) })}
+                style={{ width: '160px' }}
+                aria-label="Array count"
+              />
+              <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '40px', fontWeight: 600 }}>
+                {arrayConfig.count}
+              </span>
+            </Row>
+            <Row label="Spacing">
+              <input
+                type="range" min={50} max={500} step={10}
+                value={arrayConfig.spacing}
+                onChange={(e) => setArrayConfig({ spacing: parseInt(e.target.value) })}
+                style={{ width: '160px' }}
+                aria-label="Array spacing"
+              />
+              <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '70px', fontWeight: 600 }}>
+                {arrayConfig.spacing} cm ({(arrayConfig.spacing / 100).toFixed(2)} m)
+              </span>
+            </Row>
+            <Row label="Angle">
+              <input
+                type="range" min={0} max={360} step={5}
+                value={Math.round((arrayConfig.angle * 180) / Math.PI)}
+                onChange={(e) => setArrayConfig({ angle: (parseInt(e.target.value) * Math.PI) / 180 })}
+                style={{ width: '160px' }}
+                aria-label="Array angle"
+              />
+              <span style={{ fontSize: '0.8rem', color: '#475569', minWidth: '40px', fontWeight: 600 }}>
+                {Math.round((arrayConfig.angle * 180) / Math.PI)}°
+              </span>
+              <button style={btn(false, '#6366f1')} onClick={() => setArrayConfig({ angle: 0 })}>↺ 0°</button>
+              <button style={btn(false, '#6366f1')} onClick={() => setArrayConfig({ angle: Math.PI / 2 })}>↺ 90°</button>
+            </Row>
+            <Row label="Preview">
+              <button style={btn(true, '#10b981')} onClick={() => setArrayConfig({ isPreviewing: true })}>👁️ Show Preview</button>
+              <button style={btn(false, '#ef4444')} onClick={() => { resetArrayConfig(); }}>✕ Cancel</button>
+              <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                Click in the editor to place the array. <kbd>Esc</kbd> to cancel.
+              </span>
+            </Row>
+          </>
+        )}
 
         {activeTool === 'furniture' && (
           <Row label="Catalog">

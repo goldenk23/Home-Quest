@@ -36,6 +36,8 @@ import { useStairTool } from '../hooks/useStairTool';
 import { VastuOverlay2D } from '@/domains/vastu/components/VastuOverlay2D';
 import { CompassRose } from './CompassRose';
 import { PillarSnapIndicator } from './PillarSnapIndicator';
+import { useArrayTool } from '../hooks/useArrayTool';
+import { ArrayPreview } from './ArrayPreview';
 
 /** Find nearest pillar to a given point within a maximum distance */
 function findNearestPillar(cursor: Point2D, state: AppStore, maxDistance: number = 50): { pillar: typeof state.pillars[string]; distance: number } | null {
@@ -319,6 +321,10 @@ export const EditorCanvas: React.FC = () => {
   const [stairToolState, stairHandles] = useStairTool();
   const stairWidthCm = useAppStore((s) => s.stairWidthCm);
   const [deckPoints, setDeckPoints] = useState<Point2D[]>([]);
+
+  // Array tool
+  const currentMouseWorld = useAppStore((s) => s.currentMouseWorld);
+  const { previewItems, commitAt, cancel: cancelArray } = useArrayTool(currentMouseWorld);
 
   const viewTransformRef = useRef(viewTransform);
   viewTransformRef.current = viewTransform;
@@ -661,9 +667,15 @@ export const EditorCanvas: React.FC = () => {
           const nearPillar = findNearestPillar(cursor, state);
           const endPoint = nearPillar ? nearPillar.pillar.position : cursor;
           const start = drawStart;
+          // Compute beam elevation from connecting pillars
+          const nearPillarStart = findNearestPillar(start, state);
+          const nearPillarEnd = nearPillar;
+          const pillarTopStart = nearPillarStart ? nearPillarStart.pillar.height + nearPillarStart.pillar.elevationCm : 0;
+          const pillarTopEnd = nearPillarEnd ? nearPillarEnd.pillar.height + nearPillarEnd.pillar.elevationCm : 0;
+          const beamElevation = Math.max(pillarTopStart, pillarTopEnd, 280);
           let id = '';
           state.recordHistory('Add Beam', () => {
-            id = state.addBeam({ start, end: endPoint, width: 25, depth: 35, elevationCm: 280, materialId: 'paint-white' });
+            id = state.addBeam({ start, end: endPoint, width: 25, depth: 35, elevationCm: beamElevation, materialId: 'paint-white' });
           });
           cancel();
           if (id) state.select([id]);
@@ -695,6 +707,11 @@ export const EditorCanvas: React.FC = () => {
         return;
       }
 
+      if (activeTool === 'array') {
+        commitAt(cursor);
+        return;
+      }
+
       if (activeTool === 'road') {
         handleRoadClick(cursor);
         return;
@@ -707,8 +724,15 @@ export const EditorCanvas: React.FC = () => {
         
         setDeckPoints((prev) => {
           if (prev.length >= 3 && Math.hypot(snappedPoint.x - prev[0].x, snappedPoint.y - prev[0].y) <= GRAB_MARGIN * 2) {
+            // Compute elevation from the tallest pillar among the polygon points
+            let maxPillarTop = 0;
+            for (const pt of prev) {
+              const p = findNearestPillar(pt, state, 35);
+              if (p) maxPillarTop = Math.max(maxPillarTop, p.pillar.height + p.pillar.elevationCm);
+            }
+            const deckElevation = maxPillarTop > 0 ? maxPillarTop : 0;
             state.recordHistory('Add Deck Slab', () => {
-              const id = state.addDeckSlab({ polygon: prev, thicknessCm: 15, elevationCm: 0, materialId: 'default-floor', type: 'custom' });
+              const id = state.addDeckSlab({ polygon: prev, thicknessCm: 15, elevationCm: deckElevation, materialId: 'default-floor', type: 'custom' });
               if (id) state.select([id]);
             });
             return [];
@@ -905,7 +929,7 @@ export const EditorCanvas: React.FC = () => {
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
 
-      if (e.key === 'Escape') { cancel(); cancelRoad(); stairHandles.cancel(); setDeckPoints([]); }
+      if (e.key === 'Escape') { cancel(); cancelRoad(); stairHandles.cancel(); setDeckPoints([]); cancelArray(); }
 
       if (e.key === 'Enter' && activeTool === 'stair' && stairToolState.inProgress) {
         const pts = stairToolState.pathPoints;
@@ -998,12 +1022,18 @@ export const EditorCanvas: React.FC = () => {
         }
         
         if (activeTool === 'deck' && deckPoints.length >= 3) {
-          // Double-click to close deck polygon
+          // Double-click to close deck polygon — compute pillar elevation
+          let maxPillarTopDbl = 0;
+          for (const pt of deckPoints) {
+            const p = findNearestPillar(pt, state, 35);
+            if (p) maxPillarTopDbl = Math.max(maxPillarTopDbl, p.pillar.height + p.pillar.elevationCm);
+          }
+          const deckElevationDbl = maxPillarTopDbl > 0 ? maxPillarTopDbl : 0;
           state.recordHistory('Add Deck Slab', () => {
             const id = state.addDeckSlab({ 
               polygon: deckPoints, 
               thicknessCm: 15, 
-              elevationCm: 0, 
+              elevationCm: deckElevationDbl, 
               materialId: 'default-floor', 
               type: 'custom' 
             });
@@ -1046,6 +1076,7 @@ export const EditorCanvas: React.FC = () => {
         {activeTool === 'stair' && (
           <StairToolOverlay toolState={stairToolState} stairWidthCm={stairWidthCm} />
         )}
+        {activeTool === 'array' && <ArrayPreview items={previewItems} />}
         {dragHud && <DragReadout {...dragHud} />}
       </g>
       {/* Screen-anchored compass (outside the pan/zoom group) so it never moves or scales. */}
