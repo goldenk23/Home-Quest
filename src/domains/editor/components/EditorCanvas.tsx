@@ -40,6 +40,7 @@ import { PillarAlignmentGuide } from './PillarAlignmentGuide';
 import { snapDeckCornerOutward, extendBeamEndsToPillars } from '../services/structuralJoints';
 import { useArrayTool } from '../hooks/useArrayTool';
 import { ArrayPreview } from './ArrayPreview';
+import { ArraySourceHighlight } from './ArraySourceHighlight';
 
 /** Find nearest pillar to a given point within a maximum distance */
 function findNearestPillar(cursor: Point2D, state: AppStore, maxDistance: number = 50): { pillar: typeof state.pillars[string]; distance: number } | null {
@@ -344,9 +345,13 @@ export const EditorCanvas: React.FC = () => {
   const stairWidthCm = useAppStore((s) => s.stairWidthCm);
   const [deckPoints, setDeckPoints] = useState<Point2D[]>([]);
 
-  // Array tool
+  // Array tool. In component mode the ghost array starts anchored on the source entity and
+  // can be dragged to a new origin; the offset lives here (state, so the preview re-renders)
+  // and the in-flight drag gesture in a ref (no re-render per mouse move needed for it).
   const currentMouseWorld = useAppStore((s) => s.currentMouseWorld);
-  const { previewItems, commitAt, cancel: cancelArray } = useArrayTool(currentMouseWorld);
+  const [arrayDragOffset, setArrayDragOffset] = useState<Point2D | null>(null);
+  const arrayDragRef = useRef<{ start: Point2D; base: Point2D | null } | null>(null);
+  const { previewItems, previewOrigin, commitAt, cancel: cancelArray } = useArrayTool(currentMouseWorld, arrayDragOffset);
 
   const viewTransformRef = useRef(viewTransform);
   viewTransformRef.current = viewTransform;
@@ -453,6 +458,47 @@ export const EditorCanvas: React.FC = () => {
       handlers.onMouseDown(e); // pan (alt / middle) — no-ops otherwise
       if (e.button !== 0 || e.altKey) return;
 
+      if (activeTool === 'array') {
+        const cursor = computeWorld(e);
+        if (!cursor) return;
+        const state = useAppStore.getState();
+        const config = state.arrayConfig;
+        // Building and catalog (furniture/pillar) modes keep their click-to-place flow —
+        // entity clicks must not override the mode chosen in the panel.
+        if (config.entityType === 'building' || config.entityType === 'furniture' || config.entityType === 'pillar') return;
+
+        // Pick the replication source with the same hit-test chain the Select tool uses.
+        const hitId =
+          hitTestFurniture(cursor, state.furniture, GRAB_MARGIN) ??
+          hitTestWall(cursor, state) ??
+          hitTestPillar(cursor, state, GRAB_MARGIN) ??
+          hitTestBeam(cursor, state, GRAB_MARGIN) ??
+          hitTestDeckSlab(cursor, state) ??
+          hitTestRailing(cursor, state, GRAB_MARGIN) ??
+          hitTestRoad(cursor, state);
+
+        if (hitId) {
+          if (hitId !== config.referenceId) {
+            // New source: any cloneable entity becomes a 'component' array source, and the
+            // ghost preview re-anchors on the entity's own center.
+            state.setArrayConfig({ entityType: 'component', referenceId: hitId, isPreviewing: true });
+            setArrayDragOffset(null);
+            arrayDragRef.current = { start: cursor, base: null };
+          } else {
+            // Pressed the existing source again: start dragging the ghost array from its
+            // current offset so repeated drags accumulate instead of jumping back.
+            arrayDragRef.current = { start: cursor, base: arrayDragOffset };
+          }
+          didDragRef.current = false;
+        } else if (config.entityType === 'component' && config.referenceId) {
+          // Empty-space press with a source set: also allow dragging the ghosts from
+          // anywhere. A plain click (no movement) does nothing and keeps the source.
+          arrayDragRef.current = { start: cursor, base: arrayDragOffset };
+          didDragRef.current = false;
+        }
+        return;
+      }
+
       if (activeTool === 'select') {
         const cursor = computeWorld(e);
         if (!cursor) return;
@@ -556,7 +602,7 @@ export const EditorCanvas: React.FC = () => {
         if (svgRef.current) svgRef.current.style.cursor = 'grabbing';
       }
     },
-    [handlers, activeTool, computeWorld]
+    [handlers, activeTool, computeWorld, arrayDragOffset]
   );
 
   const handleMouseMove = useCallback(
@@ -580,6 +626,18 @@ export const EditorCanvas: React.FC = () => {
       if (!snapped) return;
       useAppStore.setState({ currentMouseWorld: snapped });
       if (activeTool === 'stair') stairHandles.handleMove(snapped);
+
+      // Array tool: drag the ghost array to reposition its origin (snapped world coords).
+      if (activeTool === 'array' && arrayDragRef.current) {
+        const { start, base } = arrayDragRef.current;
+        const dx = snapped.x - start.x;
+        const dy = snapped.y - start.y;
+        if (dx !== 0 || dy !== 0) {
+          didDragRef.current = true;
+          setArrayDragOffset({ x: (base?.x ?? 0) + dx, y: (base?.y ?? 0) + dy });
+        }
+        return;
+      }
 
       // Drag the selected component by the world-space delta (smooth — no jump-to-cursor).
       const drag = dragRef.current;
@@ -640,6 +698,19 @@ export const EditorCanvas: React.FC = () => {
     (e: React.MouseEvent<SVGSVGElement>) => {
       handlers.onMouseUp();
       void e;
+
+      // Array tool: releasing a ghost-array drag commits the clones at the final positions.
+      // A press without movement was just source selection — nothing to commit.
+      if (arrayDragRef.current) {
+        arrayDragRef.current = null;
+        if (didDragRef.current && previewOrigin) {
+          commitAt(previewOrigin);
+          setArrayDragOffset(null); // re-anchor the ghosts on the source for the next array
+        }
+        // didDragRef stays true so the ensuing click event is swallowed (reset there).
+        return;
+      }
+
       // Smart-align the component we just dragged so the layout stays orthogonal.
       const drag = dragRef.current;
       const state = useAppStore.getState();
@@ -665,7 +736,7 @@ export const EditorCanvas: React.FC = () => {
       setDragHud(null);
       if (svgRef.current) svgRef.current.style.cursor = '';
     },
-    [handlers, smartAlign]
+    [handlers, smartAlign, commitAt, previewOrigin]
   );
 
   const handleSvgClick = useCallback(
@@ -756,6 +827,11 @@ export const EditorCanvas: React.FC = () => {
       }
 
       if (activeTool === 'array') {
+        const config = state.arrayConfig;
+        // Component sourcing/dragging is handled in mousedown/mousemove/mouseup. A click on
+        // empty space intentionally does nothing so the current source (if any) is kept.
+        if (config.entityType === 'component' || config.entityType === null) return;
+        // Building / catalog modes keep their click-to-place behavior.
         commitAt(cursor);
         return;
       }
@@ -994,7 +1070,7 @@ export const EditorCanvas: React.FC = () => {
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
 
-      if (e.key === 'Escape') { cancel(); cancelRoad(); stairHandles.cancel(); setDeckPoints([]); cancelArray(); }
+      if (e.key === 'Escape') { cancel(); cancelRoad(); stairHandles.cancel(); setDeckPoints([]); cancelArray(); arrayDragRef.current = null; setArrayDragOffset(null); }
 
       if (e.key === 'Enter' && activeTool === 'stair' && stairToolState.inProgress) {
         const pts = stairToolState.pathPoints;
@@ -1144,6 +1220,7 @@ export const EditorCanvas: React.FC = () => {
         {activeTool === 'stair' && (
           <StairToolOverlay toolState={stairToolState} stairWidthCm={stairWidthCm} />
         )}
+        {activeTool === 'array' && <ArraySourceHighlight />}
         {activeTool === 'array' && <ArrayPreview items={previewItems} />}
         {dragHud && <DragReadout {...dragHud} />}
       </g>

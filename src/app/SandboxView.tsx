@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store';
+import { useArrayTool } from '../domains/editor/hooks/useArrayTool';
 import { SnappingTestSandbox } from '../domains/editor/components/SnappingTestSandbox';
 import { EditorScreen } from '../domains/editor/components/EditorScreen';
 import { FloorSwitcher } from '../domains/editor/components/FloorSwitcher';
@@ -206,10 +207,29 @@ export const SandboxView: React.FC = () => {
   const setRailingStyle = useAppStore((s) => s.setRailingStyle);
   const beamElevationCm = useAppStore((s) => s.beamElevationCm);
   const setBeamElevation = useAppStore((s) => s.setBeamElevation);
-  // Array tool
+  // Array tool. The hook exposes the source label ("Sofa", "Pillar", …), the preview origin
+  // (the source entity's center when no drag is in flight), and commitAt for the panel's
+  // "Place Array" button — the no-drag alternative to dragging the ghosts in the canvas.
   const arrayConfig = useAppStore((s) => s.arrayConfig);
   const setArrayConfig = useAppStore((s) => s.setArrayConfig);
   const resetArrayConfig = useAppStore((s) => s.resetArrayConfig);
+  const { commitAt: commitArray, previewOrigin: arrayPreviewOrigin, sourceLabel: arraySourceLabel } = useArrayTool(null);
+  const [arraySourceWarning, setArraySourceWarning] = useState(false);
+
+  // If the source entity is deleted while the array tool is active, reset the source and
+  // surface a warning so the user knows to pick a new one.
+  useEffect(() => {
+    if (activeTool !== 'array') {
+      setArraySourceWarning(false);
+      return;
+    }
+    if (arrayConfig.entityType === 'component' && arrayConfig.referenceId && !arraySourceLabel) {
+      setArrayConfig({ referenceId: null, isPreviewing: false });
+      setArraySourceWarning(true);
+    } else if (arrayConfig.referenceId && arraySourceLabel) {
+      setArraySourceWarning(false);
+    }
+  }, [activeTool, arrayConfig.entityType, arrayConfig.referenceId, arraySourceLabel, setArrayConfig]);
   const stairError = useAppStore((s) => s.activeTool === 'stair' ? null : null); // sourced from tool state in EditorCanvas
   void stairError;
   const paintFinishId = useAppStore((s) => s.paintFinishId);
@@ -702,26 +722,37 @@ export const SandboxView: React.FC = () => {
 
         {activeTool === 'array' && (
           <>
-            <Row label="Entity">
-              <button style={btn(arrayConfig.entityType === 'furniture', '#0ea5e9')} onClick={() => setArrayConfig({ entityType: 'furniture', isPreviewing: true })}>
-                🛋️ Furniture
+            <Row label="Source">
+              {arrayConfig.entityType === 'component' && arrayConfig.referenceId && arraySourceLabel ? (
+                <>
+                  <span style={{
+                    padding: '0.3rem 0.7rem', background: '#ede9fe', color: '#6d28d9',
+                    borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700,
+                    border: '1px solid #8b5cf6',
+                  }}>
+                    🎯 Source: {arraySourceLabel}
+                  </span>
+                  <button style={btn(false, '#64748b')} onClick={() => setArrayConfig({ entityType: null, referenceId: null, isPreviewing: false })}>
+                    ✕ Clear
+                  </button>
+                </>
+              ) : (
+                <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                  Click an entity in the canvas (furniture, wall, pillar, beam, deck, railing, road) to replicate it.
+                </span>
+              )}
+              {arraySourceWarning && (
+                <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>
+                  ⚠ The source entity was deleted — click another entity to pick a new source.
+                </span>
+              )}
+            </Row>
+            <Row label="Other modes">
+              <button style={btn(arrayConfig.entityType === 'furniture', '#0ea5e9')} onClick={() => setArrayConfig({ entityType: 'furniture', referenceId: null, isPreviewing: true })}>
+                🛋️ Furniture (catalog)
               </button>
-              <button style={btn(arrayConfig.entityType === 'pillar', '#475569')} onClick={() => setArrayConfig({ entityType: 'pillar', isPreviewing: true })}>
-                🏛️ Pillar
-              </button>
-              <button style={btn(arrayConfig.entityType === 'building', '#10b981')} onClick={() => setArrayConfig({ entityType: 'building', isPreviewing: true })}>
+              <button style={btn(arrayConfig.entityType === 'building', '#10b981')} onClick={() => setArrayConfig({ entityType: 'building', referenceId: null, isPreviewing: true })}>
                 🏠 Building
-              </button>
-              <button style={btn(arrayConfig.entityType === 'component', '#8b5cf6')} onClick={() => {
-                const state = useAppStore.getState();
-                const id = state.selectedIds[0];
-                if (id) {
-                  setArrayConfig({ entityType: 'component', referenceId: id, isPreviewing: true });
-                } else {
-                  alert('Please select a component first (furniture, wall, pillar, beam, deck, railing, or road).');
-                }
-              }}>
-                🎯 Component
               </button>
               {arrayConfig.entityType === 'furniture' && (
                 <select
@@ -777,10 +808,20 @@ export const SandboxView: React.FC = () => {
               <button style={btn(false, '#6366f1')} onClick={() => setArrayConfig({ angle: Math.PI / 2 })}>↺ 90°</button>
             </Row>
             <Row label="Preview">
+              {arrayConfig.entityType === 'component' && arrayConfig.referenceId && (
+                <button
+                  style={btn(true, '#8b5cf6')}
+                  onClick={() => { if (arrayPreviewOrigin) commitArray(arrayPreviewOrigin); }}
+                >
+                  ✓ Place Array
+                </button>
+              )}
               <button style={btn(true, '#10b981')} onClick={() => setArrayConfig({ isPreviewing: true })}>👁️ Show Preview</button>
               <button style={btn(false, '#ef4444')} onClick={() => { resetArrayConfig(); }}>✕ Cancel</button>
               <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
-                Click in the editor to place the array. <kbd>Esc</kbd> to cancel.
+                {arrayConfig.entityType === 'component'
+                  ? <>Drag the ghosts in the editor to position, release to place — or use <em>Place Array</em>. <kbd>Esc</kbd> to cancel.</>
+                  : <>Click in the editor to place the array. <kbd>Esc</kbd> to cancel.</>}
               </span>
             </Row>
           </>
