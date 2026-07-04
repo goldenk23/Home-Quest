@@ -8,6 +8,7 @@ import { castDraft } from 'immer';
 import { validateAddWall } from '@/store/guards/storeGuards';
 import type { StairEntity } from '@/types/stair';
 import { cloneGeometry, type BuildingGeometry } from '@/domains/editor/services/buildingClone';
+import { cloneComponent, type ComponentCloneGeometry } from '@/domains/editor/services/componentClone';
 
 export interface EditorSlice {
     // State
@@ -44,6 +45,7 @@ export interface EditorSlice {
     /** Add a road segment (standalone; not part of the wall/vertex graph). */
     addRoad: (start: Point2D, end: Point2D, width?: number) => EntityId;
     removeRoad: (id: EntityId) => void;
+    moveRoad: (id: EntityId, delta: Point2D) => void;
 
     /** Place a computed StairEntity (from stairBuilder) on the active floor. */
     addStair: (stair: StairEntity) => void;
@@ -70,6 +72,8 @@ export interface EditorSlice {
      *  furniture) once per offset vector, appending each copy to the current floor. Used by
      *  the Array tool's "building" mode to duplicate a constructed unit. Returns new ids. */
     duplicateBuilding: (offsets: Point2D[]) => EntityId[];
+    /** Clone a selected component once per offset vector. Returns the top-level cloned ids. */
+    duplicateComponent: (componentId: EntityId, offsets: Point2D[]) => EntityId[];
 
     setRooms: (rooms: Record<EntityId, Room>) => void;
     updateRoom: (id: EntityId, patch: Partial<Pick<Room, 'roomType' | 'label' | 'floorMaterialId'>>) => void;
@@ -320,6 +324,16 @@ export const createEditorSlice: StateCreator<
         });
     },
 
+    moveRoad: (id, delta) => {
+        set((state) => {
+            const road = state.roads[id];
+            if (road) {
+                road.start = { x: road.start.x + delta.x, y: road.start.y + delta.y };
+                road.end = { x: road.end.x + delta.x, y: road.end.y + delta.y };
+            }
+        });
+    },
+
     addStair: (stair) => {
         set((state) => {
             state.stairs[stair.id] = castDraft(stair);
@@ -419,6 +433,32 @@ export const createEditorSlice: StateCreator<
                 Object.assign(state.railings, castDraft(clone.railings));
                 Object.assign(state.furniture, castDraft(clone.furniture));
                 created.push(...Object.keys(clone.pillars), ...Object.keys(clone.walls));
+            }
+        });
+        return created;
+    },
+
+    duplicateComponent: (componentId, offsets) => {
+        const created: EntityId[] = [];
+        set((state) => {
+            const src: ComponentCloneGeometry = {
+                vertices: state.vertices, walls: state.walls, openings: state.openings,
+                pillars: state.pillars, beams: state.beams, deckSlabs: state.deckSlabs,
+                railings: state.railings, furniture: state.furniture, roads: state.roads,
+            };
+            for (const offset of offsets) {
+                const clone = cloneComponent(src, componentId, offset, generateId);
+                if (!clone) continue;
+                Object.assign(state.vertices, castDraft(clone.vertices));
+                Object.assign(state.walls, castDraft(clone.walls));
+                Object.assign(state.openings, castDraft(clone.openings));
+                Object.assign(state.pillars, castDraft(clone.pillars));
+                Object.assign(state.beams, castDraft(clone.beams));
+                Object.assign(state.deckSlabs, castDraft(clone.deckSlabs));
+                Object.assign(state.railings, castDraft(clone.railings));
+                Object.assign(state.furniture, castDraft(clone.furniture));
+                Object.assign(state.roads, castDraft(clone.roads));
+                created.push(...clone.createdIds);
             }
         });
         return created;

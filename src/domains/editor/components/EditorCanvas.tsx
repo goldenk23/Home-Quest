@@ -352,7 +352,7 @@ export const EditorCanvas: React.FC = () => {
   viewTransformRef.current = viewTransform;
 
   // Drag state (refs avoid re-renders on every mouse move).
-  const dragRef = useRef<{ kind: 'furniture' | 'wall' | 'pillar' | 'beam' | 'deck' | 'railing' | 'gizmo-rotate' | 'gizmo-scale'; id: string; baseScale?: number; baseDist?: number } | null>(null);
+  const dragRef = useRef<{ kind: 'furniture' | 'wall' | 'pillar' | 'beam' | 'deck' | 'railing' | 'road' | 'gizmo-rotate' | 'gizmo-scale'; id: string; baseScale?: number; baseDist?: number } | null>(null);
   const dragLastWorldRef = useRef<Point2D | null>(null);
   const didDragRef = useRef(false);
   // Grab-to-pan state (left-drag on empty space while using the Select tool).
@@ -372,7 +372,7 @@ export const EditorCanvas: React.FC = () => {
    *  - Walls: snaps the moved endpoints to the grid and straightens every wall meeting
    *    them that is near-axis-aligned (horizontal/vertical), restoring orthogonality.
    */
-  const smartAlign = useCallback((drag: { kind: 'furniture' | 'wall' | 'pillar' | 'beam' | 'deck' | 'railing' | 'gizmo-rotate' | 'gizmo-scale'; id: string }) => {
+  const smartAlign = useCallback((drag: { kind: 'furniture' | 'wall' | 'pillar' | 'beam' | 'deck' | 'railing' | 'road' | 'gizmo-rotate' | 'gizmo-scale'; id: string }) => {
     const st = useAppStore.getState();
     const grid = st.snapConfig.gridSize || 10;
     const snap = (v: number) => Math.round(v / grid) * grid;
@@ -393,7 +393,7 @@ export const EditorCanvas: React.FC = () => {
       return;
     }
 
-    if (drag.kind === 'beam' || drag.kind === 'deck' || drag.kind === 'railing') return;
+    if (drag.kind === 'beam' || drag.kind === 'deck' || drag.kind === 'railing' || drag.kind === 'road') return;
     
     if (drag.kind === 'gizmo-rotate' || drag.kind === 'gizmo-scale') return;
 
@@ -538,6 +538,16 @@ export const EditorCanvas: React.FC = () => {
           setDragHud({ sx: cursor.x, sy: cursor.y, cx: cursor.x, cy: cursor.y });
           return;
         }
+        const roadId = hitTestRoad(cursor, state);
+        if (roadId) {
+          state.select([roadId]);
+          state.beginTransaction();
+          dragRef.current = { kind: 'road', id: roadId };
+          dragLastWorldRef.current = cursor;
+          didDragRef.current = false;
+          setDragHud({ sx: cursor.x, sy: cursor.y, cx: cursor.x, cy: cursor.y });
+          return;
+        }
 
         // 2) Empty space → grab the whole diagram to pan it.
         panningRef.current = true;
@@ -606,6 +616,8 @@ export const EditorCanvas: React.FC = () => {
             state.moveDeckSlab(drag.id, { x: dx, y: dy });
           } else if (drag.kind === 'railing') {
             state.moveRailing(drag.id, { x: dx, y: dy });
+          } else if (drag.kind === 'road') {
+            state.moveRoad(drag.id, { x: dx, y: dy });
           } else {
             const wall = state.walls[drag.id];
             if (wall) {
@@ -1052,6 +1064,7 @@ export const EditorCanvas: React.FC = () => {
             drag.kind === 'beam' ? 'Move Beam' :
             drag.kind === 'deck' ? 'Move Deck' :
             drag.kind === 'railing' ? 'Move Railing' :
+            drag.kind === 'road' ? 'Move Road' :
             drag.kind === 'pillar' ? 'Move Pillar' : 'Move Furniture';
           state.commitTransaction(label);
         } else {

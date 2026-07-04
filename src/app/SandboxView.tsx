@@ -712,6 +712,17 @@ export const SandboxView: React.FC = () => {
               <button style={btn(arrayConfig.entityType === 'building', '#10b981')} onClick={() => setArrayConfig({ entityType: 'building', isPreviewing: true })}>
                 🏠 Building
               </button>
+              <button style={btn(arrayConfig.entityType === 'component', '#8b5cf6')} onClick={() => {
+                const state = useAppStore.getState();
+                const id = state.selectedIds[0];
+                if (id) {
+                  setArrayConfig({ entityType: 'component', referenceId: id, isPreviewing: true });
+                } else {
+                  alert('Please select a component first (furniture, wall, pillar, beam, deck, railing, or road).');
+                }
+              }}>
+                🎯 Component
+              </button>
               {arrayConfig.entityType === 'furniture' && (
                 <select
                   value={arrayConfig.referenceId ?? furnitureCatalogId}

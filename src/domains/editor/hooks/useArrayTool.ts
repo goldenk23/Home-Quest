@@ -4,12 +4,19 @@ import { getCatalogEntry } from '@/domains/viewer/hooks/useAssetLoader';
 import type { Point2D } from '@/types/geometry';
 import { generateArrayPositions } from '../services/arrayPlacement';
 import { computeBuildingBounds, type BuildingGeometry } from '../services/buildingClone';
+import { computeComponentBounds, type ComponentCloneGeometry } from '../services/componentClone';
 
 /** The building's plan-space reference point (its bounding-box center), or null when the
  *  plan is empty. Used as the array origin for building mode so the copies line up with the
  *  actual construction instead of the cursor. */
 function buildingOrigin(g: BuildingGeometry): Point2D | null {
   return computeBuildingBounds(g)?.center ?? null;
+}
+
+/** The selected component's plan-space reference point (its bounding-box center), or null. */
+function componentOrigin(componentId: string | null, g: ComponentCloneGeometry): Point2D | null {
+  if (!componentId) return null;
+  return computeComponentBounds(componentId, g)?.center ?? null;
 }
 
 export function useArrayTool(cursor: Point2D | null) {
@@ -25,6 +32,10 @@ export function useArrayTool(cursor: Point2D | null) {
   const beams = useAppStore((s) => s.beams);
   const railings = useAppStore((s) => s.railings);
 
+  const walls = useAppStore((s) => s.walls);
+  const roads = useAppStore((s) => s.roads);
+  const openings = useAppStore((s) => s.openings);
+
   const previewItems = useMemo(() => {
     if (activeTool !== 'array' || !arrayConfig.isPreviewing || !arrayConfig.entityType) return [];
     if (arrayConfig.entityType === 'building') {
@@ -32,9 +43,16 @@ export function useArrayTool(cursor: Point2D | null) {
       if (!origin) return [];
       return generateArrayPositions(origin, arrayConfig);
     }
+    if (arrayConfig.entityType === 'component') {
+      const componentId = arrayConfig.referenceId;
+      const g: ComponentCloneGeometry = { vertices, walls, openings, pillars, beams, deckSlabs, railings, furniture, roads };
+      const origin = componentOrigin(componentId, g);
+      if (!origin) return [];
+      return generateArrayPositions(origin, arrayConfig);
+    }
     if (!cursor) return [];
     return generateArrayPositions(cursor, arrayConfig);
-  }, [activeTool, arrayConfig, cursor, vertices, pillars, beams, deckSlabs, railings, furniture]);
+  }, [activeTool, arrayConfig, cursor, vertices, pillars, beams, deckSlabs, railings, furniture, walls, roads, openings]);
 
   const commitAt = useCallback((clickOrigin: Point2D): string[] => {
     const state = useAppStore.getState();
@@ -91,6 +109,15 @@ export function useArrayTool(cursor: Point2D | null) {
           const offsets = positions.slice(1).map((p) => ({ x: p.position.x - base.x, y: p.position.y - base.y }));
           if (offsets.length > 0) createdIds.push(...state.duplicateBuilding(offsets));
         }
+      } else if (config.entityType === 'component') {
+        const componentId = config.referenceId;
+        if (componentId) {
+          const base = positions[0]?.position;
+          if (base) {
+            const offsets = positions.slice(1).map((p) => ({ x: p.position.x - base.x, y: p.position.y - base.y }));
+            if (offsets.length > 0) createdIds.push(...state.duplicateComponent(componentId, offsets));
+          }
+        }
       }
 
       if (createdIds.length > 0) state.select(createdIds);
@@ -107,8 +134,13 @@ export function useArrayTool(cursor: Point2D | null) {
     const id = selectedIds[0];
     if (id && furniture[id]) return getCatalogEntry(furniture[id].catalogId).label;
     if (id && pillars[id]) return 'Selected pillar';
+    if (id && walls[id]) return 'Selected wall';
+    if (id && beams[id]) return 'Selected beam';
+    if (id && deckSlabs[id]) return 'Selected deck';
+    if (id && railings[id]) return 'Selected railing';
+    if (id && roads[id]) return 'Selected road';
     return null;
-  }, [furniture, pillars, selectedIds]);
+  }, [furniture, pillars, selectedIds, walls, beams, deckSlabs, railings, roads]);
 
   return {
     previewItems,

@@ -3,6 +3,7 @@ import { useAppStore } from '@/store';
 import { getCatalogEntry } from '@/domains/viewer/hooks/useAssetLoader';
 import type { ArrayPlacementItem } from '../services/arrayPlacement';
 import { computeBuildingBounds, type BuildingGeometry } from '../services/buildingClone';
+import { computeComponentBounds, type ComponentCloneGeometry } from '../services/componentClone';
 
 interface ArrayPreviewProps {
   items: ArrayPlacementItem[];
@@ -64,6 +65,46 @@ export const ArrayPreview: React.FC<ArrayPreviewProps> = React.memo(({ items }) 
         ))}
         {spacingLabels.map((s) => (
           <SpacingLabel key={s.key} x={s.x} y={-s.y} text={s.text} />
+        ))}
+      </g>
+    );
+  }
+
+  // Component mode: draw the selected component's real footprint at every copy position.
+  if (config.entityType === 'component') {
+    const componentId = config.referenceId;
+    if (!componentId) return null;
+    const g: ComponentCloneGeometry = {
+      vertices: store.vertices, walls: store.walls, openings: store.openings,
+      pillars: store.pillars, beams: store.beams, deckSlabs: store.deckSlabs,
+      railings: store.railings, furniture: store.furniture, roads: store.roads,
+    };
+    const bounds = computeComponentBounds(componentId, g);
+    if (!bounds) return null;
+    const w = bounds.max.x - bounds.min.x;
+    const h = bounds.max.y - bounds.min.y;
+    return (
+      <g className="array-preview" pointerEvents="none">
+        {items.length > 1 && (
+          <path d={path} fill="none" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray="10 8" opacity={0.9} />
+        )}
+        {items.map((item, idx) => (
+          <g key={item.index}>
+            <rect
+              x={item.position.x - w / 2}
+              y={-item.position.y - h / 2}
+              width={w}
+              height={h}
+              fill={idx === 0 ? 'rgba(148,163,184,0.10)' : 'rgba(139,92,246,0.14)'}
+              stroke={idx === 0 ? '#94a3b8' : '#8b5cf6'}
+              strokeWidth={2}
+              strokeDasharray={idx === 0 ? '4 6' : '10 6'}
+            />
+            <ArrayNumber x={item.position.x} y={-item.position.y} index={item.index} />
+          </g>
+        ))}
+        {spacingLabels.map((s) => (
+          <SpacingLabel key={`comp-${s.key}`} x={s.x} y={-s.y} text={s.text} />
         ))}
       </g>
     );

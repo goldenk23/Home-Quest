@@ -25,6 +25,7 @@ export const SelectionLayer: React.FC = React.memo(() => {
   const beams = useAppStore((s) => s.beams);
   const deckSlabs = useAppStore((s) => s.deckSlabs);
   const railings = useAppStore((s) => s.railings);
+  const roads = useAppStore((s) => s.roads);
 
   if (selectedIds.length === 0) return null;
 
@@ -167,6 +168,20 @@ export const SelectionLayer: React.FC = React.memo(() => {
         const railing = railings[id];
         if (railing) {
           const q = computeWallQuad(railing.start, railing.end, 20 + EDITOR_STYLE.selectionStrokeWidth * 2);
+          return (
+            <path
+              key={id}
+              d={quadPath(q.topLeft, q.topRight, q.bottomRight, q.bottomLeft)}
+              fill={EDITOR_STYLE.selectionGlow}
+              stroke={EDITOR_STYLE.selectionStroke}
+              strokeWidth={EDITOR_STYLE.selectionStrokeWidth}
+            />
+          );
+        }
+
+        const road = roads[id];
+        if (road) {
+          const q = computeWallQuad(road.start, road.end, road.width + EDITOR_STYLE.selectionStrokeWidth * 2);
           return (
             <path
               key={id}
