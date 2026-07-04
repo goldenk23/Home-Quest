@@ -346,7 +346,15 @@ export const EditorCanvas: React.FC = () => {
 
   // Array tool
   const currentMouseWorld = useAppStore((s) => s.currentMouseWorld);
-  const { previewItems, commitAt, cancel: cancelArray } = useArrayTool(currentMouseWorld);
+  const {
+    previewItems,
+    commitAt,
+    cancel: cancelArray,
+    beginDrag: beginArrayDrag,
+    updateDrag: updateArrayDrag,
+    endDrag: endArrayDrag,
+    isDragging: isArrayDragging,
+  } = useArrayTool(currentMouseWorld);
 
   const viewTransformRef = useRef(viewTransform);
   viewTransformRef.current = viewTransform;
@@ -453,6 +461,18 @@ export const EditorCanvas: React.FC = () => {
       handlers.onMouseDown(e); // pan (alt / middle) — no-ops otherwise
       if (e.button !== 0 || e.altKey) return;
 
+      if (activeTool === 'array') {
+        // Pick up the array preview at its current origin. Raw (unsnapped) world coords keep
+        // the cursor→origin pickup offset exact; snapping is applied to the ORIGIN on move.
+        if (!svgRef.current) return;
+        const rect = svgRef.current.getBoundingClientRect();
+        const raw = screenToWorld({ px: e.clientX, py: e.clientY }, rect, viewTransformRef.current);
+        if (beginArrayDrag(raw)) {
+          didDragRef.current = false;
+        }
+        return;
+      }
+
       if (activeTool === 'select') {
         const cursor = computeWorld(e);
         if (!cursor) return;
@@ -556,7 +576,7 @@ export const EditorCanvas: React.FC = () => {
         if (svgRef.current) svgRef.current.style.cursor = 'grabbing';
       }
     },
-    [handlers, activeTool, computeWorld]
+    [handlers, activeTool, computeWorld, beginArrayDrag]
   );
 
   const handleMouseMove = useCallback(
@@ -579,6 +599,18 @@ export const EditorCanvas: React.FC = () => {
       const snapped = computeWorld(e);
       if (!snapped) return;
       useAppStore.setState({ currentMouseWorld: snapped });
+
+      if (activeTool === 'array') {
+        // Drag the array preview: translate the origin by the raw cursor + pickup offset,
+        // then run the ORIGIN through the snapping pipeline (endpoint → grid) so the whole
+        // array aligns cleanly with the floor plan. No-ops when no drag is in progress.
+        const rect = svgRef.current.getBoundingClientRect();
+        const rawCursor = screenToWorld({ px: e.clientX, py: e.clientY }, rect, viewTransformRef.current);
+        const moved = updateArrayDrag(rawCursor, (p) => applySnapping(p, snapEndpoints, snapConfig));
+        if (moved) didDragRef.current = true;
+        return;
+      }
+
       if (activeTool === 'stair') stairHandles.handleMove(snapped);
 
       // Drag the selected component by the world-space delta (smooth — no jump-to-cursor).
@@ -633,13 +665,28 @@ export const EditorCanvas: React.FC = () => {
         setDragHud((prev) => (prev ? { ...prev, cx: snapped.x, cy: snapped.y } : prev));
       }
     },
-    [handlers, computeWorld, panBy, activeTool, stairHandles]
+    [handlers, computeWorld, panBy, activeTool, stairHandles, updateArrayDrag, snapEndpoints, snapConfig]
   );
 
   const handleMouseUp = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
       handlers.onMouseUp();
       void e;
+
+      if (activeTool === 'array') {
+        if (isArrayDragging) {
+          if (didDragRef.current) {
+            // Drag-to-place: commit the array at the final snapped origin.
+            endArrayDrag(true);
+          } else {
+            // Mousedown without movement — drop the drag and let the click handler
+            // commit at the cursor (the original click-to-place flow).
+            endArrayDrag(false);
+          }
+        }
+        return;
+      }
+
       // Smart-align the component we just dragged so the layout stays orthogonal.
       const drag = dragRef.current;
       const state = useAppStore.getState();
@@ -665,7 +712,7 @@ export const EditorCanvas: React.FC = () => {
       setDragHud(null);
       if (svgRef.current) svgRef.current.style.cursor = '';
     },
-    [handlers, smartAlign]
+    [handlers, smartAlign, activeTool, isArrayDragging, endArrayDrag]
   );
 
   const handleSvgClick = useCallback(
@@ -1053,6 +1100,8 @@ export const EditorCanvas: React.FC = () => {
       onMouseUp={handleMouseUp}
       onMouseLeave={() => {
         handlers.onMouseUp();
+        // Drop any in-progress array drag without committing.
+        endArrayDrag(false);
         const drag = dragRef.current;
         const state = useAppStore.getState();
         if (drag && didDragRef.current) {
