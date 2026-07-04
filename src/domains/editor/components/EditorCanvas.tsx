@@ -41,6 +41,7 @@ import { snapDeckCornerOutward, extendBeamEndsToPillars } from '../services/stru
 import { useArrayTool } from '../hooks/useArrayTool';
 import { ArrayPreview } from './ArrayPreview';
 import { ArraySourceHighlight } from './ArraySourceHighlight';
+import { componentOrigin, type ComponentCloneGeometry } from '../services/componentClone';
 
 /** Find nearest pillar to a given point within a maximum distance */
 function findNearestPillar(cursor: Point2D, state: AppStore, maxDistance: number = 50): { pillar: typeof state.pillars[string]; distance: number } | null {
@@ -350,8 +351,10 @@ export const EditorCanvas: React.FC = () => {
   // and the in-flight drag gesture in a ref (no re-render per mouse move needed for it).
   const currentMouseWorld = useAppStore((s) => s.currentMouseWorld);
   const [arrayDragOffset, setArrayDragOffset] = useState<Point2D | null>(null);
-  const arrayDragRef = useRef<{ start: Point2D; base: Point2D | null } | null>(null);
-  const { previewItems, previewOrigin, commitAt, cancel: cancelArray } = useArrayTool(currentMouseWorld, arrayDragOffset);
+  // `current` mirrors the latest offset synchronously so mouseup can commit without
+  // waiting for React to re-render (state is only for the ghost preview).
+  const arrayDragRef = useRef<{ start: Point2D; base: Point2D | null; current: Point2D | null } | null>(null);
+  const { previewItems, commitAt, cancel: cancelArray } = useArrayTool(currentMouseWorld, arrayDragOffset);
 
   const viewTransformRef = useRef(viewTransform);
   viewTransformRef.current = viewTransform;
@@ -483,17 +486,17 @@ export const EditorCanvas: React.FC = () => {
             // ghost preview re-anchors on the entity's own center.
             state.setArrayConfig({ entityType: 'component', referenceId: hitId, isPreviewing: true });
             setArrayDragOffset(null);
-            arrayDragRef.current = { start: cursor, base: null };
+            arrayDragRef.current = { start: cursor, base: null, current: null };
           } else {
             // Pressed the existing source again: start dragging the ghost array from its
             // current offset so repeated drags accumulate instead of jumping back.
-            arrayDragRef.current = { start: cursor, base: arrayDragOffset };
+            arrayDragRef.current = { start: cursor, base: arrayDragOffset, current: arrayDragOffset };
           }
           didDragRef.current = false;
         } else if (config.entityType === 'component' && config.referenceId) {
           // Empty-space press with a source set: also allow dragging the ghosts from
           // anywhere. A plain click (no movement) does nothing and keeps the source.
-          arrayDragRef.current = { start: cursor, base: arrayDragOffset };
+          arrayDragRef.current = { start: cursor, base: arrayDragOffset, current: arrayDragOffset };
           didDragRef.current = false;
         }
         return;
@@ -634,7 +637,9 @@ export const EditorCanvas: React.FC = () => {
         const dy = snapped.y - start.y;
         if (dx !== 0 || dy !== 0) {
           didDragRef.current = true;
-          setArrayDragOffset({ x: (base?.x ?? 0) + dx, y: (base?.y ?? 0) + dy });
+          const offset = { x: (base?.x ?? 0) + dx, y: (base?.y ?? 0) + dy };
+          arrayDragRef.current.current = offset;
+          setArrayDragOffset(offset);
         }
         return;
       }
@@ -701,10 +706,23 @@ export const EditorCanvas: React.FC = () => {
 
       // Array tool: releasing a ghost-array drag commits the clones at the final positions.
       // A press without movement was just source selection — nothing to commit.
+      // The origin is recomputed here from the store + the ref's synchronously-tracked
+      // offset (NOT from previewOrigin) because React may not have re-rendered since the
+      // last mousemove, which would leave previewOrigin stale mid-drag.
       if (arrayDragRef.current) {
+        const dragOffset = arrayDragRef.current.current;
         arrayDragRef.current = null;
-        if (didDragRef.current && previewOrigin) {
-          commitAt(previewOrigin);
+        if (didDragRef.current && dragOffset) {
+          const s = useAppStore.getState();
+          if (s.arrayConfig.entityType === 'component' && s.arrayConfig.referenceId) {
+            const g: ComponentCloneGeometry = {
+              vertices: s.vertices, walls: s.walls, openings: s.openings,
+              pillars: s.pillars, beams: s.beams, deckSlabs: s.deckSlabs,
+              railings: s.railings, furniture: s.furniture, roads: s.roads,
+            };
+            const center = componentOrigin(s.arrayConfig.referenceId, g);
+            if (center) commitAt({ x: center.x + dragOffset.x, y: center.y + dragOffset.y });
+          }
           setArrayDragOffset(null); // re-anchor the ghosts on the source for the next array
         }
         // didDragRef stays true so the ensuing click event is swallowed (reset there).
@@ -736,7 +754,7 @@ export const EditorCanvas: React.FC = () => {
       setDragHud(null);
       if (svgRef.current) svgRef.current.style.cursor = '';
     },
-    [handlers, smartAlign, commitAt, previewOrigin]
+    [handlers, smartAlign, commitAt]
   );
 
   const handleSvgClick = useCallback(
