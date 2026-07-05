@@ -41,6 +41,12 @@ export const ViewerCanvas: React.FC = () => {
   // full treatment.
   const heavyScene = useHeavyScene();
 
+  // Heavy scenes also skip the composer (Effects returns null), which means they render to
+  // the default framebuffer like the low tier does — and inherit the exact same depth
+  // precision problem at orbit distance (streaky z-fighting "fan" smear across the long
+  // campus blocks). So the logarithmic depth path applies to both.
+  const noComposer = lowTier || heavyScene;
+
   if (!hasWalls) {
     return (
       <EmptyState
@@ -57,7 +63,7 @@ export const ViewerCanvas: React.FC = () => {
       <Canvas
         // Remount when toggling the logarithmic-depth path, since the depth mode is fixed at
         // WebGL-context creation. Only low↔(medium/high) switches remount; medium↔high don't.
-        key={lowTier ? 'gl-logdepth' : 'gl-standard'}
+        key={noComposer ? 'gl-logdepth' : 'gl-standard'}
         shadows={!heavyScene}
         dpr={heavyScene ? 1 : [1, 2]}
         // preserveDrawingBuffer keeps the rendered frame readable so image/PDF export
@@ -68,8 +74,8 @@ export const ViewerCanvas: React.FC = () => {
           powerPreference: 'high-performance',
           stencil: false,
           preserveDrawingBuffer: true,
-          // See the lowTier note above: only the no-composer low path needs this.
-          logarithmicDepthBuffer: lowTier,
+          // See the notes above: every no-composer path (low tier or heavy scene) needs this.
+          logarithmicDepthBuffer: noComposer,
         }}
         // near is raised above the usual 0.1 to reclaim depth-buffer precision: a smaller
         // near/far ratio leaves coplanar wall faces (corners, joints) z-fighting, especially
