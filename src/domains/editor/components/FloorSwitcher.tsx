@@ -36,6 +36,7 @@ export const FloorSwitcher: React.FC = () => {
   const activeFloorId = useAppStore((s) => s.activeFloorId);
   const setActiveFloor = useAppStore((s) => s.setActiveFloor);
   const addFloor = useAppStore((s) => s.addFloor);
+  const duplicateFloor = useAppStore((s) => s.duplicateFloor);
   const removeFloor = useAppStore((s) => s.removeFloor);
   const renameFloor = useAppStore((s) => s.renameFloor);
 
@@ -70,6 +71,9 @@ export const FloorSwitcher: React.FC = () => {
 
       <button style={ghost('#16a34a')} onClick={() => addFloor()} title="Add a storey on top">
         ＋ Add Floor
+      </button>
+      <button style={ghost('#8b5cf6')} onClick={() => duplicateFloor()} title="Replicate the current storey as a new floor on top (stairs are not copied)">
+        ⧉ Duplicate Floor
       </button>
       <button
         style={{ ...ghost('#ef4444'), opacity: floors.length > 1 ? 1 : 0.5 }}
