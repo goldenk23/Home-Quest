@@ -29,9 +29,9 @@ import { defaultKindForFamily } from '@/domains/shared/openings/openingCatalog';
 export type Tool = 'select' | 'wall' | 'road' | 'pillar' | 'beam' | 'deck' | 'railing' | 'furniture' | 'array' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'ac' | 'paint' | 'room' | 'stair';
 
 export interface ArrayToolConfig {
-  /** Entity type to repeat. 'component' clones a selected component; 'building' clones the whole constructed unit. */
-  entityType: 'component' | 'furniture' | 'pillar' | 'building' | null;
-  /** Catalog id for furniture, or entity id for component arrays. */
+  /** Kind of element to replicate. 'building' clones the whole constructed unit; 'pillar' and 'furniture' clone one picked entity. */
+  entityType: 'furniture' | 'pillar' | 'building' | null;
+  /** Id of the entity picked on canvas as the replication source (pillar/furniture modes). */
   referenceId: string | null;
   /** Number of placed items. */
   count: number;
@@ -46,7 +46,7 @@ export interface ArrayToolConfig {
 const defaultArrayConfig: ArrayToolConfig = {
   entityType: null,
   referenceId: null,
-  count: 3,
+  count: 1,
   spacing: 100,
   angle: 0,
   isPreviewing: false,

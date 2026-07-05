@@ -36,30 +36,26 @@ export function useArrayTool(cursor: Point2D | null) {
   const roads = useAppStore((s) => s.roads);
   const openings = useAppStore((s) => s.openings);
 
-  // If the replication source is deleted while the tool is active, reset the source.
+  // If the replication source is deleted while the tool is active, clear the source
+  // (keep the chosen entity type so the user can pick another).
   useEffect(() => {
-    if (activeTool !== 'array' || arrayConfig.entityType !== 'component' || !arrayConfig.referenceId) return;
+    if (activeTool !== 'array' || !arrayConfig.referenceId) return;
     const g: ComponentCloneGeometry = { vertices, walls, openings, pillars, beams, deckSlabs, railings, furniture, roads };
     if (!computeComponentBounds(arrayConfig.referenceId, g)) {
-      setArrayConfig({ referenceId: null, entityType: null, isPreviewing: false });
+      setArrayConfig({ referenceId: null });
     }
-  }, [activeTool, arrayConfig.entityType, arrayConfig.referenceId, vertices, walls, openings, pillars, beams, deckSlabs, railings, furniture, roads, setArrayConfig]);
+  }, [activeTool, arrayConfig.referenceId, vertices, walls, openings, pillars, beams, deckSlabs, railings, furniture, roads, setArrayConfig]);
 
   const previewItems = useMemo(() => {
     if (activeTool !== 'array' || !arrayConfig.isPreviewing || !arrayConfig.entityType) return [];
     if (arrayConfig.entityType === 'building') {
+      // Original + `count` replicas, anchored at the building's own center.
       const origin = buildingOrigin({ vertices, walls: {}, rooms: {}, openings: {}, pillars, beams, deckSlabs, railings, furniture } as BuildingGeometry);
       if (!origin) return [];
-      return generateArrayPositions(origin, arrayConfig);
+      return generateArrayPositions(origin, { ...arrayConfig, count: arrayConfig.count + 1 });
     }
-    if (arrayConfig.entityType === 'component') {
-      const componentId = arrayConfig.referenceId;
-      const g: ComponentCloneGeometry = { vertices, walls, openings, pillars, beams, deckSlabs, railings, furniture, roads };
-      const origin = componentOrigin(componentId, g);
-      if (!origin) return [];
-      return generateArrayPositions(origin, arrayConfig);
-    }
-    if (!cursor) return [];
+    // Pillar/furniture: no preview until a source is picked; then the replicas follow the cursor.
+    if (!arrayConfig.referenceId || !cursor) return [];
     return generateArrayPositions(cursor, arrayConfig);
   }, [activeTool, arrayConfig, cursor, vertices, pillars, beams, deckSlabs, railings, furniture, walls, roads, openings]);
 
@@ -68,65 +64,39 @@ export function useArrayTool(cursor: Point2D | null) {
     const config = state.arrayConfig;
     if (state.activeTool !== 'array' || !config.entityType || !config.isPreviewing) return [];
 
-    // Building mode arrays the existing construction from its own center; every other mode
-    // places new items starting at the click point.
-    const origin = config.entityType === 'building'
-      ? buildingOrigin({
-          vertices: state.vertices, walls: state.walls, rooms: state.rooms, openings: state.openings,
-          pillars: state.pillars, beams: state.beams, deckSlabs: state.deckSlabs,
-          railings: state.railings, furniture: state.furniture,
-        })
-      : clickOrigin;
-    if (!origin) return [];
-
-    const positions = generateArrayPositions(origin, config);
     const createdIds: string[] = [];
 
     state.recordHistory('Place Array', () => {
-      if (config.entityType === 'furniture') {
-        const catalogId = config.referenceId ?? state.furnitureCatalogId;
-        const entry = getCatalogEntry(catalogId);
-        for (const item of positions) {
-          const id = state.addFurniture({
-            position: item.position,
-            rotation: config.angle,
-            scale: 1,
-            catalogId,
-            roomId: null,
-            bounds: { width: entry.bounds.width, depth: entry.bounds.depth },
-          });
-          if (id) createdIds.push(id);
-        }
-      } else if (config.entityType === 'pillar') {
-        for (const item of positions) {
-          const id = state.addPillar({
-            position: item.position,
-            width: 35,
-            depth: 35,
-            height: 300,
-            elevationCm: 0,
-            shape: 'rect',
-            materialId: 'paint-white',
-          });
-          if (id) createdIds.push(id);
-        }
-      } else if (config.entityType === 'building') {
-        // Index 0 is the existing building; only offsets 1..count-1 are cloned. Each offset
-        // is the array vector times its index, measured from the building's own origin.
+      if (config.entityType === 'building') {
+        // The building is arrayed from its own center: `count` replicas at offsets 1..count
+        // along the array vector.
+        const origin = buildingOrigin({
+          vertices: state.vertices, walls: state.walls, rooms: state.rooms, openings: state.openings,
+          pillars: state.pillars, beams: state.beams, deckSlabs: state.deckSlabs,
+          railings: state.railings, furniture: state.furniture,
+        });
+        if (!origin) return;
+        const positions = generateArrayPositions(origin, { ...config, count: config.count + 1 });
         const base = positions[0]?.position;
         if (base) {
           const offsets = positions.slice(1).map((p) => ({ x: p.position.x - base.x, y: p.position.y - base.y }));
           if (offsets.length > 0) createdIds.push(...state.duplicateBuilding(offsets));
         }
-      } else if (config.entityType === 'component') {
+      } else {
+        // Pillar/furniture: clone the picked source at the click point. Every generated
+        // position is a replica, so count=1 places exactly one copy at the cursor.
         const componentId = config.referenceId;
-        if (componentId) {
-          const base = positions[0]?.position;
-          if (base) {
-            const offsets = positions.slice(1).map((p) => ({ x: p.position.x - base.x, y: p.position.y - base.y }));
-            if (offsets.length > 0) createdIds.push(...state.duplicateComponent(componentId, offsets));
-          }
-        }
+        if (!componentId) return;
+        const g: ComponentCloneGeometry = {
+          vertices: state.vertices, walls: state.walls, openings: state.openings,
+          pillars: state.pillars, beams: state.beams, deckSlabs: state.deckSlabs,
+          railings: state.railings, furniture: state.furniture, roads: state.roads,
+        };
+        const sourceCenter = componentOrigin(componentId, g);
+        if (!sourceCenter) return;
+        const positions = generateArrayPositions(clickOrigin, config);
+        const offsets = positions.map((p) => ({ x: p.position.x - sourceCenter.x, y: p.position.y - sourceCenter.y }));
+        if (offsets.length > 0) createdIds.push(...state.duplicateComponent(componentId, offsets));
       }
 
       if (createdIds.length > 0) state.select(createdIds);
