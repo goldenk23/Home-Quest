@@ -9,6 +9,7 @@ import { SceneContent } from './SceneContent';
 import { CameraController } from './CameraController';
 import { Effects } from './Effects';
 import { useAppStore } from '@/store';
+import { useHeavyScene } from '../hooks/useHeavyScene';
 import { ModelLoadingProgress } from '@/domains/shared/components/ModelLoadingProgress';
 import { EmptyState } from '@/domains/shared/components/EmptyState';
 
@@ -34,6 +35,12 @@ export const ViewerCanvas: React.FC = () => {
   // logarithmic buffer would need special handling, so we leave them exactly as before.
   const lowTier = renderQuality === 'low';
 
+  // Very large plans (e.g. the Hall-1 campus: thousands of meshes across 3 storeys) can't
+  // afford the shadow pass — it re-renders every mesh into the shadow map each frame. For
+  // those scenes shadows are dropped and the pixel ratio capped; normal houses keep the
+  // full treatment.
+  const heavyScene = useHeavyScene();
+
   if (!hasWalls) {
     return (
       <EmptyState
@@ -51,8 +58,8 @@ export const ViewerCanvas: React.FC = () => {
         // Remount when toggling the logarithmic-depth path, since the depth mode is fixed at
         // WebGL-context creation. Only low↔(medium/high) switches remount; medium↔high don't.
         key={lowTier ? 'gl-logdepth' : 'gl-standard'}
-        shadows
-        dpr={[1, 2]}
+        shadows={!heavyScene}
+        dpr={heavyScene ? 1 : [1, 2]}
         // preserveDrawingBuffer keeps the rendered frame readable so image/PDF export
         // (canvas.toDataURL / toBlob) works at any time, not just mid-frame.
         gl={{

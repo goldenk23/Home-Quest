@@ -5,6 +5,7 @@ import { useFrame } from '@react-three/fiber';
 import { Environment, Lightformer, Sky } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore } from '@/store';
+import { useHeavyScene } from '../hooks/useHeavyScene';
 import { computeSun } from '../services/sun';
 
 /**
@@ -26,6 +27,8 @@ export const SceneEnvironment: React.FC = () => {
   const sunAzimuthDeg = useAppStore((s) => s.sunAzimuthDeg);
   const sunDirectionOverride = useAppStore((s) => s.sunDirectionOverride);
   const planCentroid3D = useAppStore((s) => s.planCentroid3D);
+  // Heavy scenes (campus-scale plans) skip the shadow pass entirely — see useHeavyScene.
+  const heavyScene = useHeavyScene();
 
   // Compute the sun from current store values. Pure + trivial cost, so safe each render.
   const sun = useMemo(
@@ -76,7 +79,7 @@ export const SceneEnvironment: React.FC = () => {
         ref={lightRef}
         intensity={sun.intensity}
         color={sun.color}
-        castShadow
+        castShadow={!heavyScene}
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera-near={0.5}
