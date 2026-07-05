@@ -48,16 +48,12 @@ export function useArrayTool(cursor: Point2D | null) {
 
   const previewItems = useMemo(() => {
     if (activeTool !== 'array' || !arrayConfig.isPreviewing || !arrayConfig.entityType) return [];
-    if (arrayConfig.entityType === 'building') {
-      // Original + `count` replicas, anchored at the building's own center.
-      const origin = buildingOrigin({ vertices, walls: {}, rooms: {}, openings: {}, pillars, beams, deckSlabs, railings, furniture } as BuildingGeometry);
-      if (!origin) return [];
-      return generateArrayPositions(origin, { ...arrayConfig, count: arrayConfig.count + 1 });
-    }
-    // Pillar/furniture: no preview until a source is picked; then the replicas follow the cursor.
-    if (!arrayConfig.referenceId || !cursor) return [];
+    // Pillar/furniture need a picked source; building just needs an existing plan.
+    if (arrayConfig.entityType !== 'building' && !arrayConfig.referenceId) return [];
+    // All modes: the replicas follow the cursor and are placed at the click point.
+    if (!cursor) return [];
     return generateArrayPositions(cursor, arrayConfig);
-  }, [activeTool, arrayConfig, cursor, vertices, pillars, beams, deckSlabs, railings, furniture, walls, roads, openings]);
+  }, [activeTool, arrayConfig, cursor]);
 
   const commitAt = useCallback((clickOrigin: Point2D): string[] => {
     const state = useAppStore.getState();
@@ -68,20 +64,17 @@ export function useArrayTool(cursor: Point2D | null) {
 
     state.recordHistory('Place Array', () => {
       if (config.entityType === 'building') {
-        // The building is arrayed from its own center: `count` replicas at offsets 1..count
-        // along the array vector.
+        // Replicas are placed at the click point: each offset is the vector from the
+        // building's own center to the clicked replica position.
         const origin = buildingOrigin({
           vertices: state.vertices, walls: state.walls, rooms: state.rooms, openings: state.openings,
           pillars: state.pillars, beams: state.beams, deckSlabs: state.deckSlabs,
           railings: state.railings, furniture: state.furniture,
         });
         if (!origin) return;
-        const positions = generateArrayPositions(origin, { ...config, count: config.count + 1 });
-        const base = positions[0]?.position;
-        if (base) {
-          const offsets = positions.slice(1).map((p) => ({ x: p.position.x - base.x, y: p.position.y - base.y }));
-          if (offsets.length > 0) createdIds.push(...state.duplicateBuilding(offsets));
-        }
+        const positions = generateArrayPositions(clickOrigin, config);
+        const offsets = positions.map((p) => ({ x: p.position.x - origin.x, y: p.position.y - origin.y }));
+        if (offsets.length > 0) createdIds.push(...state.duplicateBuilding(offsets));
       } else {
         // Pillar/furniture: clone the picked source at the click point. Every generated
         // position is a replica, so count=1 places exactly one copy at the cursor.
@@ -101,6 +94,13 @@ export function useArrayTool(cursor: Point2D | null) {
 
       if (createdIds.length > 0) state.select(createdIds);
     });
+
+    // Building mode finishes after one placement: a second click would clone the whole
+    // plan again — including the replicas just placed — compounding the geometry.
+    if (config.entityType === 'building' && createdIds.length > 0) {
+      state.resetArrayConfig();
+      state.setActiveTool('select');
+    }
 
     return createdIds;
   }, []);

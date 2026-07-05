@@ -416,11 +416,14 @@ export const createEditorSlice: StateCreator<
     duplicateBuilding: (offsets) => {
         const created: EntityId[] = [];
         set((state) => {
+            // Snapshot the source records BEFORE cloning. Without this, `src` aliases the live
+            // state records, so each offset clones the original PLUS all previous clones —
+            // exponential growth that freezes the app.
             const src: BuildingGeometry = {
-                vertices: state.vertices, walls: state.walls, rooms: state.rooms,
-                openings: state.openings, pillars: state.pillars, beams: state.beams,
-                deckSlabs: state.deckSlabs, railings: state.railings, furniture: state.furniture,
-            };
+                vertices: { ...state.vertices }, walls: { ...state.walls }, rooms: { ...state.rooms },
+                openings: { ...state.openings }, pillars: { ...state.pillars }, beams: { ...state.beams },
+                deckSlabs: { ...state.deckSlabs }, railings: { ...state.railings }, furniture: { ...state.furniture },
+            } as BuildingGeometry;
             for (const offset of offsets) {
                 const clone = cloneGeometry(src, offset, generateId);
                 Object.assign(state.vertices, castDraft(clone.vertices));

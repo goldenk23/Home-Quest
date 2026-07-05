@@ -43,17 +43,17 @@ export const ArrayPreview: React.FC<ArrayPreviewProps> = React.memo(({ items }) 
         {items.length > 1 && (
           <path d={path} fill="none" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="10 8" opacity={0.9} />
         )}
-        {items.map((item, idx) => (
+        {items.map((item) => (
           <g key={item.index}>
             <rect
               x={item.position.x - w / 2}
               y={-item.position.y - h / 2}
               width={w}
               height={h}
-              fill={idx === 0 ? 'rgba(148,163,184,0.10)' : 'rgba(16,185,129,0.14)'}
-              stroke={idx === 0 ? '#94a3b8' : '#10b981'}
+              fill="rgba(16,185,129,0.14)"
+              stroke="#10b981"
               strokeWidth={2}
-              strokeDasharray={idx === 0 ? '4 6' : '10 6'}
+              strokeDasharray="10 6"
             />
             <ArrayNumber x={item.position.x} y={-item.position.y} index={item.index} />
           </g>
