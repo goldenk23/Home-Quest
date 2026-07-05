@@ -9,6 +9,7 @@ import { SceneContent } from './SceneContent';
 import { CameraController } from './CameraController';
 import { Effects } from './Effects';
 import { useAppStore } from '@/store';
+import { useHeavyScene } from '../hooks/useHeavyScene';
 import { ModelLoadingProgress } from '@/domains/shared/components/ModelLoadingProgress';
 import { EmptyState } from '@/domains/shared/components/EmptyState';
 
@@ -34,6 +35,18 @@ export const ViewerCanvas: React.FC = () => {
   // logarithmic buffer would need special handling, so we leave them exactly as before.
   const lowTier = renderQuality === 'low';
 
+  // Very large plans (e.g. the Hall-1 campus: thousands of meshes across 3 storeys) can't
+  // afford the shadow pass — it re-renders every mesh into the shadow map each frame. For
+  // those scenes shadows are dropped and the pixel ratio capped; normal houses keep the
+  // full treatment.
+  const heavyScene = useHeavyScene();
+
+  // Heavy scenes also skip the composer (Effects returns null), which means they render to
+  // the default framebuffer like the low tier does — and inherit the exact same depth
+  // precision problem at orbit distance (streaky z-fighting "fan" smear across the long
+  // campus blocks). So the logarithmic depth path applies to both.
+  const noComposer = lowTier || heavyScene;
+
   if (!hasWalls) {
     return (
       <EmptyState
@@ -50,9 +63,9 @@ export const ViewerCanvas: React.FC = () => {
       <Canvas
         // Remount when toggling the logarithmic-depth path, since the depth mode is fixed at
         // WebGL-context creation. Only low↔(medium/high) switches remount; medium↔high don't.
-        key={lowTier ? 'gl-logdepth' : 'gl-standard'}
-        shadows
-        dpr={[1, 2]}
+        key={noComposer ? 'gl-logdepth' : 'gl-standard'}
+        shadows={!heavyScene}
+        dpr={heavyScene ? 1 : [1, 2]}
         // preserveDrawingBuffer keeps the rendered frame readable so image/PDF export
         // (canvas.toDataURL / toBlob) works at any time, not just mid-frame.
         gl={{
@@ -61,8 +74,8 @@ export const ViewerCanvas: React.FC = () => {
           powerPreference: 'high-performance',
           stencil: false,
           preserveDrawingBuffer: true,
-          // See the lowTier note above: only the no-composer low path needs this.
-          logarithmicDepthBuffer: lowTier,
+          // See the notes above: every no-composer path (low tier or heavy scene) needs this.
+          logarithmicDepthBuffer: noComposer,
         }}
         // near is raised above the usual 0.1 to reclaim depth-buffer precision: a smaller
         // near/far ratio leaves coplanar wall faces (corners, joints) z-fighting, especially

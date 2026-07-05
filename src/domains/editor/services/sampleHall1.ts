@@ -9,7 +9,7 @@ import { buildStair } from './stairBuilder';
 /**
  * "Hall-1" hostel campus, recreated from the reference map + facade photos:
  *
- * - Seven 3-storey hostel blocks (A–G), each a long rectangle of 20 equal rooms with a
+ * - Seven 3-storey hostel blocks (A–G), each a long rectangle of N_ROOMS equal rooms with a
  *   blue door opening onto an open GALLERY CORRIDOR that runs along the block's front
  *   face on EVERY floor (cream pillars, maroon solid railing panels — like the photos).
  * - The central MESS hall (with the campus centered on it), the canteen, and the open
@@ -35,7 +35,7 @@ import { buildStair } from './stairBuilder';
 const ROOM_W = 300;
 const ROOM_D = 450;
 /** Rooms per block (equal split along the length). */
-const N_ROOMS = 20;
+const N_ROOMS = 12;
 /** Block length. */
 const BLOCK_L = N_ROOMS * ROOM_W;
 /** Gallery corridor width along the block front face. */
@@ -44,8 +44,8 @@ const GAL_W = 200;
 const H = 300;
 
 /** Row bands: block length runs along y. The main corridor separates the rows. */
-const TOP = { y1: 700, y2: 700 + BLOCK_L };            //  700 … 6700
-const BOT = { y1: TOP.y2 + 200, y2: TOP.y2 + 200 + BLOCK_L }; // 6900 … 12900
+const TOP = { y1: 700, y2: 700 + BLOCK_L };
+const BOT = { y1: TOP.y2 + 200, y2: TOP.y2 + 200 + BLOCK_L };
 /** Main east–west corridor band between the rows (both ground + first floor). */
 const COR = { y1: TOP.y2, y2: BOT.y1, x1: 950, x2: 6050 };
 
@@ -68,11 +68,12 @@ const BLOCKS: BlockDef[] = [
   { letter: 'F', rx1: 6050, row: 'bottom', front: 'west' },
 ];
 
-const MESS = { x1: 2700, y1: 1000, x2: 4300, y2: 3000 };
-const CANTEEN = { x1: 2800, y1: 10000, x2: 4200, y2: 11200 };
-const OPEN_AREA = { x1: 3300, y1: 7300, x2: 4200, y2: 9700 };
+// Campus rectangles are anchored to the row bands so the layout scales with N_ROOMS.
+const MESS = { x1: 2700, y1: TOP.y1 + 300, x2: 4300, y2: TOP.y1 + 2300 };
+const CANTEEN = { x1: 2800, y1: BOT.y1 + 1500, x2: 4200, y2: BOT.y1 + 2700 };
+const OPEN_AREA = { x1: 3300, y1: BOT.y1 + 300, x2: 4200, y2: BOT.y1 + 1200 };
 /** Compound boundary (solid parapet railings — not walls, so no giant room is detected). */
-const BOUND = { x1: 200, y1: 300, x2: 6800, y2: 13600 };
+const BOUND = { x1: 200, y1: 300, x2: 6800, y2: BOT.y2 + 700 };
 /** Main gate gap in the south boundary. */
 const GATE = { x1: 3300, x2: 3700 };
 
@@ -127,7 +128,7 @@ export function loadSampleHall1(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Blocks: 20 rooms + front gallery corridor (the storey that repeats)
+// Blocks: N_ROOMS rooms + front gallery corridor (the storey that repeats)
 // ---------------------------------------------------------------------------
 
 /** Returns the gallery railing ids so the caller can strip them from the ground floor. */
@@ -147,7 +148,7 @@ function buildBlockStorey(): EntityId[] {
     // Outer gallery edge (colonnade line), inset 15cm.
     const colX = b.front === 'east' ? gx2 - 15 : gx1 + 15;
 
-    // --- Room strip walls. Long walls are built as 20 segments so partitions share
+    // --- Room strip walls. Long walls are built as N_ROOMS segments so partitions share
     // vertices with them (required for room detection).
     for (let i = 0; i < N_ROOMS; i++) {
       const ys = y1 + i * ROOM_W;
@@ -158,7 +159,7 @@ function buildBlockStorey(): EntityId[] {
       s.addOpening({ wallId: frontSeg, type: 'door', kind: 'door-room-blue', offsetCm: (ROOM_W - 90) / 2, width: 90, height: 210, elevation: 0 });
       s.addOpening({ wallId: backSeg, type: 'window', kind: 'window-standard', offsetCm: (ROOM_W - 120) / 2, width: 120, height: 120, elevation: 90 });
     }
-    // End walls + the 19 interior partitions.
+    // End walls + the interior partitions.
     s.addWall({ x: bx, y: y1 }, { x: fx, y: y1 });
     s.addWall({ x: bx, y: y1 + BLOCK_L }, { x: fx, y: y1 + BLOCK_L });
     for (let i = 1; i < N_ROOMS; i++) {
@@ -370,7 +371,7 @@ function addUpperStairs(firstId: EntityId, secondId: EntityId): void {
 
 interface RoomMapping { cx: number; cy: number; label: string; type: RoomType; floor: string }
 
-/** One mapping per room per block: "A-01" … "G-20". */
+/** One mapping per room per block: "A-01" … "G-{N_ROOMS}". */
 function blockRoomMappings(): RoomMapping[] {
   const mappings: RoomMapping[] = [];
   for (const b of BLOCKS) {

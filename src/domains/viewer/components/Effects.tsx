@@ -25,12 +25,16 @@ import React from 'react';
 import * as THREE from 'three';
 import { EffectComposer, N8AO, Bloom, SMAA, Vignette } from '@react-three/postprocessing';
 import { useAppStore } from '@/store';
+import { useHeavyScene } from '../hooks/useHeavyScene';
 
 export const Effects: React.FC = () => {
   const quality = useAppStore((s) => s.renderQuality);
+  // Campus-scale plans skip post-processing too: N8AO's depth pre-pass re-renders every
+  // mesh, which a scene with thousands of meshes cannot afford.
+  const heavyScene = useHeavyScene();
 
   // Low tier: skip the composer entirely. Returning null means zero post-processing cost.
-  if (quality === 'low') return null;
+  if (quality === 'low' || heavyScene) return null;
 
   const isHigh = quality === 'high';
 
