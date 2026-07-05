@@ -13,6 +13,7 @@ import { castDraft } from 'immer';
 import type { AppStore } from '../index';
 import type { EntityId, Floor, FloorGeometry } from '@/types/editor';
 import { generateId } from '@/utils/id';
+import { cloneGeometry } from '@/domains/editor/services/buildingClone';
 
 /** Floor-to-floor height in cm used when stacking a new storey (wall height + slab). */
 export const STORY_HEIGHT_CM = 300;
@@ -49,6 +50,8 @@ export interface FloorsSlice {
 
   /** Add a new empty storey on top, switch to it, and return its id. */
   addFloor: (name?: string) => EntityId;
+  /** Replicate the active storey as a new floor stacked on top, switch to it, and return its id. */
+  duplicateFloor: () => EntityId;
   /** Remove a storey (never the last one). If it's active, switches to a neighbour first. */
   removeFloor: (id: EntityId) => void;
   /** Park the current floor and load `id` into the working set. */
@@ -93,6 +96,45 @@ export const createFloorsSlice: StateCreator<
         s.beams = castDraft(empty.beams);
         s.deckSlabs = castDraft(empty.deckSlabs);
         s.railings = castDraft(empty.railings);
+        delete s.floorData[id];
+        s.activeFloorId = id;
+        s.selectedIds = [];
+      });
+      get().clearHistory();
+      return id;
+    },
+
+    duplicateFloor: () => {
+      const id = generateId('floor');
+      const state = get();
+      const topElevation = state.floors.reduce((max, f) => Math.max(max, f.elevationCm), 0);
+      const activeName = state.floors.find((f) => f.id === state.activeFloorId)?.name ?? 'Floor';
+      // Park the current floor, then load a deep clone (fresh ids, remapped references) of it
+      // as the new top storey. Stairs are NOT copied: they connect two specific floors.
+      const parked = readWorkingGeometry(state);
+      const clone = cloneGeometry(
+        {
+          vertices: parked.vertices, walls: parked.walls, rooms: parked.rooms,
+          openings: parked.openings, pillars: parked.pillars, beams: parked.beams,
+          deckSlabs: parked.deckSlabs, railings: parked.railings, furniture: parked.furniture,
+        },
+        { x: 0, y: 0 },
+        generateId,
+      );
+      set((s) => {
+        s.floorData[s.activeFloorId] = castDraft(parked);
+        s.floors.push({ id, name: `${activeName} Copy`, elevationCm: topElevation + STORY_HEIGHT_CM });
+        s.vertices = castDraft(clone.vertices);
+        s.walls = castDraft(clone.walls);
+        s.rooms = castDraft(clone.rooms);
+        s.furniture = castDraft(clone.furniture);
+        s.openings = castDraft(clone.openings);
+        s.roads = {};
+        s.stairs = {};
+        s.pillars = castDraft(clone.pillars);
+        s.beams = castDraft(clone.beams);
+        s.deckSlabs = castDraft(clone.deckSlabs);
+        s.railings = castDraft(clone.railings);
         delete s.floorData[id];
         s.activeFloorId = id;
         s.selectedIds = [];
