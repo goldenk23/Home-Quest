@@ -17,8 +17,8 @@ import { buildStair } from './stairBuilder';
  * - A main east–west corridor between the two block rows at BOTH ground and first floor
  *   (a two-level bridge like the night photo), with staircases connecting ground → first
  *   at the corridor and first → second inside two block galleries.
- * - A compound boundary (solid parapet) around the whole hall with a main gate + posts
- *   at the south, and a paved path from the gate into campus.
+ * - A compound wall around the whole hall whose ONLY break is the main south gate
+ *   (posts + lintel), with a paved path from the gate into campus.
  *
  * Construction strategy: the block storey (rooms + gallery slab/pillars/beams/railings)
  * is drawn once and replicated upward twice with duplicateFloor(). Everything single- or
@@ -296,24 +296,29 @@ function buildGroundCorridors(): void {
 }
 
 /**
- * Compound boundary as solid parapet railings (not walls — a closed wall loop would be
- * detected as one giant room). The main gate is a gap in the south run with two posts.
+ * Compound boundary as real walls (220cm high, 25cm thick) so it reads as a solid
+ * compound wall in 3D. The main gate gap keeps the wall chain OPEN — no closed cycle,
+ * so room detection never sees a giant campus-sized room. The gate is the only break
+ * in the perimeter: two heavy posts + a lintel beam frame the entrance.
  */
 function buildBoundaryAndGate(): void {
   const s = useAppStore.getState();
-  const parapet = (x1: number, y1: number, x2: number, y2: number) =>
-    s.addRailing({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, height: 220, elevationCm: 0, style: 'solid', materialId: C_STRUCTURE });
+  const WALL_H = 220;
+  const WALL_T = 25;
+  const compound = (x1: number, y1: number, x2: number, y2: number) =>
+    s.addWall({ x: x1, y: y1 }, { x: x2, y: y2 }, WALL_T, WALL_H);
 
-  parapet(BOUND.x1, BOUND.y1, BOUND.x2, BOUND.y1);            // north
-  parapet(BOUND.x2, BOUND.y1, BOUND.x2, BOUND.y2);            // east
-  parapet(BOUND.x1, BOUND.y1, BOUND.x1, BOUND.y2);            // west
-  parapet(BOUND.x1, BOUND.y2, GATE.x1, BOUND.y2);             // south, left of gate
-  parapet(GATE.x2, BOUND.y2, BOUND.x2, BOUND.y2);             // south, right of gate
+  compound(BOUND.x1, BOUND.y1, BOUND.x2, BOUND.y1);           // north
+  compound(BOUND.x2, BOUND.y1, BOUND.x2, BOUND.y2);           // east
+  compound(BOUND.x1, BOUND.y1, BOUND.x1, BOUND.y2);           // west
+  compound(BOUND.x1, BOUND.y2, GATE.x1, BOUND.y2);            // south, left of gate
+  compound(GATE.x2, BOUND.y2, BOUND.x2, BOUND.y2);            // south, right of gate
 
-  // Gate posts.
+  // Main gate: two heavy posts + a lintel beam spanning the opening (gate frame).
   for (const x of [GATE.x1, GATE.x2]) {
-    s.addPillar({ position: { x, y: BOUND.y2 }, width: 45, depth: 45, height: 270, elevationCm: 0, shape: 'rect', materialId: C_STRUCTURE });
+    s.addPillar({ position: { x, y: BOUND.y2 }, width: 50, depth: 50, height: 300, elevationCm: 0, shape: 'rect', materialId: C_STRUCTURE });
   }
+  s.addBeam({ start: { x: GATE.x1, y: BOUND.y2 }, end: { x: GATE.x2, y: BOUND.y2 }, width: 30, depth: 40, elevationCm: 260, materialId: C_PANEL });
 }
 
 // ---------------------------------------------------------------------------
