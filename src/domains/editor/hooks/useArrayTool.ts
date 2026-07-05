@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/store';
 import { getCatalogEntry } from '@/domains/viewer/hooks/useAssetLoader';
 import type { Point2D } from '@/types/geometry';
@@ -19,15 +19,11 @@ function componentOrigin(componentId: string | null, g: ComponentCloneGeometry):
   return computeComponentBounds(componentId, g)?.center ?? null;
 }
 
-/**
- * @param cursor Current mouse position in world space (used as the origin for cursor-anchored modes).
- * @param componentDragOffset World-space offset applied to the component-mode preview origin while
- *        the user drags the ghost array away from the source entity. Null = anchored on the source.
- */
-export function useArrayTool(cursor: Point2D | null, componentDragOffset: Point2D | null = null) {
+export function useArrayTool(cursor: Point2D | null) {
   const activeTool = useAppStore((s) => s.activeTool);
   const arrayConfig = useAppStore((s) => s.arrayConfig);
   const setArrayConfig = useAppStore((s) => s.setArrayConfig);
+  const selectedIds = useAppStore((s) => s.selectedIds);
   const furniture = useAppStore((s) => s.furniture);
   const pillars = useAppStore((s) => s.pillars);
   // Building array previews from the building's own center, not the cursor.
@@ -40,27 +36,32 @@ export function useArrayTool(cursor: Point2D | null, componentDragOffset: Point2
   const roads = useAppStore((s) => s.roads);
   const openings = useAppStore((s) => s.openings);
 
-  /** The world-space point the preview array starts from, per the active mode. */
-  const previewOrigin = useMemo((): Point2D | null => {
-    if (activeTool !== 'array' || !arrayConfig.entityType) return null;
-    if (arrayConfig.entityType === 'building') {
-      return buildingOrigin({ vertices, walls: {}, rooms: {}, openings: {}, pillars, beams, deckSlabs, railings, furniture } as BuildingGeometry);
+  // If the replication source is deleted while the tool is active, reset the source.
+  useEffect(() => {
+    if (activeTool !== 'array' || arrayConfig.entityType !== 'component' || !arrayConfig.referenceId) return;
+    const g: ComponentCloneGeometry = { vertices, walls, openings, pillars, beams, deckSlabs, railings, furniture, roads };
+    if (!computeComponentBounds(arrayConfig.referenceId, g)) {
+      setArrayConfig({ referenceId: null, entityType: null, isPreviewing: false });
     }
-    if (arrayConfig.entityType === 'component') {
-      const g: ComponentCloneGeometry = { vertices, walls, openings, pillars, beams, deckSlabs, railings, furniture, roads };
-      const center = componentOrigin(arrayConfig.referenceId, g);
-      if (!center) return null;
-      return componentDragOffset
-        ? { x: center.x + componentDragOffset.x, y: center.y + componentDragOffset.y }
-        : center;
-    }
-    return cursor;
-  }, [activeTool, arrayConfig, cursor, componentDragOffset, vertices, pillars, beams, deckSlabs, railings, furniture, walls, roads, openings]);
+  }, [activeTool, arrayConfig.entityType, arrayConfig.referenceId, vertices, walls, openings, pillars, beams, deckSlabs, railings, furniture, roads, setArrayConfig]);
 
   const previewItems = useMemo(() => {
-    if (activeTool !== 'array' || !arrayConfig.isPreviewing || !arrayConfig.entityType || !previewOrigin) return [];
-    return generateArrayPositions(previewOrigin, arrayConfig);
-  }, [activeTool, arrayConfig, previewOrigin]);
+    if (activeTool !== 'array' || !arrayConfig.isPreviewing || !arrayConfig.entityType) return [];
+    if (arrayConfig.entityType === 'building') {
+      const origin = buildingOrigin({ vertices, walls: {}, rooms: {}, openings: {}, pillars, beams, deckSlabs, railings, furniture } as BuildingGeometry);
+      if (!origin) return [];
+      return generateArrayPositions(origin, arrayConfig);
+    }
+    if (arrayConfig.entityType === 'component') {
+      const componentId = arrayConfig.referenceId;
+      const g: ComponentCloneGeometry = { vertices, walls, openings, pillars, beams, deckSlabs, railings, furniture, roads };
+      const origin = componentOrigin(componentId, g);
+      if (!origin) return [];
+      return generateArrayPositions(origin, arrayConfig);
+    }
+    if (!cursor) return [];
+    return generateArrayPositions(cursor, arrayConfig);
+  }, [activeTool, arrayConfig, cursor, vertices, pillars, beams, deckSlabs, railings, furniture, walls, roads, openings]);
 
   const commitAt = useCallback((clickOrigin: Point2D): string[] => {
     const state = useAppStore.getState();
@@ -120,20 +121,9 @@ export function useArrayTool(cursor: Point2D | null, componentDragOffset: Point2
       } else if (config.entityType === 'component') {
         const componentId = config.referenceId;
         if (componentId) {
-          // Offsets are measured from the SOURCE entity's own center so the clones land
-          // exactly where the preview ghosts sit — even after the ghost array has been
-          // dragged away from the source. A near-zero offset would clone the component
-          // exactly on top of the original, so that slot is skipped (it's the original).
-          const g: ComponentCloneGeometry = {
-            vertices: state.vertices, walls: state.walls, openings: state.openings,
-            pillars: state.pillars, beams: state.beams, deckSlabs: state.deckSlabs,
-            railings: state.railings, furniture: state.furniture, roads: state.roads,
-          };
-          const center = componentOrigin(componentId, g);
-          if (center) {
-            const offsets = positions
-              .map((p) => ({ x: p.position.x - center.x, y: p.position.y - center.y }))
-              .filter((o) => Math.hypot(o.x, o.y) > 0.5);
+          const base = positions[0]?.position;
+          if (base) {
+            const offsets = positions.slice(1).map((p) => ({ x: p.position.x - base.x, y: p.position.y - base.y }));
             if (offsets.length > 0) createdIds.push(...state.duplicateComponent(componentId, offsets));
           }
         }
@@ -149,26 +139,22 @@ export function useArrayTool(cursor: Point2D | null, componentDragOffset: Point2
     setArrayConfig({ isPreviewing: false });
   }, [setArrayConfig]);
 
-  /** Human-readable label for the current array source entity (component mode), or null. */
-  const sourceLabel = useMemo(() => {
-    if (arrayConfig.entityType !== 'component') return null;
-    const id = arrayConfig.referenceId;
-    if (!id) return null;
-    if (furniture[id]) return getCatalogEntry(furniture[id].catalogId).label;
-    if (pillars[id]) return 'Pillar';
-    if (walls[id]) return 'Wall';
-    if (beams[id]) return 'Beam';
-    if (deckSlabs[id]) return 'Deck';
-    if (railings[id]) return 'Railing';
-    if (roads[id]) return 'Road';
+  const selectedReferenceLabel = useMemo(() => {
+    const id = selectedIds[0];
+    if (id && furniture[id]) return getCatalogEntry(furniture[id].catalogId).label;
+    if (id && pillars[id]) return 'Selected pillar';
+    if (id && walls[id]) return 'Selected wall';
+    if (id && beams[id]) return 'Selected beam';
+    if (id && deckSlabs[id]) return 'Selected deck';
+    if (id && railings[id]) return 'Selected railing';
+    if (id && roads[id]) return 'Selected road';
     return null;
-  }, [arrayConfig.entityType, arrayConfig.referenceId, furniture, pillars, walls, beams, deckSlabs, railings, roads]);
+  }, [furniture, pillars, selectedIds, walls, beams, deckSlabs, railings, roads]);
 
   return {
     previewItems,
-    previewOrigin,
     commitAt,
     cancel,
-    sourceLabel,
+    selectedReferenceLabel,
   };
 }
