@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { useTexture } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
+import { useAppStore } from '@/store';
 
 /**
  * The outdoor lawn the house sits on.
@@ -22,8 +23,11 @@ import { useThree } from '@react-three/fiber';
 
 /** Physical size, in metres, that one texture tile covers on the ground. */
 const GRASS_TILE_METERS = 5;
-/** Side length of the (square) ground plane, in metres. */
-const GROUND_SIZE = 100;
+/**
+ * Side length of the (square) ground plane, in metres. Sized for campus-scale plans
+ * (Hall-1 spans roughly 66 m × 110 m) with generous margin on every side.
+ */
+const GROUND_SIZE = 400;
 
 const GRASS_TEXTURES = {
   map: '/textures/grass/aerial_grass_rock_diff_2k.jpg',
@@ -33,6 +37,12 @@ const GRASS_TEXTURES = {
 
 export const GroundPlane: React.FC = () => {
   const gl = useThree((s) => s.gl);
+
+  // Keep the lawn centered under the plan so buildings never hang off the edge of the
+  // field, wherever they were drawn. Falls back to the world origin for empty plans.
+  const planCentroid3D = useAppStore((s) => s.planCentroid3D);
+  const cx = planCentroid3D?.x ?? 0;
+  const cz = planCentroid3D?.z ?? 0;
 
   // Suspends until the three maps are decoded (we're already inside the canvas Suspense).
   const { map, normalMap, roughnessMap } = useTexture(GRASS_TEXTURES);
@@ -55,7 +65,7 @@ export const GroundPlane: React.FC = () => {
   // Sits a few cm below the room floors AND carries a positive polygonOffset, so from a
   // top-down orbit view the lawn can never win the depth test and bleed through a floor.
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.06, 0]} receiveShadow>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[cx, -0.06, cz]} receiveShadow>
       <planeGeometry args={[GROUND_SIZE, GROUND_SIZE]} />
       <meshStandardMaterial
         map={map}
