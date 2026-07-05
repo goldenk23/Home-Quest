@@ -26,18 +26,28 @@ export function detectRooms(
   const rooms: Room[] = [];
   const visitedEdges = new Set<string>();
 
-  // Build both directed edges for every wall.
+  // Build both directed edges for every wall, indexed by their source vertex. The index
+  // makes each traceCycle step O(degree) instead of O(all edges) — on large plans (e.g.
+  // the Hall-1 campus with ~700 walls) the flat scan made every wall change freeze the
+  // app for seconds.
   const directedEdges: DirectedEdge[] = [];
+  const edgesByFrom = new Map<EntityId, DirectedEdge[]>();
+  const pushEdge = (e: DirectedEdge) => {
+    directedEdges.push(e);
+    const bucket = edgesByFrom.get(e.fromVertexId);
+    if (bucket) bucket.push(e);
+    else edgesByFrom.set(e.fromVertexId, [e]);
+  };
   for (const wall of Object.values(walls)) {
-    directedEdges.push({ wallId: wall.id, fromVertexId: wall.startVertexId, toVertexId: wall.endVertexId });
-    directedEdges.push({ wallId: wall.id, fromVertexId: wall.endVertexId, toVertexId: wall.startVertexId });
+    pushEdge({ wallId: wall.id, fromVertexId: wall.startVertexId, toVertexId: wall.endVertexId });
+    pushEdge({ wallId: wall.id, fromVertexId: wall.endVertexId, toVertexId: wall.startVertexId });
   }
 
   for (const startEdge of directedEdges) {
     const key = `${startEdge.fromVertexId}->${startEdge.toVertexId}`;
     if (visitedEdges.has(key)) continue;
 
-    const cycle = traceCycle(startEdge, vertices, directedEdges);
+    const cycle = traceCycle(startEdge, vertices, edgesByFrom);
     if (!cycle) continue;
 
     // Mark every directed edge of this loop as used so we don't trace it again.
@@ -71,7 +81,7 @@ export function detectRooms(
 function traceCycle(
   startEdge: DirectedEdge,
   vertices: Record<EntityId, Vertex>,
-  allEdges: DirectedEdge[]
+  edgesByFrom: Map<EntityId, DirectedEdge[]>
 ): EntityId[] | null {
   const MAX_CYCLE_LENGTH = 100;
   const cycle: EntityId[] = [startEdge.fromVertexId];
@@ -93,7 +103,8 @@ function traceCycle(
     );
 
     // All ways out of currentTo except straight back where we came from.
-    const outgoing = allEdges.filter((e) => e.fromVertexId === currentTo && e.toVertexId !== currentFrom);
+    const candidates = edgesByFrom.get(currentTo) ?? [];
+    const outgoing = candidates.filter((e) => e.toVertexId !== currentFrom);
     if (outgoing.length === 0) return null; // dead end
 
     // Pick the next edge CLOCKWISE from the reverse of the edge we arrived on (i.e. the
