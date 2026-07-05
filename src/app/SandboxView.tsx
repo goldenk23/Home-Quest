@@ -13,6 +13,7 @@ import { useGlbWallDiscovery } from '../domains/shared/hooks/useGlbWallDiscovery
 import { kindsForFamily, getOpeningKind, type OpeningFamily } from '../domains/shared/openings/openingCatalog';
 import { formatClock, azimuthLabel, dayPhase } from '../domains/viewer/services/sun';
 import { loadSampleHouse } from '../domains/editor/services/samplePlan';
+import { loadSampleHall1 } from '../domains/editor/services/sampleHall1';
 import { exportFloorPlan, importFloorPlan } from '../store/persistence/fileIO';
 import { exportEditor2D, exportViewer3D, type ImageExportFormat } from '../store/persistence/imageExport';
 import type { RoomType } from '../types/editor';
@@ -951,6 +952,7 @@ export const SandboxView: React.FC = () => {
 
         <Row label="Plan">
           <button style={btn(false, '#8b5cf6')} onClick={loadSampleHouse}>🏠 Load Sample House</button>
+          <button style={btn(false, '#10b981')} onClick={loadSampleHall1}>🏢 Load Hall-1 Campus</button>
           <button style={btn(false, '#0ea5e9')} onClick={() => useAppStore.getState().requestFitView()}>🎯 Center View</button>
           <button style={btn(false, '#ef4444')} onClick={() => { clearAllWithHistory(); }}>♻️ Clear All</button>
         </Row>
