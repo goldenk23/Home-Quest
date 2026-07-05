@@ -1,6 +1,5 @@
 import React from 'react';
 import { useAppStore } from '@/store';
-import { getCatalogEntry } from '@/domains/viewer/hooks/useAssetLoader';
 import type { ArrayPlacementItem } from '../services/arrayPlacement';
 import { computeBuildingBounds, type BuildingGeometry } from '../services/buildingClone';
 import { computeComponentBounds, type ComponentCloneGeometry } from '../services/componentClone';
@@ -14,10 +13,6 @@ export const ArrayPreview: React.FC<ArrayPreviewProps> = React.memo(({ items }) 
   const store = useAppStore.getState();
 
   if (items.length === 0 || !config.entityType) return null;
-
-  const furnitureEntry = config.entityType === 'furniture'
-    ? getCatalogEntry(config.referenceId ?? store.furnitureCatalogId)
-    : null;
 
   const path = items.map((item, index) => `${index === 0 ? 'M' : 'L'} ${item.position.x} ${-item.position.y}`).join(' ');
 
@@ -70,94 +65,42 @@ export const ArrayPreview: React.FC<ArrayPreviewProps> = React.memo(({ items }) 
     );
   }
 
-  // Component mode: draw the selected component's real footprint at every copy position.
-  if (config.entityType === 'component') {
-    const componentId = config.referenceId;
-    if (!componentId) return null;
-    const g: ComponentCloneGeometry = {
-      vertices: store.vertices, walls: store.walls, openings: store.openings,
-      pillars: store.pillars, beams: store.beams, deckSlabs: store.deckSlabs,
-      railings: store.railings, furniture: store.furniture, roads: store.roads,
-    };
-    const bounds = computeComponentBounds(componentId, g);
-    if (!bounds) return null;
-    const w = bounds.max.x - bounds.min.x;
-    const h = bounds.max.y - bounds.min.y;
-    return (
-      <g className="array-preview" pointerEvents="none">
-        {items.length > 1 && (
-          <path d={path} fill="none" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray="10 8" opacity={0.9} />
-        )}
-        {items.map((item, idx) => (
-          <g key={item.index}>
-            <rect
-              x={item.position.x - w / 2}
-              y={-item.position.y - h / 2}
-              width={w}
-              height={h}
-              fill={idx === 0 ? 'rgba(148,163,184,0.10)' : 'rgba(139,92,246,0.14)'}
-              stroke={idx === 0 ? '#94a3b8' : '#8b5cf6'}
-              strokeWidth={2}
-              strokeDasharray={idx === 0 ? '4 6' : '10 6'}
-            />
-            <ArrayNumber x={item.position.x} y={-item.position.y} index={item.index} />
-          </g>
-        ))}
-        {spacingLabels.map((s) => (
-          <SpacingLabel key={`comp-${s.key}`} x={s.x} y={-s.y} text={s.text} />
-        ))}
-      </g>
-    );
-  }
-
+  // Pillar/furniture mode: draw the picked source's real footprint at every replica
+  // position (all items are replicas following the cursor).
+  const componentId = config.referenceId;
+  if (!componentId) return null;
+  const g: ComponentCloneGeometry = {
+    vertices: store.vertices, walls: store.walls, openings: store.openings,
+    pillars: store.pillars, beams: store.beams, deckSlabs: store.deckSlabs,
+    railings: store.railings, furniture: store.furniture, roads: store.roads,
+  };
+  const bounds = computeComponentBounds(componentId, g);
+  if (!bounds) return null;
+  const w = bounds.max.x - bounds.min.x;
+  const h = bounds.max.y - bounds.min.y;
   return (
     <g className="array-preview" pointerEvents="none">
       {items.length > 1 && (
-        <path d={path} fill="none" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="10 8" opacity={0.9} />
+        <path d={path} fill="none" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray="10 8" opacity={0.9} />
       )}
-      {spacingLabels.map((s) => (
-        <SpacingLabel key={`sp-${s.key}`} x={s.x} y={-s.y} text={s.text} />
+      {items.map((item) => (
+        <g key={item.index}>
+          <rect
+            x={item.position.x - w / 2}
+            y={-item.position.y - h / 2}
+            width={w}
+            height={h}
+            fill="rgba(139,92,246,0.14)"
+            stroke="#8b5cf6"
+            strokeWidth={2}
+            strokeDasharray="10 6"
+          />
+          <ArrayNumber x={item.position.x} y={-item.position.y} index={item.index} />
+        </g>
       ))}
-      {items.map((item) => {
-        if (config.entityType === 'pillar') {
-          return (
-            <g key={item.index}>
-              <rect
-                x={item.position.x - 17.5}
-                y={-item.position.y - 17.5}
-                width={35}
-                height={35}
-                fill="rgba(248,250,252,0.22)"
-                stroke="#fbbf24"
-                strokeWidth={2}
-                strokeDasharray="6 4"
-              />
-              <ArrayNumber x={item.position.x} y={-item.position.y} index={item.index} />
-            </g>
-          );
-        }
-
-        const width = furnitureEntry?.bounds.width ?? 80;
-        const depth = furnitureEntry?.bounds.depth ?? 80;
-        const degrees = (-(Number.isFinite(config.angle) ? config.angle : 0) * 180) / Math.PI;
-        return (
-          <g key={item.index} transform={`translate(${item.position.x} ${-item.position.y}) rotate(${degrees})`}>
-            <rect
-              x={-width / 2}
-              y={-depth / 2}
-              width={width}
-              height={depth}
-              rx={3}
-              fill="rgba(56,189,248,0.18)"
-              stroke="#fbbf24"
-              strokeWidth={2}
-              strokeDasharray="6 4"
-            />
-            <line x1={0} y1={-depth / 2} x2={0} y2={-depth / 2 + Math.min(depth * 0.25, 15)} stroke="#fbbf24" strokeWidth={2} />
-            <ArrayNumber x={0} y={0} index={item.index} />
-          </g>
-        );
-      })}
+      {spacingLabels.map((s) => (
+        <SpacingLabel key={`comp-${s.key}`} x={s.x} y={-s.y} text={s.text} />
+      ))}
     </g>
   );
 });

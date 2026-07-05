@@ -756,24 +756,20 @@ export const EditorCanvas: React.FC = () => {
       }
 
       if (activeTool === 'array') {
-        // Building mode (chosen via the panel) arrays the whole construction — skip entity picking.
-        if (state.arrayConfig.entityType !== 'building') {
-          // Click an entity on canvas → it becomes (or replaces) the replication source.
-          // Only kinds supported by cloneComponent are hit-tested (no openings/rooms).
-          const hitId =
-            hitTestFurniture(cursor, state.furniture, GRAB_MARGIN) ??
-            hitTestPillar(cursor, state, GRAB_MARGIN) ??
-            hitTestBeam(cursor, state, GRAB_MARGIN) ??
-            hitTestRailing(cursor, state, GRAB_MARGIN) ??
-            hitTestWall(cursor, state) ??
-            hitTestRoad(cursor, state) ??
-            hitTestDeckSlab(cursor, state);
+        const kind = state.arrayConfig.entityType;
+        // Pillar/furniture mode: clicking an entity of the chosen kind sets (or replaces)
+        // the replication source; clicking elsewhere places the replicas at the cursor.
+        if (kind === 'pillar' || kind === 'furniture') {
+          const hitId = kind === 'pillar'
+            ? hitTestPillar(cursor, state, GRAB_MARGIN)
+            : hitTestFurniture(cursor, state.furniture, GRAB_MARGIN);
           if (hitId) {
-            state.setArrayConfig({ entityType: 'component', referenceId: hitId, isPreviewing: true });
+            state.setArrayConfig({ referenceId: hitId, isPreviewing: true });
             return;
           }
         }
-        // Clicked empty space: commit if a source is armed, otherwise stay in no-source state.
+        // Building mode or armed source: place. Source stays armed so the user can keep
+        // placing copies; right-click finishes the session.
         commitAt(cursor);
         return;
       }
@@ -1134,6 +1130,13 @@ export const EditorCanvas: React.FC = () => {
         cancel();
         setDeckPoints([]);
         stairHandles.cancel();
+        // Right-click finishes an array/replication session: clear the source and
+        // return to the select tool.
+        const st = useAppStore.getState();
+        if (st.activeTool === 'array') {
+          st.resetArrayConfig();
+          st.setActiveTool('select');
+        }
       }}
     >
       <g transform={`translate(${viewTransform.offsetX}, ${viewTransform.offsetY}) scale(${viewTransform.scale})`}>
