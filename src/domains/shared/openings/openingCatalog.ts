@@ -54,6 +54,7 @@ export interface OpeningKind {
 export const OPENING_KINDS: readonly OpeningKind[] = [
   // ---- Doors --------------------------------------------------------------
   { id: 'door-standard', family: 'door', type: 'door', label: 'Door', icon: '🚪', width: 90, height: 210, elevation: 0, color: '#ca8a04', door: 'open' },
+  { id: 'door-room-blue', family: 'door', type: 'door', label: 'Room Door (Blue)', icon: '🚪', width: 90, height: 210, elevation: 0, color: '#2563eb', door: 'open' },
   { id: 'door-double', family: 'door', type: 'door', label: 'Double Door', icon: '🚪', width: 150, height: 215, elevation: 0, color: '#ca8a04', door: 'open' },
   { id: 'door-main-gate', family: 'door', type: 'door', label: 'Main Gate', icon: '🏛️', width: 160, height: 240, elevation: 0, color: '#92400e', door: 'gate' },
   { id: 'garage-shutter', family: 'door', type: 'door', label: 'Garage Shutter', icon: '🚧', width: 260, height: 220, elevation: 0, color: '#64748b', door: 'shutter' },
