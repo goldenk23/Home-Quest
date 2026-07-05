@@ -756,6 +756,24 @@ export const EditorCanvas: React.FC = () => {
       }
 
       if (activeTool === 'array') {
+        // Building mode (chosen via the panel) arrays the whole construction — skip entity picking.
+        if (state.arrayConfig.entityType !== 'building') {
+          // Click an entity on canvas → it becomes (or replaces) the replication source.
+          // Only kinds supported by cloneComponent are hit-tested (no openings/rooms).
+          const hitId =
+            hitTestFurniture(cursor, state.furniture, GRAB_MARGIN) ??
+            hitTestPillar(cursor, state, GRAB_MARGIN) ??
+            hitTestBeam(cursor, state, GRAB_MARGIN) ??
+            hitTestRailing(cursor, state, GRAB_MARGIN) ??
+            hitTestWall(cursor, state) ??
+            hitTestRoad(cursor, state) ??
+            hitTestDeckSlab(cursor, state);
+          if (hitId) {
+            state.setArrayConfig({ entityType: 'component', referenceId: hitId, isPreviewing: true });
+            return;
+          }
+        }
+        // Clicked empty space: commit if a source is armed, otherwise stay in no-source state.
         commitAt(cursor);
         return;
       }

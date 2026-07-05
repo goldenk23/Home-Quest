@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/store';
 import { getCatalogEntry } from '@/domains/viewer/hooks/useAssetLoader';
 import type { Point2D } from '@/types/geometry';
@@ -35,6 +35,15 @@ export function useArrayTool(cursor: Point2D | null) {
   const walls = useAppStore((s) => s.walls);
   const roads = useAppStore((s) => s.roads);
   const openings = useAppStore((s) => s.openings);
+
+  // If the replication source is deleted while the tool is active, reset the source.
+  useEffect(() => {
+    if (activeTool !== 'array' || arrayConfig.entityType !== 'component' || !arrayConfig.referenceId) return;
+    const g: ComponentCloneGeometry = { vertices, walls, openings, pillars, beams, deckSlabs, railings, furniture, roads };
+    if (!computeComponentBounds(arrayConfig.referenceId, g)) {
+      setArrayConfig({ referenceId: null, entityType: null, isPreviewing: false });
+    }
+  }, [activeTool, arrayConfig.entityType, arrayConfig.referenceId, vertices, walls, openings, pillars, beams, deckSlabs, railings, furniture, roads, setArrayConfig]);
 
   const previewItems = useMemo(() => {
     if (activeTool !== 'array' || !arrayConfig.isPreviewing || !arrayConfig.entityType) return [];

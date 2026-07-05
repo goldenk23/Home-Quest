@@ -210,6 +210,19 @@ export const SandboxView: React.FC = () => {
   const arrayConfig = useAppStore((s) => s.arrayConfig);
   const setArrayConfig = useAppStore((s) => s.setArrayConfig);
   const resetArrayConfig = useAppStore((s) => s.resetArrayConfig);
+  // Label of the entity picked on canvas as the array replication source.
+  const arraySourceLabel = useAppStore((s) => {
+    if (s.arrayConfig.entityType !== 'component' || !s.arrayConfig.referenceId) return null;
+    const id = s.arrayConfig.referenceId;
+    if (s.furniture[id]) return getCatalogEntry(s.furniture[id].catalogId).label;
+    if (s.pillars[id]) return 'Pillar';
+    if (s.walls[id]) return 'Wall';
+    if (s.beams[id]) return 'Beam';
+    if (s.deckSlabs[id]) return 'Deck';
+    if (s.railings[id]) return 'Railing';
+    if (s.roads[id]) return 'Road';
+    return null;
+  });
   const stairError = useAppStore((s) => s.activeTool === 'stair' ? null : null); // sourced from tool state in EditorCanvas
   void stairError;
   const paintFinishId = useAppStore((s) => s.paintFinishId);
@@ -712,17 +725,18 @@ export const SandboxView: React.FC = () => {
               <button style={btn(arrayConfig.entityType === 'building', '#10b981')} onClick={() => setArrayConfig({ entityType: 'building', isPreviewing: true })}>
                 🏠 Building
               </button>
-              <button style={btn(arrayConfig.entityType === 'component', '#8b5cf6')} onClick={() => {
-                const state = useAppStore.getState();
-                const id = state.selectedIds[0];
-                if (id) {
-                  setArrayConfig({ entityType: 'component', referenceId: id, isPreviewing: true });
-                } else {
-                  alert('Please select a component first (furniture, wall, pillar, beam, deck, railing, or road).');
-                }
+              <span style={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                padding: '3px 8px',
+                borderRadius: '4px',
+                color: arrayConfig.entityType === 'component' ? '#7c3aed' : '#64748b',
+                border: arrayConfig.entityType === 'component' ? '1px dashed #8b5cf6' : '1px dashed #cbd5e1',
               }}>
-                🎯 Component
-              </button>
+                {arrayConfig.entityType === 'component' && arraySourceLabel
+                  ? `Source: ${arraySourceLabel}`
+                  : 'Click an entity on canvas to set source'}
+              </span>
               {arrayConfig.entityType === 'furniture' && (
                 <select
                   value={arrayConfig.referenceId ?? furnitureCatalogId}
@@ -780,7 +794,7 @@ export const SandboxView: React.FC = () => {
               <button style={btn(true, '#10b981')} onClick={() => setArrayConfig({ isPreviewing: true })}>👁️ Show Preview</button>
               <button style={btn(false, '#ef4444')} onClick={() => { resetArrayConfig(); }}>✕ Cancel</button>
               <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
-                Click in the editor to place the array. <kbd>Esc</kbd> to cancel.
+                Click an entity to set the source, then click empty space to place. <kbd>Esc</kbd> to cancel.
               </span>
             </Row>
           </>
