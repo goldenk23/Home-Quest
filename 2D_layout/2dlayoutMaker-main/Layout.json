@@ -1,0 +1,4278 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "Floor Plan",
+    "description": "Auto-generated layout",
+    "created": "2026-07-09T12:08:20.640926",
+    "modified": "2026-07-09T12:08:20.640926",
+    "unit": "ft",
+    "grid_spacing": 35,
+    "canvas_width": 1174,
+    "canvas_height": 851,
+    "zoom_level": 1.0,
+    "grid_visible": true
+  },
+  "rooms": [],
+  "furniture": [],
+  "shapes": [
+    {
+      "id": "shape_2477",
+      "type": "polygon",
+      "points": [
+        [
+          35.0,
+          35.0
+        ],
+        [
+          630.0,
+          35.0
+        ],
+        [
+          630.0,
+          490.0
+        ],
+        [
+          35.0,
+          490.0
+        ]
+      ],
+      "outline_color": "green",
+      "fill_color": "",
+      "width": 2.0,
+      "style": "solid",
+      "tags": [
+        "closed_shape",
+        "polygon_group_bcf420e1fd",
+        "polygon_shape"
+      ],
+      "flooring": {
+        "has_flooring": false
+      }
+    },
+    {
+      "id": "shape_2478",
+      "type": "oval",
+      "points": [
+        [
+          33.0,
+          33.0
+        ],
+        [
+          37.0,
+          37.0
+        ]
+      ],
+      "outline_color": "green",
+      "fill_color": "green",
+      "width": 1.0,
+      "style": "solid",
+      "tags": [
+        "polygon_group_bcf420e1fd",
+        "polygon_vertex"
+      ]
+    },
+    {
+      "id": "shape_2510",
+      "type": "oval",
+      "points": [
+        [
+          628.0,
+          33.0
+        ],
+        [
+          632.0,
+          37.0
+        ]
+      ],
+      "outline_color": "green",
+      "fill_color": "green",
+      "width": 1.0,
+      "style": "solid",
+      "tags": [
+        "polygon_group_bcf420e1fd",
+        "polygon_vertex"
+      ]
+    },
+    {
+      "id": "shape_2553",
+      "type": "oval",
+      "points": [
+        [
+          628.0,
+          488.0
+        ],
+        [
+          632.0,
+          492.0
+        ]
+      ],
+      "outline_color": "green",
+      "fill_color": "green",
+      "width": 1.0,
+      "style": "solid",
+      "tags": [
+        "polygon_group_bcf420e1fd",
+        "polygon_vertex"
+      ]
+    },
+    {
+      "id": "shape_2572",
+      "type": "oval",
+      "points": [
+        [
+          33.0,
+          488.0
+        ],
+        [
+          37.0,
+          492.0
+        ]
+      ],
+      "outline_color": "green",
+      "fill_color": "green",
+      "width": 1.0,
+      "style": "solid",
+      "tags": [
+        "polygon_group_bcf420e1fd",
+        "polygon_vertex"
+      ]
+    },
+    {
+      "id": "shape_2600",
+      "type": "text",
+      "points": [
+        [
+          332.5,
+          262.5
+        ]
+      ],
+      "outline_color": "black",
+      "fill_color": "",
+      "width": 0.0,
+      "style": "solid",
+      "tags": [
+        "polygon_group_bcf420e1fd",
+        "polygon_label"
+      ]
+    }
+  ],
+  "text": [
+    {
+      "id": "text_1892",
+      "content": "-68",
+      "x": -2378.0,
+      "y": 10.0,
+      "x_real": -67.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1894",
+      "content": "-67",
+      "x": -2343.0,
+      "y": 10.0,
+      "x_real": -66.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1896",
+      "content": "-66",
+      "x": -2308.0,
+      "y": 10.0,
+      "x_real": -65.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1898",
+      "content": "-65",
+      "x": -2273.0,
+      "y": 10.0,
+      "x_real": -64.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1900",
+      "content": "-64",
+      "x": -2238.0,
+      "y": 10.0,
+      "x_real": -63.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1902",
+      "content": "-63",
+      "x": -2203.0,
+      "y": 10.0,
+      "x_real": -62.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1904",
+      "content": "-62",
+      "x": -2168.0,
+      "y": 10.0,
+      "x_real": -61.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1906",
+      "content": "-61",
+      "x": -2133.0,
+      "y": 10.0,
+      "x_real": -60.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1908",
+      "content": "-60",
+      "x": -2098.0,
+      "y": 10.0,
+      "x_real": -59.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1910",
+      "content": "-59",
+      "x": -2063.0,
+      "y": 10.0,
+      "x_real": -58.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1912",
+      "content": "-58",
+      "x": -2028.0,
+      "y": 10.0,
+      "x_real": -57.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1914",
+      "content": "-57",
+      "x": -1993.0,
+      "y": 10.0,
+      "x_real": -56.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1916",
+      "content": "-56",
+      "x": -1958.0,
+      "y": 10.0,
+      "x_real": -55.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1918",
+      "content": "-55",
+      "x": -1923.0,
+      "y": 10.0,
+      "x_real": -54.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1920",
+      "content": "-54",
+      "x": -1888.0,
+      "y": 10.0,
+      "x_real": -53.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1922",
+      "content": "-53",
+      "x": -1853.0,
+      "y": 10.0,
+      "x_real": -52.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1924",
+      "content": "-52",
+      "x": -1818.0,
+      "y": 10.0,
+      "x_real": -51.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1926",
+      "content": "-51",
+      "x": -1783.0,
+      "y": 10.0,
+      "x_real": -50.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1928",
+      "content": "-50",
+      "x": -1748.0,
+      "y": 10.0,
+      "x_real": -49.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1930",
+      "content": "-49",
+      "x": -1713.0,
+      "y": 10.0,
+      "x_real": -48.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1932",
+      "content": "-48",
+      "x": -1678.0,
+      "y": 10.0,
+      "x_real": -47.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1934",
+      "content": "-47",
+      "x": -1643.0,
+      "y": 10.0,
+      "x_real": -46.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1936",
+      "content": "-46",
+      "x": -1608.0,
+      "y": 10.0,
+      "x_real": -45.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1938",
+      "content": "-45",
+      "x": -1573.0,
+      "y": 10.0,
+      "x_real": -44.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1940",
+      "content": "-44",
+      "x": -1538.0,
+      "y": 10.0,
+      "x_real": -43.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1942",
+      "content": "-43",
+      "x": -1503.0,
+      "y": 10.0,
+      "x_real": -42.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1944",
+      "content": "-42",
+      "x": -1468.0,
+      "y": 10.0,
+      "x_real": -41.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1946",
+      "content": "-41",
+      "x": -1433.0,
+      "y": 10.0,
+      "x_real": -40.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1948",
+      "content": "-40",
+      "x": -1398.0,
+      "y": 10.0,
+      "x_real": -39.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1950",
+      "content": "-39",
+      "x": -1363.0,
+      "y": 10.0,
+      "x_real": -38.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1952",
+      "content": "-38",
+      "x": -1328.0,
+      "y": 10.0,
+      "x_real": -37.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1954",
+      "content": "-37",
+      "x": -1293.0,
+      "y": 10.0,
+      "x_real": -36.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1956",
+      "content": "-36",
+      "x": -1258.0,
+      "y": 10.0,
+      "x_real": -35.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1958",
+      "content": "-35",
+      "x": -1223.0,
+      "y": 10.0,
+      "x_real": -34.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1960",
+      "content": "-34",
+      "x": -1188.0,
+      "y": 10.0,
+      "x_real": -33.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1962",
+      "content": "-33",
+      "x": -1153.0,
+      "y": 10.0,
+      "x_real": -32.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1964",
+      "content": "-32",
+      "x": -1118.0,
+      "y": 10.0,
+      "x_real": -31.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1966",
+      "content": "-31",
+      "x": -1083.0,
+      "y": 10.0,
+      "x_real": -30.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1968",
+      "content": "-30",
+      "x": -1048.0,
+      "y": 10.0,
+      "x_real": -29.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1970",
+      "content": "-29",
+      "x": -1013.0,
+      "y": 10.0,
+      "x_real": -28.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1972",
+      "content": "-28",
+      "x": -978.0,
+      "y": 10.0,
+      "x_real": -27.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1974",
+      "content": "-27",
+      "x": -943.0,
+      "y": 10.0,
+      "x_real": -26.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1976",
+      "content": "-26",
+      "x": -908.0,
+      "y": 10.0,
+      "x_real": -25.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1978",
+      "content": "-25",
+      "x": -873.0,
+      "y": 10.0,
+      "x_real": -24.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1980",
+      "content": "-24",
+      "x": -838.0,
+      "y": 10.0,
+      "x_real": -23.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1982",
+      "content": "-23",
+      "x": -803.0,
+      "y": 10.0,
+      "x_real": -22.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1984",
+      "content": "-22",
+      "x": -768.0,
+      "y": 10.0,
+      "x_real": -21.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1986",
+      "content": "-21",
+      "x": -733.0,
+      "y": 10.0,
+      "x_real": -20.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1988",
+      "content": "-20",
+      "x": -698.0,
+      "y": 10.0,
+      "x_real": -19.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1990",
+      "content": "-19",
+      "x": -663.0,
+      "y": 10.0,
+      "x_real": -18.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1992",
+      "content": "-18",
+      "x": -628.0,
+      "y": 10.0,
+      "x_real": -17.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1994",
+      "content": "-17",
+      "x": -593.0,
+      "y": 10.0,
+      "x_real": -16.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1996",
+      "content": "-16",
+      "x": -558.0,
+      "y": 10.0,
+      "x_real": -15.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_1998",
+      "content": "-15",
+      "x": -523.0,
+      "y": 10.0,
+      "x_real": -14.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2000",
+      "content": "-14",
+      "x": -488.0,
+      "y": 10.0,
+      "x_real": -13.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2002",
+      "content": "-13",
+      "x": -453.0,
+      "y": 10.0,
+      "x_real": -12.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2004",
+      "content": "-12",
+      "x": -418.0,
+      "y": 10.0,
+      "x_real": -11.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2006",
+      "content": "-11",
+      "x": -383.0,
+      "y": 10.0,
+      "x_real": -10.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2008",
+      "content": "-10",
+      "x": -348.0,
+      "y": 10.0,
+      "x_real": -9.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2010",
+      "content": "-9",
+      "x": -313.0,
+      "y": 10.0,
+      "x_real": -8.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2012",
+      "content": "-8",
+      "x": -278.0,
+      "y": 10.0,
+      "x_real": -7.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2014",
+      "content": "-7",
+      "x": -243.0,
+      "y": 10.0,
+      "x_real": -6.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2016",
+      "content": "-6",
+      "x": -208.0,
+      "y": 10.0,
+      "x_real": -5.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2018",
+      "content": "-5",
+      "x": -173.0,
+      "y": 10.0,
+      "x_real": -4.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2020",
+      "content": "-4",
+      "x": -138.0,
+      "y": 10.0,
+      "x_real": -3.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2022",
+      "content": "-3",
+      "x": -103.0,
+      "y": 10.0,
+      "x_real": -2.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2024",
+      "content": "-2",
+      "x": -68.0,
+      "y": 10.0,
+      "x_real": -1.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2026",
+      "content": "-1",
+      "x": -33.0,
+      "y": 10.0,
+      "x_real": -0.94,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2028",
+      "content": "0",
+      "x": 2.0,
+      "y": 10.0,
+      "x_real": 0.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2030",
+      "content": "1",
+      "x": 37.0,
+      "y": 10.0,
+      "x_real": 1.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2032",
+      "content": "2",
+      "x": 72.0,
+      "y": 10.0,
+      "x_real": 2.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2034",
+      "content": "3",
+      "x": 107.0,
+      "y": 10.0,
+      "x_real": 3.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2036",
+      "content": "4",
+      "x": 142.0,
+      "y": 10.0,
+      "x_real": 4.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2038",
+      "content": "5",
+      "x": 177.0,
+      "y": 10.0,
+      "x_real": 5.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2040",
+      "content": "6",
+      "x": 212.0,
+      "y": 10.0,
+      "x_real": 6.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h",
+        "current"
+      ]
+    },
+    {
+      "id": "text_2042",
+      "content": "7",
+      "x": 247.0,
+      "y": 10.0,
+      "x_real": 7.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2044",
+      "content": "8",
+      "x": 282.0,
+      "y": 10.0,
+      "x_real": 8.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2046",
+      "content": "9",
+      "x": 317.0,
+      "y": 10.0,
+      "x_real": 9.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2048",
+      "content": "10",
+      "x": 352.0,
+      "y": 10.0,
+      "x_real": 10.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2050",
+      "content": "11",
+      "x": 387.0,
+      "y": 10.0,
+      "x_real": 11.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2052",
+      "content": "12",
+      "x": 422.0,
+      "y": 10.0,
+      "x_real": 12.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2054",
+      "content": "13",
+      "x": 457.0,
+      "y": 10.0,
+      "x_real": 13.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2056",
+      "content": "14",
+      "x": 492.0,
+      "y": 10.0,
+      "x_real": 14.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2058",
+      "content": "15",
+      "x": 527.0,
+      "y": 10.0,
+      "x_real": 15.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2060",
+      "content": "16",
+      "x": 562.0,
+      "y": 10.0,
+      "x_real": 16.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2062",
+      "content": "17",
+      "x": 597.0,
+      "y": 10.0,
+      "x_real": 17.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2064",
+      "content": "18",
+      "x": 632.0,
+      "y": 10.0,
+      "x_real": 18.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2066",
+      "content": "19",
+      "x": 667.0,
+      "y": 10.0,
+      "x_real": 19.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2068",
+      "content": "20",
+      "x": 702.0,
+      "y": 10.0,
+      "x_real": 20.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2070",
+      "content": "21",
+      "x": 737.0,
+      "y": 10.0,
+      "x_real": 21.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2072",
+      "content": "22",
+      "x": 772.0,
+      "y": 10.0,
+      "x_real": 22.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2074",
+      "content": "23",
+      "x": 807.0,
+      "y": 10.0,
+      "x_real": 23.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2076",
+      "content": "24",
+      "x": 842.0,
+      "y": 10.0,
+      "x_real": 24.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2078",
+      "content": "25",
+      "x": 877.0,
+      "y": 10.0,
+      "x_real": 25.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2080",
+      "content": "26",
+      "x": 912.0,
+      "y": 10.0,
+      "x_real": 26.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2082",
+      "content": "27",
+      "x": 947.0,
+      "y": 10.0,
+      "x_real": 27.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2084",
+      "content": "28",
+      "x": 982.0,
+      "y": 10.0,
+      "x_real": 28.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2086",
+      "content": "29",
+      "x": 1017.0,
+      "y": 10.0,
+      "x_real": 29.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2088",
+      "content": "30",
+      "x": 1052.0,
+      "y": 10.0,
+      "x_real": 30.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2090",
+      "content": "31",
+      "x": 1087.0,
+      "y": 10.0,
+      "x_real": 31.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2092",
+      "content": "32",
+      "x": 1122.0,
+      "y": 10.0,
+      "x_real": 32.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2094",
+      "content": "33",
+      "x": 1157.0,
+      "y": 10.0,
+      "x_real": 33.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2096",
+      "content": "34",
+      "x": 1192.0,
+      "y": 10.0,
+      "x_real": 34.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2098",
+      "content": "35",
+      "x": 1227.0,
+      "y": 10.0,
+      "x_real": 35.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2100",
+      "content": "36",
+      "x": 1262.0,
+      "y": 10.0,
+      "x_real": 36.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2102",
+      "content": "37",
+      "x": 1297.0,
+      "y": 10.0,
+      "x_real": 37.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2104",
+      "content": "38",
+      "x": 1332.0,
+      "y": 10.0,
+      "x_real": 38.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2106",
+      "content": "39",
+      "x": 1367.0,
+      "y": 10.0,
+      "x_real": 39.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2108",
+      "content": "40",
+      "x": 1402.0,
+      "y": 10.0,
+      "x_real": 40.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2110",
+      "content": "41",
+      "x": 1437.0,
+      "y": 10.0,
+      "x_real": 41.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2112",
+      "content": "42",
+      "x": 1472.0,
+      "y": 10.0,
+      "x_real": 42.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2114",
+      "content": "43",
+      "x": 1507.0,
+      "y": 10.0,
+      "x_real": 43.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2116",
+      "content": "44",
+      "x": 1542.0,
+      "y": 10.0,
+      "x_real": 44.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2118",
+      "content": "45",
+      "x": 1577.0,
+      "y": 10.0,
+      "x_real": 45.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2120",
+      "content": "46",
+      "x": 1612.0,
+      "y": 10.0,
+      "x_real": 46.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2122",
+      "content": "47",
+      "x": 1647.0,
+      "y": 10.0,
+      "x_real": 47.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2124",
+      "content": "48",
+      "x": 1682.0,
+      "y": 10.0,
+      "x_real": 48.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2126",
+      "content": "49",
+      "x": 1717.0,
+      "y": 10.0,
+      "x_real": 49.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2128",
+      "content": "50",
+      "x": 1752.0,
+      "y": 10.0,
+      "x_real": 50.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2130",
+      "content": "51",
+      "x": 1787.0,
+      "y": 10.0,
+      "x_real": 51.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2132",
+      "content": "52",
+      "x": 1822.0,
+      "y": 10.0,
+      "x_real": 52.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2134",
+      "content": "53",
+      "x": 1857.0,
+      "y": 10.0,
+      "x_real": 53.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2136",
+      "content": "54",
+      "x": 1892.0,
+      "y": 10.0,
+      "x_real": 54.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2138",
+      "content": "55",
+      "x": 1927.0,
+      "y": 10.0,
+      "x_real": 55.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2140",
+      "content": "56",
+      "x": 1962.0,
+      "y": 10.0,
+      "x_real": 56.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2142",
+      "content": "57",
+      "x": 1997.0,
+      "y": 10.0,
+      "x_real": 57.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2144",
+      "content": "58",
+      "x": 2032.0,
+      "y": 10.0,
+      "x_real": 58.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2146",
+      "content": "59",
+      "x": 2067.0,
+      "y": 10.0,
+      "x_real": 59.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2148",
+      "content": "60",
+      "x": 2102.0,
+      "y": 10.0,
+      "x_real": 60.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2150",
+      "content": "61",
+      "x": 2137.0,
+      "y": 10.0,
+      "x_real": 61.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2152",
+      "content": "62",
+      "x": 2172.0,
+      "y": 10.0,
+      "x_real": 62.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2154",
+      "content": "63",
+      "x": 2207.0,
+      "y": 10.0,
+      "x_real": 63.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2156",
+      "content": "64",
+      "x": 2242.0,
+      "y": 10.0,
+      "x_real": 64.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2158",
+      "content": "65",
+      "x": 2277.0,
+      "y": 10.0,
+      "x_real": 65.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2160",
+      "content": "66",
+      "x": 2312.0,
+      "y": 10.0,
+      "x_real": 66.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2162",
+      "content": "67",
+      "x": 2347.0,
+      "y": 10.0,
+      "x_real": 67.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2164",
+      "content": "68",
+      "x": 2382.0,
+      "y": 10.0,
+      "x_real": 68.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2166",
+      "content": "69",
+      "x": 2417.0,
+      "y": 10.0,
+      "x_real": 69.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2168",
+      "content": "70",
+      "x": 2452.0,
+      "y": 10.0,
+      "x_real": 70.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2170",
+      "content": "71",
+      "x": 2487.0,
+      "y": 10.0,
+      "x_real": 71.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2172",
+      "content": "72",
+      "x": 2522.0,
+      "y": 10.0,
+      "x_real": 72.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2174",
+      "content": "73",
+      "x": 2557.0,
+      "y": 10.0,
+      "x_real": 73.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2176",
+      "content": "74",
+      "x": 2592.0,
+      "y": 10.0,
+      "x_real": 74.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2178",
+      "content": "75",
+      "x": 2627.0,
+      "y": 10.0,
+      "x_real": 75.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2180",
+      "content": "76",
+      "x": 2662.0,
+      "y": 10.0,
+      "x_real": 76.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2182",
+      "content": "77",
+      "x": 2697.0,
+      "y": 10.0,
+      "x_real": 77.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2184",
+      "content": "78",
+      "x": 2732.0,
+      "y": 10.0,
+      "x_real": 78.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2186",
+      "content": "79",
+      "x": 2767.0,
+      "y": 10.0,
+      "x_real": 79.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2188",
+      "content": "80",
+      "x": 2802.0,
+      "y": 10.0,
+      "x_real": 80.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2190",
+      "content": "81",
+      "x": 2837.0,
+      "y": 10.0,
+      "x_real": 81.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2192",
+      "content": "82",
+      "x": 2872.0,
+      "y": 10.0,
+      "x_real": 82.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2194",
+      "content": "83",
+      "x": 2907.0,
+      "y": 10.0,
+      "x_real": 83.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2196",
+      "content": "84",
+      "x": 2942.0,
+      "y": 10.0,
+      "x_real": 84.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2198",
+      "content": "85",
+      "x": 2977.0,
+      "y": 10.0,
+      "x_real": 85.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2200",
+      "content": "86",
+      "x": 3012.0,
+      "y": 10.0,
+      "x_real": 86.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2202",
+      "content": "87",
+      "x": 3047.0,
+      "y": 10.0,
+      "x_real": 87.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2204",
+      "content": "88",
+      "x": 3082.0,
+      "y": 10.0,
+      "x_real": 88.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2206",
+      "content": "89",
+      "x": 3117.0,
+      "y": 10.0,
+      "x_real": 89.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2208",
+      "content": "90",
+      "x": 3152.0,
+      "y": 10.0,
+      "x_real": 90.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2210",
+      "content": "91",
+      "x": 3187.0,
+      "y": 10.0,
+      "x_real": 91.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2212",
+      "content": "92",
+      "x": 3222.0,
+      "y": 10.0,
+      "x_real": 92.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2214",
+      "content": "93",
+      "x": 3257.0,
+      "y": 10.0,
+      "x_real": 93.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2216",
+      "content": "94",
+      "x": 3292.0,
+      "y": 10.0,
+      "x_real": 94.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2218",
+      "content": "95",
+      "x": 3327.0,
+      "y": 10.0,
+      "x_real": 95.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2220",
+      "content": "96",
+      "x": 3362.0,
+      "y": 10.0,
+      "x_real": 96.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2222",
+      "content": "97",
+      "x": 3397.0,
+      "y": 10.0,
+      "x_real": 97.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2224",
+      "content": "98",
+      "x": 3432.0,
+      "y": 10.0,
+      "x_real": 98.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2226",
+      "content": "99",
+      "x": 3467.0,
+      "y": 10.0,
+      "x_real": 99.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2228",
+      "content": "100",
+      "x": 3502.0,
+      "y": 10.0,
+      "x_real": 100.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2230",
+      "content": "101",
+      "x": 3537.0,
+      "y": 10.0,
+      "x_real": 101.06,
+      "y_real": 0.29,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_h"
+      ]
+    },
+    {
+      "id": "text_2232",
+      "content": "-49",
+      "x": 2.0,
+      "y": -1713.0,
+      "x_real": 0.06,
+      "y_real": -48.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2234",
+      "content": "-48",
+      "x": 2.0,
+      "y": -1678.0,
+      "x_real": 0.06,
+      "y_real": -47.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2236",
+      "content": "-47",
+      "x": 2.0,
+      "y": -1643.0,
+      "x_real": 0.06,
+      "y_real": -46.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2238",
+      "content": "-46",
+      "x": 2.0,
+      "y": -1608.0,
+      "x_real": 0.06,
+      "y_real": -45.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2240",
+      "content": "-45",
+      "x": 2.0,
+      "y": -1573.0,
+      "x_real": 0.06,
+      "y_real": -44.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2242",
+      "content": "-44",
+      "x": 2.0,
+      "y": -1538.0,
+      "x_real": 0.06,
+      "y_real": -43.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2244",
+      "content": "-43",
+      "x": 2.0,
+      "y": -1503.0,
+      "x_real": 0.06,
+      "y_real": -42.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2246",
+      "content": "-42",
+      "x": 2.0,
+      "y": -1468.0,
+      "x_real": 0.06,
+      "y_real": -41.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2248",
+      "content": "-41",
+      "x": 2.0,
+      "y": -1433.0,
+      "x_real": 0.06,
+      "y_real": -40.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2250",
+      "content": "-40",
+      "x": 2.0,
+      "y": -1398.0,
+      "x_real": 0.06,
+      "y_real": -39.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2252",
+      "content": "-39",
+      "x": 2.0,
+      "y": -1363.0,
+      "x_real": 0.06,
+      "y_real": -38.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2254",
+      "content": "-38",
+      "x": 2.0,
+      "y": -1328.0,
+      "x_real": 0.06,
+      "y_real": -37.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2256",
+      "content": "-37",
+      "x": 2.0,
+      "y": -1293.0,
+      "x_real": 0.06,
+      "y_real": -36.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2258",
+      "content": "-36",
+      "x": 2.0,
+      "y": -1258.0,
+      "x_real": 0.06,
+      "y_real": -35.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2260",
+      "content": "-35",
+      "x": 2.0,
+      "y": -1223.0,
+      "x_real": 0.06,
+      "y_real": -34.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2262",
+      "content": "-34",
+      "x": 2.0,
+      "y": -1188.0,
+      "x_real": 0.06,
+      "y_real": -33.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2264",
+      "content": "-33",
+      "x": 2.0,
+      "y": -1153.0,
+      "x_real": 0.06,
+      "y_real": -32.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2266",
+      "content": "-32",
+      "x": 2.0,
+      "y": -1118.0,
+      "x_real": 0.06,
+      "y_real": -31.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2268",
+      "content": "-31",
+      "x": 2.0,
+      "y": -1083.0,
+      "x_real": 0.06,
+      "y_real": -30.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2270",
+      "content": "-30",
+      "x": 2.0,
+      "y": -1048.0,
+      "x_real": 0.06,
+      "y_real": -29.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2272",
+      "content": "-29",
+      "x": 2.0,
+      "y": -1013.0,
+      "x_real": 0.06,
+      "y_real": -28.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2274",
+      "content": "-28",
+      "x": 2.0,
+      "y": -978.0,
+      "x_real": 0.06,
+      "y_real": -27.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2276",
+      "content": "-27",
+      "x": 2.0,
+      "y": -943.0,
+      "x_real": 0.06,
+      "y_real": -26.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2278",
+      "content": "-26",
+      "x": 2.0,
+      "y": -908.0,
+      "x_real": 0.06,
+      "y_real": -25.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2280",
+      "content": "-25",
+      "x": 2.0,
+      "y": -873.0,
+      "x_real": 0.06,
+      "y_real": -24.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2282",
+      "content": "-24",
+      "x": 2.0,
+      "y": -838.0,
+      "x_real": 0.06,
+      "y_real": -23.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2284",
+      "content": "-23",
+      "x": 2.0,
+      "y": -803.0,
+      "x_real": 0.06,
+      "y_real": -22.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2286",
+      "content": "-22",
+      "x": 2.0,
+      "y": -768.0,
+      "x_real": 0.06,
+      "y_real": -21.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2288",
+      "content": "-21",
+      "x": 2.0,
+      "y": -733.0,
+      "x_real": 0.06,
+      "y_real": -20.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2290",
+      "content": "-20",
+      "x": 2.0,
+      "y": -698.0,
+      "x_real": 0.06,
+      "y_real": -19.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2292",
+      "content": "-19",
+      "x": 2.0,
+      "y": -663.0,
+      "x_real": 0.06,
+      "y_real": -18.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2294",
+      "content": "-18",
+      "x": 2.0,
+      "y": -628.0,
+      "x_real": 0.06,
+      "y_real": -17.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2296",
+      "content": "-17",
+      "x": 2.0,
+      "y": -593.0,
+      "x_real": 0.06,
+      "y_real": -16.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2298",
+      "content": "-16",
+      "x": 2.0,
+      "y": -558.0,
+      "x_real": 0.06,
+      "y_real": -15.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2300",
+      "content": "-15",
+      "x": 2.0,
+      "y": -523.0,
+      "x_real": 0.06,
+      "y_real": -14.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2302",
+      "content": "-14",
+      "x": 2.0,
+      "y": -488.0,
+      "x_real": 0.06,
+      "y_real": -13.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2304",
+      "content": "-13",
+      "x": 2.0,
+      "y": -453.0,
+      "x_real": 0.06,
+      "y_real": -12.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2306",
+      "content": "-12",
+      "x": 2.0,
+      "y": -418.0,
+      "x_real": 0.06,
+      "y_real": -11.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2308",
+      "content": "-11",
+      "x": 2.0,
+      "y": -383.0,
+      "x_real": 0.06,
+      "y_real": -10.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2310",
+      "content": "-10",
+      "x": 2.0,
+      "y": -348.0,
+      "x_real": 0.06,
+      "y_real": -9.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2312",
+      "content": "-9",
+      "x": 2.0,
+      "y": -313.0,
+      "x_real": 0.06,
+      "y_real": -8.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2314",
+      "content": "-8",
+      "x": 2.0,
+      "y": -278.0,
+      "x_real": 0.06,
+      "y_real": -7.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2316",
+      "content": "-7",
+      "x": 2.0,
+      "y": -243.0,
+      "x_real": 0.06,
+      "y_real": -6.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2318",
+      "content": "-6",
+      "x": 2.0,
+      "y": -208.0,
+      "x_real": 0.06,
+      "y_real": -5.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2320",
+      "content": "-5",
+      "x": 2.0,
+      "y": -173.0,
+      "x_real": 0.06,
+      "y_real": -4.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2322",
+      "content": "-4",
+      "x": 2.0,
+      "y": -138.0,
+      "x_real": 0.06,
+      "y_real": -3.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2324",
+      "content": "-3",
+      "x": 2.0,
+      "y": -103.0,
+      "x_real": 0.06,
+      "y_real": -2.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2326",
+      "content": "-2",
+      "x": 2.0,
+      "y": -68.0,
+      "x_real": 0.06,
+      "y_real": -1.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2328",
+      "content": "-1",
+      "x": 2.0,
+      "y": -33.0,
+      "x_real": 0.06,
+      "y_real": -0.94,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2330",
+      "content": "0",
+      "x": 2.0,
+      "y": 2.0,
+      "x_real": 0.06,
+      "y_real": 0.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2332",
+      "content": "1",
+      "x": 2.0,
+      "y": 37.0,
+      "x_real": 0.06,
+      "y_real": 1.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2334",
+      "content": "2",
+      "x": 2.0,
+      "y": 72.0,
+      "x_real": 0.06,
+      "y_real": 2.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2336",
+      "content": "3",
+      "x": 2.0,
+      "y": 107.0,
+      "x_real": 0.06,
+      "y_real": 3.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2338",
+      "content": "4",
+      "x": 2.0,
+      "y": 142.0,
+      "x_real": 0.06,
+      "y_real": 4.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2340",
+      "content": "5",
+      "x": 2.0,
+      "y": 177.0,
+      "x_real": 0.06,
+      "y_real": 5.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2342",
+      "content": "6",
+      "x": 2.0,
+      "y": 212.0,
+      "x_real": 0.06,
+      "y_real": 6.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2344",
+      "content": "7",
+      "x": 2.0,
+      "y": 247.0,
+      "x_real": 0.06,
+      "y_real": 7.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2346",
+      "content": "8",
+      "x": 2.0,
+      "y": 282.0,
+      "x_real": 0.06,
+      "y_real": 8.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2348",
+      "content": "9",
+      "x": 2.0,
+      "y": 317.0,
+      "x_real": 0.06,
+      "y_real": 9.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2350",
+      "content": "10",
+      "x": 2.0,
+      "y": 352.0,
+      "x_real": 0.06,
+      "y_real": 10.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2352",
+      "content": "11",
+      "x": 2.0,
+      "y": 387.0,
+      "x_real": 0.06,
+      "y_real": 11.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2354",
+      "content": "12",
+      "x": 2.0,
+      "y": 422.0,
+      "x_real": 0.06,
+      "y_real": 12.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2356",
+      "content": "13",
+      "x": 2.0,
+      "y": 457.0,
+      "x_real": 0.06,
+      "y_real": 13.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2358",
+      "content": "14",
+      "x": 2.0,
+      "y": 492.0,
+      "x_real": 0.06,
+      "y_real": 14.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2360",
+      "content": "15",
+      "x": 2.0,
+      "y": 527.0,
+      "x_real": 0.06,
+      "y_real": 15.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2362",
+      "content": "16",
+      "x": 2.0,
+      "y": 562.0,
+      "x_real": 0.06,
+      "y_real": 16.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2364",
+      "content": "17",
+      "x": 2.0,
+      "y": 597.0,
+      "x_real": 0.06,
+      "y_real": 17.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2366",
+      "content": "18",
+      "x": 2.0,
+      "y": 632.0,
+      "x_real": 0.06,
+      "y_real": 18.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2368",
+      "content": "19",
+      "x": 2.0,
+      "y": 667.0,
+      "x_real": 0.06,
+      "y_real": 19.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2370",
+      "content": "20",
+      "x": 2.0,
+      "y": 702.0,
+      "x_real": 0.06,
+      "y_real": 20.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2372",
+      "content": "21",
+      "x": 2.0,
+      "y": 737.0,
+      "x_real": 0.06,
+      "y_real": 21.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2374",
+      "content": "22",
+      "x": 2.0,
+      "y": 772.0,
+      "x_real": 0.06,
+      "y_real": 22.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2376",
+      "content": "23",
+      "x": 2.0,
+      "y": 807.0,
+      "x_real": 0.06,
+      "y_real": 23.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2378",
+      "content": "24",
+      "x": 2.0,
+      "y": 842.0,
+      "x_real": 0.06,
+      "y_real": 24.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2380",
+      "content": "25",
+      "x": 2.0,
+      "y": 877.0,
+      "x_real": 0.06,
+      "y_real": 25.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2382",
+      "content": "26",
+      "x": 2.0,
+      "y": 912.0,
+      "x_real": 0.06,
+      "y_real": 26.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2384",
+      "content": "27",
+      "x": 2.0,
+      "y": 947.0,
+      "x_real": 0.06,
+      "y_real": 27.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2386",
+      "content": "28",
+      "x": 2.0,
+      "y": 982.0,
+      "x_real": 0.06,
+      "y_real": 28.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2388",
+      "content": "29",
+      "x": 2.0,
+      "y": 1017.0,
+      "x_real": 0.06,
+      "y_real": 29.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2390",
+      "content": "30",
+      "x": 2.0,
+      "y": 1052.0,
+      "x_real": 0.06,
+      "y_real": 30.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2392",
+      "content": "31",
+      "x": 2.0,
+      "y": 1087.0,
+      "x_real": 0.06,
+      "y_real": 31.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2394",
+      "content": "32",
+      "x": 2.0,
+      "y": 1122.0,
+      "x_real": 0.06,
+      "y_real": 32.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2396",
+      "content": "33",
+      "x": 2.0,
+      "y": 1157.0,
+      "x_real": 0.06,
+      "y_real": 33.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2398",
+      "content": "34",
+      "x": 2.0,
+      "y": 1192.0,
+      "x_real": 0.06,
+      "y_real": 34.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2400",
+      "content": "35",
+      "x": 2.0,
+      "y": 1227.0,
+      "x_real": 0.06,
+      "y_real": 35.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2402",
+      "content": "36",
+      "x": 2.0,
+      "y": 1262.0,
+      "x_real": 0.06,
+      "y_real": 36.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2404",
+      "content": "37",
+      "x": 2.0,
+      "y": 1297.0,
+      "x_real": 0.06,
+      "y_real": 37.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2406",
+      "content": "38",
+      "x": 2.0,
+      "y": 1332.0,
+      "x_real": 0.06,
+      "y_real": 38.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2408",
+      "content": "39",
+      "x": 2.0,
+      "y": 1367.0,
+      "x_real": 0.06,
+      "y_real": 39.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2410",
+      "content": "40",
+      "x": 2.0,
+      "y": 1402.0,
+      "x_real": 0.06,
+      "y_real": 40.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2412",
+      "content": "41",
+      "x": 2.0,
+      "y": 1437.0,
+      "x_real": 0.06,
+      "y_real": 41.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2414",
+      "content": "42",
+      "x": 2.0,
+      "y": 1472.0,
+      "x_real": 0.06,
+      "y_real": 42.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2416",
+      "content": "43",
+      "x": 2.0,
+      "y": 1507.0,
+      "x_real": 0.06,
+      "y_real": 43.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2418",
+      "content": "44",
+      "x": 2.0,
+      "y": 1542.0,
+      "x_real": 0.06,
+      "y_real": 44.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2420",
+      "content": "45",
+      "x": 2.0,
+      "y": 1577.0,
+      "x_real": 0.06,
+      "y_real": 45.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2422",
+      "content": "46",
+      "x": 2.0,
+      "y": 1612.0,
+      "x_real": 0.06,
+      "y_real": 46.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2424",
+      "content": "47",
+      "x": 2.0,
+      "y": 1647.0,
+      "x_real": 0.06,
+      "y_real": 47.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2426",
+      "content": "48",
+      "x": 2.0,
+      "y": 1682.0,
+      "x_real": 0.06,
+      "y_real": 48.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2428",
+      "content": "49",
+      "x": 2.0,
+      "y": 1717.0,
+      "x_real": 0.06,
+      "y_real": 49.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2430",
+      "content": "50",
+      "x": 2.0,
+      "y": 1752.0,
+      "x_real": 0.06,
+      "y_real": 50.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2432",
+      "content": "51",
+      "x": 2.0,
+      "y": 1787.0,
+      "x_real": 0.06,
+      "y_real": 51.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2434",
+      "content": "52",
+      "x": 2.0,
+      "y": 1822.0,
+      "x_real": 0.06,
+      "y_real": 52.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2436",
+      "content": "53",
+      "x": 2.0,
+      "y": 1857.0,
+      "x_real": 0.06,
+      "y_real": 53.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2438",
+      "content": "54",
+      "x": 2.0,
+      "y": 1892.0,
+      "x_real": 0.06,
+      "y_real": 54.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2440",
+      "content": "55",
+      "x": 2.0,
+      "y": 1927.0,
+      "x_real": 0.06,
+      "y_real": 55.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2442",
+      "content": "56",
+      "x": 2.0,
+      "y": 1962.0,
+      "x_real": 0.06,
+      "y_real": 56.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2444",
+      "content": "57",
+      "x": 2.0,
+      "y": 1997.0,
+      "x_real": 0.06,
+      "y_real": 57.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2446",
+      "content": "58",
+      "x": 2.0,
+      "y": 2032.0,
+      "x_real": 0.06,
+      "y_real": 58.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2448",
+      "content": "59",
+      "x": 2.0,
+      "y": 2067.0,
+      "x_real": 0.06,
+      "y_real": 59.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2450",
+      "content": "60",
+      "x": 2.0,
+      "y": 2102.0,
+      "x_real": 0.06,
+      "y_real": 60.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2452",
+      "content": "61",
+      "x": 2.0,
+      "y": 2137.0,
+      "x_real": 0.06,
+      "y_real": 61.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2454",
+      "content": "62",
+      "x": 2.0,
+      "y": 2172.0,
+      "x_real": 0.06,
+      "y_real": 62.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2456",
+      "content": "63",
+      "x": 2.0,
+      "y": 2207.0,
+      "x_real": 0.06,
+      "y_real": 63.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2458",
+      "content": "64",
+      "x": 2.0,
+      "y": 2242.0,
+      "x_real": 0.06,
+      "y_real": 64.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2460",
+      "content": "65",
+      "x": 2.0,
+      "y": 2277.0,
+      "x_real": 0.06,
+      "y_real": 65.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2462",
+      "content": "66",
+      "x": 2.0,
+      "y": 2312.0,
+      "x_real": 0.06,
+      "y_real": 66.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2464",
+      "content": "67",
+      "x": 2.0,
+      "y": 2347.0,
+      "x_real": 0.06,
+      "y_real": 67.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2466",
+      "content": "68",
+      "x": 2.0,
+      "y": 2382.0,
+      "x_real": 0.06,
+      "y_real": 68.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2468",
+      "content": "69",
+      "x": 2.0,
+      "y": 2417.0,
+      "x_real": 0.06,
+      "y_real": 69.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2470",
+      "content": "70",
+      "x": 2.0,
+      "y": 2452.0,
+      "x_real": 0.06,
+      "y_real": 70.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2472",
+      "content": "71",
+      "x": 2.0,
+      "y": 2487.0,
+      "x_real": 0.06,
+      "y_real": 71.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2474",
+      "content": "72",
+      "x": 2.0,
+      "y": 2522.0,
+      "x_real": 0.06,
+      "y_real": 72.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2476",
+      "content": "73",
+      "x": 2.0,
+      "y": 2557.0,
+      "x_real": 0.06,
+      "y_real": 73.06,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid",
+        "grid_label_v"
+      ]
+    },
+    {
+      "id": "text_2600",
+      "content": "Area 1: 221.00 ft\u00b2\nPerimeter 1: 60.00 ft",
+      "x": 332.5,
+      "y": 262.5,
+      "x_real": 9.5,
+      "y_real": 7.5,
+      "font": "Arial 9",
+      "color": "black",
+      "tags": [
+        "polygon_group_bcf420e1fd",
+        "polygon_label"
+      ]
+    }
+  ]
+}

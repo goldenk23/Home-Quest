@@ -27,3 +27,20 @@ dist-ssr
 tests/visual/test-results/
 playwright-report/
 storybook-static/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Python local/generated artifacts
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Explicit live Vertex smoke harness (local credentials/billing)
+2D_layout/2dlayoutMaker-main/_ai_smoke_tmp.py
+
+# Local source bundle exports
+2D_layout/*source-only-*.base64.txt

@@ -1,9 +1,9 @@
 // src/store/persistence/migrations.ts
 
-import type { EntityId, Vertex, Wall, Room, FurnitureItem, Floor, FloorGeometry, Pillar, Beam, DeckSlab, Railing } from '@/types';
+import type { EntityId, Vertex, Wall, Room, FurnitureItem, Floor, FloorGeometry, Pillar, Beam, DeckSlab, Railing, TextAnnotation } from '@/types';
 
 /** Bump this whenever the persisted shape changes. */
-export const CURRENT_SCHEMA_VERSION = 8;
+export const CURRENT_SCHEMA_VERSION = 9;
 
 export interface PersistedStateV1 {
   version: 1;
@@ -45,7 +45,11 @@ export interface PersistedStateV8 extends Omit<PersistedStateV7, 'version'> {
   version: 8;
   railings: Record<EntityId, Railing>;
 }
-export type PersistedState = PersistedStateV8;
+export interface PersistedStateV9 extends Omit<PersistedStateV8, 'version'> {
+  version: 9;
+  annotations: Record<EntityId, TextAnnotation>;
+}
+export type PersistedState = PersistedStateV9;
 
 /** Upgrades any older persisted blob to the current shape. Each step is idempotent. */
 export function migrateState(state: any): PersistedState {
@@ -57,7 +61,22 @@ export function migrateState(state: any): PersistedState {
   if (current.version < 6) current = migrateV5ToV6(current);
   if (current.version < 7) current = migrateV6ToV7(current);
   if (current.version < 8) current = migrateV7ToV8(current);
+  if (current.version < 9) current = migrateV8ToV9(current);
   return current as PersistedState;
+}
+
+/** v9: introduce free text annotations. */
+function migrateV8ToV9(state: PersistedStateV8): PersistedStateV9 {
+  const floorData: Record<EntityId, FloorGeometry> = {};
+  for (const [id, geo] of Object.entries(state.floorData ?? {})) {
+    floorData[id] = { ...geo, annotations: (geo as Partial<FloorGeometry>).annotations ?? {} };
+  }
+  return {
+    ...state,
+    version: 9,
+    annotations: (state as unknown as { annotations?: Record<EntityId, TextAnnotation> }).annotations ?? {},
+    floorData,
+  };
 }
 
 /** v8: introduce safety railings/parapets. */

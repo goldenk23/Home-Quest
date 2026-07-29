@@ -56,11 +56,15 @@ export const useAppStore = create<AppStore>()(
           pillars: state.pillars,
           beams: state.beams,
           deckSlabs: state.deckSlabs,
+          railings: state.railings,
+          annotations: state.annotations,
           floors: state.floors,
           activeFloorId: state.activeFloorId,
           floorData: state.floorData,
+          displayUnit: state.displayUnit,
         }),
-        skipHydration: false,
+        skipHydration:
+          typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embedded') === '1',
       }
     ),
     { name: 'HomeQuest' }

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Home Quest — Inside the Store</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1e1e2e; color: #cdd6f4;
+    font-family: system-ui, sans-serif; overflow: hidden; }
+  header { padding: 10px 16px; border-bottom: 1px solid #313244; }
+  header h1 { margin: 0; font-size: 15px; font-weight: 600; }
+  header p { margin: 4px 0 0; font-size: 12px; color: #9399b2; }
+  #main { display: flex; height: calc(100vh - 58px); }
+  #diagram { flex: 1; overflow: hidden; cursor: grab; }
+  #diagram:active { cursor: grabbing; }
+  #diagram .node { cursor: pointer; }
+  #resizer { width: 6px; cursor: col-resize; background: #313244; flex: 0 0 6px; }
+  #resizer:hover, #resizer.dragging { background: #89b4fa; }
+  #panel { width: 360px; flex: 0 0 auto; padding: 16px; overflow-y: auto; background: #181825; }
+  #panel h2 { margin: 0 0 4px; font-size: 15px; color: #89b4fa; }
+  #panel .file { font-size: 12px; color: #a6e3a1; font-family: monospace; margin-bottom: 12px; word-break: break-all; }
+  #panel .row { margin-bottom: 12px; }
+  #panel .k { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #9399b2; margin-bottom: 3px; }
+  #panel .v { font-size: 13px; line-height: 1.5; }
+  #panel code { background: #313244; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  #controls { position: fixed; top: 66px; left: 16px; z-index: 20; display: flex; gap: 6px; }
+  #controls button { width: 32px; height: 32px; font-size: 17px; cursor: pointer;
+    border: 1px solid #45475a; background: #313244; color: #cdd6f4; border-radius: 6px; }
+  #controls button:hover { background: #45475a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Home Quest — Inside the Zustand Store</h1>
+  <p>A zoom-in of everything the store holds. Wheel = zoom · drag = pan · <b>click any box</b> for details.</p>
+</header>
+
+<div id="controls">
+  <button id="zin" title="Zoom in">+</button>
+  <button id="zout" title="Zoom out">−</button>
+  <button id="zreset" title="Reset">⟳</button>
+</div>
+
+<div id="main">
+  <div id="diagram"></div>
+  <div id="resizer" title="Drag to resize"></div>
+  <div id="panel">
+    <h2>Click a box</h2>
+    <div class="v">This diagram opens up the Store: its slices (what it holds), the read
+      selectors, the undo/redo internals, the middleware, and persistence. Click any box.</div>
+  </div>
+</div>
+
+<script type="module">
+let mermaid, svgPanZoom;
+const CDNS = [
+  ['https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs', 'https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/+esm'],
+  ['https://esm.sh/mermaid@10', 'https://esm.sh/svg-pan-zoom@3.6.1'],
+];
+for (const [mUrl, pUrl] of CDNS) {
+  try { mermaid = (await import(mUrl)).default; svgPanZoom = (await import(pUrl)).default; break; }
+  catch (e) { /* next */ }
+}
+if (!mermaid || !svgPanZoom) {
+  document.getElementById('diagram').innerHTML =
+    '<pre style="color:#f38ba8;padding:24px;white-space:pre-wrap;font-size:14px;">Could not load diagram libraries.\nThis page needs internet the first time (Mermaid + svg-pan-zoom via CDN).\nCheck your connection/firewall and reload.</pre>';
+  throw new Error('lib load failed');
+}
+
+const graph = `
+flowchart TD
+    Store[("🧠 ZUSTAND STORE<br/>src/store/index.ts")]
+
+    subgraph MW["Middleware wrappers — index.ts"]
+        Immer["immer"]
+        Persist["persist"]
+        Devtools["devtools"]
+    end
+    Immer --> Store
+    Persist --> Store
+    Devtools --> Store
+
+    subgraph SLICES["The 7 slices — src/store/slices/"]
+        Editor["editorSlice.ts<br/>(the plan geometry)"]
+        Floors["floorsSlice.ts<br/>(storeys)"]
+        UI["uiSlice.ts<br/>(active tool, panels)"]
+        Viewer["viewerSlice.ts<br/>(3D camera, sun)"]
+        Vastu["vastuSlice.ts<br/>(score, overlays)"]
+        Settings["settingsSlice.ts<br/>(flags, view)"]
+        History["historySlice.ts<br/>(undo / redo)"]
+    end
+    Store --> Editor
+    Store --> Floors
+    Store --> UI
+    Store --> Viewer
+    Store --> Vastu
+    Store --> Settings
+    Store --> History
+
+    subgraph READ["Read views — src/store/selectors/"]
+        Selectors["editorSelectors.ts"]
+    end
+    Editor -->|"read + reshape"| Selectors
+
+    subgraph HIST["Undo/redo internals — src/store/history/"]
+        Snapshot["snapshot.ts<br/>captureSnapshot()"]
+        Dead["historyManager.ts + commands.ts<br/>(UNUSED dead code)"]
+    end
+    History -->|"records"| Snapshot
+    History -.->|"ignores"| Dead
+
+    subgraph SAVE["Persistence — src/store/persistence/"]
+        PConf["persistConfig.ts<br/>(idb-keyval → IndexedDB)"]
+        Migr["migrations.ts"]
+        Valid["validation.ts"]
+        FileIO2["fileIO.ts"]
+        ImgExp["imageExport.ts"]
+    end
+    Persist -->|"save / load"| PConf
+    PConf --> Migr
+    PConf --> Valid
+    FileIO2 -.->|"manual import/export"| Store
+    ImgExp -.->|"snapshots viewports"| Store
+
+    classDef store fill:#3a2d5a,stroke:#cba6f7,color:#fdf0e3;
+    classDef mw fill:#5a3a1e,stroke:#fab387,color:#fdf0e3;
+    classDef slice fill:#1e3a5f,stroke:#89b4fa,color:#e6edf3;
+    classDef read fill:#22422a,stroke:#a6e3a1,color:#e6edf3;
+    classDef hist fill:#16403f,stroke:#94e2d5,color:#e6edf3;
+    classDef dead fill:#3a2020,stroke:#f38ba8,color:#e6edf3;
+    classDef save fill:#333340,stroke:#9399b2,color:#e6edf3;
+
+    class Store store;
+    class Immer,Persist,Devtools mw;
+    class Editor,Floors,UI,Viewer,Vastu,Settings,History slice;
+    class Selectors read;
+    class Snapshot hist;
+    class Dead dead;
+    class PConf,Migr,Valid,FileIO2,ImgExp save;
+
+    click Store info
+    click Immer info
+    click Persist info
+    click Devtools info
+    click Editor info
+    click Floors info
+    click UI info
+    click Viewer info
+    click Vastu info
+    click Settings info
+    click History info
+    click Selectors info
+    click Snapshot info
+    click Dead info
+    click PConf info
+    click Migr info
+    click Valid info
+    click FileIO2 info
+    click ImgExp info
+`;
+
+const INFO = {
+  Store: { t: 'Zustand Store', f: 'src/store/index.ts',
+    html: `
+    <div class="row"><div class="v">The one shared object holding all app state. Built by combining
+      the 7 slices and wrapping them in 3 middlewares:
+      <code>create()( devtools( persist( immer( ...slices ) ) ) )</code>.</div></div>
+    <div class="row"><div class="k">Saved vs not saved</div><div class="v">
+      Only the plan is saved (editor + floors). The tool you picked (uiSlice), camera (viewerSlice),
+      and undo stacks are temporary and reset on reload.</div></div>` },
+
+  Immer: { t: 'immer (middleware)', f: 'zustand/middleware/immer',
+    html: `<div class="row"><div class="v">Lets every action edit state directly
+      (<code>state.walls[id]=...</code>) while it makes the safe immutable copy behind the scenes.
+      One line instead of manual copying.</div></div>` },
+  Persist: { t: 'persist (middleware)', f: 'zustand/middleware',
+    html: `<div class="row"><div class="v">Auto-saves the plan to IndexedDB on every change and
+      loads it back on startup. A <code>partialize</code> rule picks only the plan to save.</div></div>` },
+  Devtools: { t: 'devtools (middleware)', f: 'zustand/middleware',
+    html: `<div class="row"><div class="v">Lets you watch every state change in the Redux DevTools
+      browser extension. Development aid only.</div></div>` },
+
+  Editor: { t: 'editorSlice — the plan geometry', f: 'src/store/slices/editorSlice.ts',
+    html: `
+    <div class="row"><div class="k">Holds</div><div class="v">
+      <code>vertices</code> (corner points) · <code>walls</code> · <code>rooms</code> ·
+      <code>furniture</code> · <code>openings</code> (doors/windows/vents/ac) · <code>roads</code> ·
+      <code>stairs</code> · <code>pillars</code> · <code>beams</code> · <code>deckSlabs</code> ·
+      <code>railings</code> · <code>selectedIds</code> (what's selected) ·
+      <code>snapConfig</code> (grid + snap settings).</div></div>
+    <div class="row"><div class="k">Actions (changes)</div><div class="v">
+      <code>addWall</code>, <code>removeWall</code>, <code>updateWall</code>, <code>moveVertex</code>,
+      <code>addFurniture</code>, <code>moveFurniture</code>, <code>rotateFurniture</code>,
+      <code>scaleFurniture</code>, <code>addOpening</code>, <code>addPillar</code>, <code>addBeam</code>,
+      <code>addRailing</code>, <code>addDeckSlab</code>, <code>addRoad</code>, <code>addStair</code>,
+      <code>select</code>, <code>clearAll</code>, and clone actions.</div></div>
+    <div class="row"><div class="k">Note</div><div class="v">This is the data that gets SAVED. All entities
+      are stored as id-keyed maps for instant lookup.</div></div>` },
+
+  Floors: { t: 'floorsSlice — storeys', f: 'src/store/slices/floorsSlice.ts',
+    html: `
+    <div class="row"><div class="k">Holds</div><div class="v">
+      <code>floors</code> (the list of storeys, each with an <code>elevationCm</code>) ·
+      <code>activeFloorId</code> (which floor you're editing now) ·
+      <code>floorData</code> (the parked geometry of the OTHER floors).</div></div>
+    <div class="row"><div class="k">How it works</div><div class="v">The live editor always shows the
+      active floor's geometry (in editorSlice). Switching floors swaps the working set with a parked one.
+      The 3D view stacks all floors by elevation.</div></div>` },
+
+  UI: { t: 'uiSlice — interface state', f: 'src/store/slices/uiSlice.ts',
+    html: `
+    <div class="row"><div class="k">Holds</div><div class="v">
+      <code>activeTool</code> (select/wall/furniture/...) · <code>panelVisibility</code> ·
+      <code>isChainModeEnabled</code> · <code>showDimensions</code> · <code>furnitureCatalogId</code> ·
+      <code>arrayConfig</code> · tool sizes: <code>roadWidth</code>, <code>stairWidthCm</code>,
+      <code>railingHeightCm/ElevationCm/Style</code>, <code>beamElevationCm</code> ·
+      <code>paintFinishId</code> · <code>selectedOpeningKinds</code> · <code>openingSizeOverrides</code> ·
+      <code>fitViewNonce</code>.</div></div>
+    <div class="row"><div class="k">Actions</div><div class="v">
+      <code>setActiveTool</code>, <code>togglePanel</code>, <code>setChainMode</code>,
+      <code>toggleDimensions</code>, <code>setFurnitureCatalogId</code>, <code>setArrayConfig</code>,
+      <code>setStairWidth</code>, <code>setPaintFinishId</code>, <code>setOpeningKind</code>,
+      <code>requestFitView</code>, ...</div></div>
+    <div class="row"><div class="k">Note</div><div class="v">Transient — NOT saved to disk.</div></div>` },
+
+  Viewer: { t: 'viewerSlice — 3D view', f: 'src/store/slices/viewerSlice.ts',
+    html: `
+    <div class="row"><div class="k">Holds</div><div class="v">
+      <code>cameraMode</code> (orbit / firstPerson) · <code>renderQuality</code> ·
+      <code>showWireframe</code> · <code>planCentroid3D</code> (what the camera orbits) ·
+      <code>sunTimeHours</code>, <code>sunAzimuthDeg</code>, <code>sunDirectionOverride</code> ·
+      <code>resetCameraTick</code>.</div></div>
+    <div class="row"><div class="k">Actions</div><div class="v">
+      <code>setCameraMode</code>, <code>setRenderQuality</code>, <code>toggleWireframe</code>,
+      <code>setPlanCentroid3D</code>, <code>setSunTime</code>, <code>setSunAzimuth</code>,
+      <code>triggerCameraReset</code>.</div></div>
+    <div class="row"><div class="k">Note</div><div class="v">Transient — NOT saved.</div></div>` },
+
+  Vastu: { t: 'vastuSlice — score + overlays', f: 'src/store/slices/vastuSlice.ts',
+    html: `
+    <div class="row"><div class="k">Holds</div><div class="v">
+      <code>vastuScore</code> (the computed result shown in VastuPanel) ·
+      <code>planBoundary</code> (the house outline) · <code>showVastuOverlay2D</code> ·
+      <code>showVastuOverlay3D</code>.</div></div>
+    <div class="row"><div class="k">Actions</div><div class="v">
+      <code>setVastuScore</code>, <code>setPlanBoundary</code>, <code>toggleVastuOverlay2D</code>,
+      <code>toggleVastuOverlay3D</code>.</div></div>
+    <div class="row"><div class="k">Note</div><div class="v"><code>vastuScore</code> is written by the
+      <code>useVastuAnalysis</code> hook, not by the user directly.</div></div>` },
+
+  Settings: { t: 'settingsSlice — app options', f: 'src/store/slices/settingsSlice.ts',
+    html: `
+    <div class="row"><div class="k">Holds</div><div class="v">
+      <code>featureFlags</code> (enableVastuOverlay, enableNewCamera, showDebugGrid) ·
+      <code>devMode</code> · <code>activeView</code> ('app' | 'sandbox').</div></div>
+    <div class="row"><div class="k">Actions</div><div class="v">
+      <code>toggleFeatureFlag</code>, <code>toggleDevMode</code>, <code>setActiveView</code>.</div></div>
+    <div class="row"><div class="k">Note</div><div class="v"><code>activeView</code> decides whether the
+      app boots into the dev Sandbox or the real app (defaults to 'sandbox').</div></div>` },
+
+  History: { t: 'historySlice — undo / redo', f: 'src/store/slices/historySlice.ts',
+    html: `
+    <div class="row"><div class="k">Holds (reactive flags)</div><div class="v">
+      <code>canUndo</code>, <code>canRedo</code>, <code>undoLabel</code>, <code>redoLabel</code>
+      — these light up the toolbar buttons.</div></div>
+    <div class="row"><div class="k">Actions</div><div class="v">
+      <code>recordHistory(label, fn)</code> (run a change as one undo step) ·
+      <code>beginTransaction</code> / <code>commitTransaction</code> / <code>cancelTransaction</code>
+      (for drags) · <code>undo</code> · <code>redo</code> · <code>clearHistory</code>.</div></div>
+    <div class="row"><div class="k">How it works</div><div class="v">It's snapshot-based: it saves a
+      copy of the plan before each change. The actual <code>past</code> / <code>future</code> stacks
+      live OUTSIDE reactive state (so they don't cause re-renders); only the flags above are reactive.
+      Uses <code>snapshot.ts</code>.</div></div>` },
+
+  Selectors: { t: 'Selectors — read views', f: 'src/store/selectors/editorSelectors.ts',
+    html: `
+    <div class="row"><div class="k">What they are</div><div class="v">Read-only hooks that pull a piece of
+      the store and reshape it for a component. Memoized — recompute only when their inputs change.</div></div>
+    <div class="row"><div class="k">The functions</div><div class="v">
+      <code>useWallSegments()</code> (walls + corner points + miter offsets for 2D) ·
+      <code>useEndpoints()</code> (corner positions for snapping) ·
+      <code>useViewerWalls()</code> / <code>useViewerRooms()</code> (geometry for 3D) ·
+      <code>useFloorBelowGeometry()</code> (ghost trace of the floor below).</div></div>` },
+
+  Snapshot: { t: 'snapshot.ts — the copy maker', f: 'src/store/history/snapshot.ts',
+    html: `
+    <div class="row"><div class="v"><code>captureSnapshot(state)</code> makes a copy of the plan
+      (walls, rooms, furniture, ...). <code>snapshotsEqual(a, b)</code> checks if nothing changed, so
+      no-op actions aren't recorded. Undo/redo restore these snapshots.</div></div>` },
+
+  Dead: { t: 'Command-pattern undo (UNUSED)', f: 'src/store/history/historyManager.ts + commands.ts',
+    html: `
+    <div class="row"><div class="v">A second, different undo system (the classic command pattern).
+      It is <b>not wired in</b> — nothing outside the history folder uses it. The snapshot system above
+      is the live one. Kept here only so you don't confuse the two.</div></div>` },
+
+  PConf: { t: 'persistConfig.ts — the save adapter', f: 'src/store/persistence/persistConfig.ts',
+    html: `
+    <div class="row"><div class="v">Tells <code>persist</code> HOW to store data: it wraps
+      <b>IndexedDB</b> (the browser's built-in database) via the <code>idb-keyval</code> helpers
+      <code>get</code> / <code>set</code> / <code>del</code>. Async, and no size cap like localStorage.</div></div>` },
+
+  Migr: { t: 'migrations.ts — upgrade old saves', f: 'src/store/persistence/migrations.ts',
+    html: `
+    <div class="row"><div class="v"><code>migrateState()</code> upgrades a plan saved by an older
+      version to today's format on load, so old files still open. <code>CURRENT_SCHEMA_VERSION</code>
+      tracks the format number.</div></div>` },
+
+  Valid: { t: 'validation.ts — reject bad data', f: 'src/store/persistence/validation.ts',
+    html: `
+    <div class="row"><div class="v"><code>validateFloorPlanIntegrity()</code> checks a loaded/imported
+      plan is well-formed before it enters the store; <code>validateAddWall()</code> rejects
+      broken walls (zero-length, non-finite). Stops corrupt data from getting in.</div></div>` },
+
+  FileIO2: { t: 'fileIO.ts — file save/load', f: 'src/store/persistence/fileIO.ts',
+    html: `
+    <div class="row"><div class="v"><code>exportFloorPlan()</code> downloads the plan as a
+      <code>.hq.json</code> file. <code>importFloorPlan(file)</code> reads one back → migrate → validate
+      → into the store. This is the MANUAL save (separate from the auto IndexedDB save).</div></div>` },
+
+  ImgExp: { t: 'imageExport.ts — picture export', f: 'src/store/persistence/imageExport.ts',
+    html: `
+    <div class="row"><div class="v"><code>exportEditor2D(format)</code> and
+      <code>exportViewer3D(format)</code> save the 2D plan or 3D view as <b>PNG / JPG / PDF</b>
+      (PDF via the <code>jsPDF</code> library).</div></div>` },
+};
+
+window.info = (id) => {
+  const d = INFO[id];
+  if (!d) return;
+  document.getElementById('panel').innerHTML =
+    `<h2>${d.t}</h2><div class="file">${d.f}</div>${d.html || ''}`;
+};
+
+mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+
+const el = document.getElementById('diagram');
+let svg;
+try {
+  ({ svg } = await mermaid.render('graphDiv', graph));
+} catch (err) {
+  el.innerHTML = '<pre style="color:#f38ba8;padding:20px;white-space:pre-wrap;">Diagram error:\n\n' +
+    (err && err.message ? err.message : err) + '</pre>';
+  throw err;
+}
+el.innerHTML = svg;
+const svgEl = el.querySelector('svg');
+svgEl.style.maxWidth = 'none';
+svgEl.style.width = '100%';
+svgEl.style.height = '100%';
+
+const INFO_KEYS = Object.keys(INFO).sort((a, b) => b.length - a.length);
+function keyForNode(g) {
+  if (!g || !g.id) return null;
+  return INFO_KEYS.find((k) => new RegExp('(^|-)' + k + '(-|$)').test(g.id)) || null;
+}
+el.addEventListener('click', (ev) => {
+  const g = ev.target.closest ? ev.target.closest('.node') : null;
+  const key = keyForNode(g);
+  if (key) window.info(key);
+}, true);
+
+const pz = svgPanZoom(svgEl, {
+  zoomEnabled: true, controlIconsEnabled: false, fit: true, center: true,
+  minZoom: 0.2, maxZoom: 20, zoomScaleSensitivity: 0.3, dblClickZoomEnabled: false,
+});
+document.getElementById('zin').onclick = () => pz.zoomIn();
+document.getElementById('zout').onclick = () => pz.zoomOut();
+document.getElementById('zreset').onclick = () => { pz.resetZoom(); pz.center(); pz.fit(); };
+
+const panel = document.getElementById('panel');
+const resizer = document.getElementById('resizer');
+const controls = document.getElementById('controls');
+function setPanelWidth(px) {
+  const w = Math.max(280, Math.min(px, window.innerWidth - 200));
+  panel.style.width = w + 'px';
+  pz.resize(); pz.fit(); pz.center();
+}
+setPanelWidth(360);
+let dragging = false;
+resizer.addEventListener('mousedown', (e) => { dragging = true; resizer.classList.add('dragging'); document.body.style.userSelect = 'none'; e.preventDefault(); });
+window.addEventListener('mousemove', (e) => { if (dragging) setPanelWidth(window.innerWidth - e.clientX); });
+window.addEventListener('mouseup', () => { dragging = false; resizer.classList.remove('dragging'); document.body.style.userSelect = ''; });
+resizer.addEventListener('dblclick', () => setPanelWidth(panel.offsetWidth > 500 ? 360 : Math.round(window.innerWidth * 0.6)));
+window.addEventListener('resize', () => { pz.resize(); pz.fit(); pz.center(); });
+</script>
+</body>
+</html>

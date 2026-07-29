@@ -1,0 +1,6 @@
+
+# Your existing deps (examples):
+Pillow
+scikit-learn
+numpy
+customtkinter

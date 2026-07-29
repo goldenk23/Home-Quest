@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Sync Project Handoff",
+  "description": "After each agent run, refresh only the bounded live-session summary in the project handoff when substantive project work occurred.",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Update only the `## Live session state (automatically maintained)` section in `docs/2d-3d-integration-handoff.md` to reflect substantive project changes, validation results, next action, and blockers from the just-completed turn. Preserve the rest of the handoff, replace stale bullets instead of appending a transcript, and make no update for routine questions or conversations with no project-state change. This is the handoff-sync agentStop hook; if this execution was itself triggered by this hook, do nothing so the hook cannot recurse."
+  }
+}

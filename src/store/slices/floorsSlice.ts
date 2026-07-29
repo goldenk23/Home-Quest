@@ -20,7 +20,7 @@ export const STORY_HEIGHT_CM = 300;
 
 /** An empty floor's geometry. */
 export function emptyFloorGeometry(): FloorGeometry {
-  return { vertices: {}, walls: {}, rooms: {}, furniture: {}, openings: {}, roads: {}, stairs: {}, pillars: {}, beams: {}, deckSlabs: {}, railings: {} };
+  return { vertices: {}, walls: {}, rooms: {}, furniture: {}, openings: {}, roads: {}, stairs: {}, pillars: {}, beams: {}, deckSlabs: {}, railings: {}, annotations: {} };
 }
 
 /** Pull the active floor's geometry out of the live working set. */
@@ -37,6 +37,7 @@ function readWorkingGeometry(state: AppStore): FloorGeometry {
     beams: state.beams,
     deckSlabs: state.deckSlabs,
     railings: state.railings,
+    annotations: state.annotations,
   };
 }
 
@@ -96,6 +97,7 @@ export const createFloorsSlice: StateCreator<
         s.beams = castDraft(empty.beams);
         s.deckSlabs = castDraft(empty.deckSlabs);
         s.railings = castDraft(empty.railings);
+        s.annotations = castDraft(empty.annotations);
         delete s.floorData[id];
         s.activeFloorId = id;
         s.selectedIds = [];
@@ -135,6 +137,7 @@ export const createFloorsSlice: StateCreator<
         s.beams = castDraft(clone.beams);
         s.deckSlabs = castDraft(clone.deckSlabs);
         s.railings = castDraft(clone.railings);
+        s.annotations = {}; // annotations are not cloned onto a duplicated storey
         delete s.floorData[id];
         s.activeFloorId = id;
         s.selectedIds = [];
@@ -166,6 +169,7 @@ export const createFloorsSlice: StateCreator<
           s.beams = castDraft(incoming.beams ?? {});
           s.deckSlabs = castDraft(incoming.deckSlabs ?? {});
           s.railings = castDraft(incoming.railings ?? {});
+          s.annotations = castDraft(incoming.annotations ?? {});
           delete s.floorData[fallback.id];
           delete s.floorData[id];
           s.activeFloorId = fallback.id;
@@ -200,6 +204,7 @@ export const createFloorsSlice: StateCreator<
         s.beams = castDraft(incoming.beams ?? {});
         s.deckSlabs = castDraft(incoming.deckSlabs ?? {});
         s.railings = castDraft(incoming.railings ?? {});
+        s.annotations = castDraft(incoming.annotations ?? {});
         delete s.floorData[id];
         s.activeFloorId = id;
         s.selectedIds = [];

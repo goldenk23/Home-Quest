@@ -67,6 +67,13 @@ export interface FinishMaterial {
    *   3. The finish appears in the Paint tool palette automatically.
    */
   readonly glbPath?: string;
+  /**
+   * Path to a raster texture (JPEG/PNG served from public/) used to FILL the room polygon in
+   * the 2D plan, clipped to the room shape — like the Python editor's flooring images. Purely
+   * a 2D-presentation extra; the 3D viewer still uses `texture`/`color`. When absent, the 2D
+   * plan falls back to the swatch tint.
+   */
+  readonly imageTexture?: string;
 }
 
 /**
@@ -130,14 +137,16 @@ export const FLOOR_FINISHES: readonly FinishMaterial[] = [
   { id: 'floor-checker', name: 'Checkerboard', category: 'floor', swatch: '#cfcfcf', color: '#ffffff', texture: 'checker', repeatMeters: 0.60, roughness: 0.3 },
   { id: 'floor-hex', name: 'Hexagon Tile', category: 'floor', swatch: '#dfe6ec', color: '#e6ecf2', texture: 'tile', repeatMeters: 0.30, roughness: 0.35 },
   // --- Stone ---------------------------------------------------------------
-  { id: 'floor-marble', name: 'Marble', category: 'floor', swatch: '#f1efe9', color: '#eceae3', texture: 'marble', repeatMeters: 1.5, roughness: 0.25 },
+  { id: 'floor-marble', name: 'Marble', category: 'floor', swatch: '#f1efe9', color: '#eceae3', texture: 'marble', repeatMeters: 1.5, roughness: 0.25, imageTexture: '/flooring/marble.jpeg' },
+  { id: 'floor-tile', name: 'Tile', category: 'floor', swatch: '#dfe6ec', color: '#e6ecf2', texture: 'tile', repeatMeters: 0.45, roughness: 0.35, imageTexture: '/flooring/tile.jpg' },
+  { id: 'floor-grass', name: 'Garden / Grass', category: 'floor', swatch: '#6a994e', color: '#6a994e', texture: 'grass', repeatMeters: 1.0, roughness: 0.9, imageTexture: '/flooring/garden.jpeg' },
   { id: 'floor-marble-black', name: 'Black Marble', category: 'floor', swatch: '#2b2c31', color: '#34353b', texture: 'marble', repeatMeters: 1.5, roughness: 0.22 },
   { id: 'floor-granite', name: 'Granite', category: 'floor', swatch: '#3a3a40', color: '#36363c', texture: 'granite', repeatMeters: 1.0, roughness: 0.4 },
   { id: 'floor-slate', name: 'Slate', category: 'floor', swatch: '#4a4f57', color: '#454a52', texture: 'slate', repeatMeters: 0.5, roughness: 0.6 },
   { id: 'floor-sandstone', name: 'Sandstone', category: 'floor', swatch: '#d8c08c', color: '#d2b985', texture: 'sandstone', repeatMeters: 0.6, roughness: 0.7 },
   { id: 'floor-terrazzo', name: 'Terrazzo', category: 'floor', swatch: '#d8d4cc', color: '#d2cdc4', texture: 'terrazzo', repeatMeters: 1.2, roughness: 0.45 },
   // --- Wood ----------------------------------------------------------------
-  { id: 'floor-wood', name: 'Wood Plank', category: 'floor', swatch: '#9c6b3f', color: '#92643c', texture: 'wood', repeatMeters: 0.18, roughness: 0.6 },
+  { id: 'floor-wood', name: 'Wood Plank', category: 'floor', swatch: '#9c6b3f', color: '#92643c', texture: 'wood', repeatMeters: 0.18, roughness: 0.6, imageTexture: '/flooring/wood.jpeg' },
   { id: 'floor-wood-light', name: 'Oak Plank', category: 'floor', swatch: '#c7a173', color: '#c19c6e', texture: 'wood', repeatMeters: 0.18, roughness: 0.55 },
   { id: 'floor-wood-dark', name: 'Walnut Plank', category: 'floor', swatch: '#5c3d24', color: '#573a22', texture: 'wood', repeatMeters: 0.18, roughness: 0.55 },
   { id: 'floor-herringbone', name: 'Herringbone', category: 'floor', swatch: '#a9794b', color: '#a07346', texture: 'herringbone', repeatMeters: 0.5, roughness: 0.55 },
@@ -179,14 +188,41 @@ export function getDynamicFinishes(): readonly FinishMaterial[] {
   return _dynamicFinishes;
 }
 
+const CUSTOM_FINISH_RE = /^custom-(wall|floor)-([0-9a-f]{6})$/i;
+const _customIndex = new Map<string, FinishMaterial>();
+
+/** Resolve deterministic custom colors emitted by the Tkinter native color picker. */
+function getCustomFinish(id: string): FinishMaterial | null {
+  const cached = _customIndex.get(id);
+  if (cached) return cached;
+  const match = CUSTOM_FINISH_RE.exec(id);
+  if (!match) return null;
+  const category = match[1].toLowerCase() as FinishCategory;
+  const color = `#${match[2].toLowerCase()}`;
+  const finish: FinishMaterial = {
+    id,
+    name: `Custom ${color.toUpperCase()}`,
+    category,
+    swatch: color,
+    color,
+    roughness: category === 'wall' ? 0.85 : 0.7,
+  };
+  _customIndex.set(id, finish);
+  return finish;
+}
+
+function resolveFinish(id: string): FinishMaterial | null {
+  return FINISH_INDEX.get(id) ?? _dynamicIndex.get(id) ?? getCustomFinish(id);
+}
+
 /** Returns the finish registered under `id`, or null when no finish uses that id. */
 export function getFinishById(id: string): FinishMaterial | null {
-  return FINISH_INDEX.get(id) ?? _dynamicIndex.get(id) ?? null;
+  return resolveFinish(id);
 }
 
 /** The category of a finish id; null when the id isn't a registered finish. */
 export function categoryOf(id: string): FinishCategory | null {
-  return (FINISH_INDEX.get(id) ?? _dynamicIndex.get(id))?.category ?? null;
+  return resolveFinish(id)?.category ?? null;
 }
 
 /**
@@ -196,7 +232,7 @@ export function categoryOf(id: string): FinishCategory | null {
  */
 export function getFinishSwatch(id: string | undefined, fallback: string): string {
   if (!id) return fallback;
-  return (FINISH_INDEX.get(id) ?? _dynamicIndex.get(id))?.swatch ?? fallback;
+  return resolveFinish(id)?.swatch ?? fallback;
 }
 
 /** True when `id` is one of the default/legacy ids a surface starts with (not a paint). */

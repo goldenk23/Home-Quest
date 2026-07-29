@@ -1,0 +1,1332 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "Floor Plan",
+    "description": "Auto-generated layout",
+    "created": "2026-02-24T01:53:42.442564",
+    "modified": "2026-02-24T01:53:42.442564",
+    "unit": "ft",
+    "grid_spacing": 20,
+    "canvas_width": 1063,
+    "canvas_height": 800,
+    "zoom_level": 1.0
+  },
+  "rooms": [
+    {
+      "id": "room_room_group_0",
+      "name": "kitchen",
+      "group_tag": "room_group_0",
+      "group_id": 0,
+      "x0": 454.0,
+      "y0": 261.0,
+      "x1": 694.0,
+      "y1": 501.0,
+      "width": 240.0,
+      "height": 240.0,
+      "width_real": 12.0,
+      "height_real": 12.0,
+      "fill_mode": "walls_only",
+      "fill_color": "#d0f0c0",
+      "outline_color": "black",
+      "wall_thickness_ft": 0.2,
+      "flooring": {
+        "has_flooring": false
+      }
+    }
+  ],
+  "furniture": [],
+  "shapes": [
+    {
+      "id": "shape_191",
+      "type": "polygon",
+      "points": [
+        [
+          232.0,
+          244.0
+        ],
+        [
+          632.0,
+          196.0
+        ],
+        [
+          806.0,
+          396.0
+        ],
+        [
+          632.0,
+          579.0
+        ],
+        [
+          232.0,
+          533.0
+        ],
+        [
+          164.0,
+          367.0
+        ],
+        [
+          218.0,
+          215.0
+        ]
+      ],
+      "outline_color": "green",
+      "fill_color": "",
+      "width": 2.0,
+      "style": "solid",
+      "tags": [
+        "closed_shape",
+        "polygon_group_66c474dfdc",
+        "polygon_shape"
+      ]
+    },
+    {
+      "id": "shape_192",
+      "type": "oval",
+      "points": [
+        [
+          230.0,
+          242.0
+        ],
+        [
+          234.0,
+          246.0
+        ]
+      ],
+      "outline_color": "green",
+      "fill_color": "green",
+      "width": 1.0,
+      "style": "solid",
+      "tags": [
+        "polygon_group_66c474dfdc",
+        "polygon_vertex"
+      ]
+    },
+    {
+      "id": "shape_251",
+      "type": "oval",
+      "points": [
+        [
+          630.0,
+          194.0
+        ],
+        [
+          634.0,
+          198.0
+        ]
+      ],
+      "outline_color": "green",
+      "fill_color": "green",
+      "width": 1.0,
+      "style": "solid",
+      "tags": [
+        "polygon_group_66c474dfdc",
+        "polygon_vertex"
+      ]
+    },
+    {
+      "id": "shape_500",
+      "type": "oval",
+      "points": [
+        [
+          804.0,
+          394.0
+        ],
+        [
+          808.0,
+          398.0
+        ]
+      ],
+      "outline_color": "green",
+      "fill_color": "green",
+      "width": 1.0,
+      "style": "solid",
+      "tags": [
+        "polygon_group_66c474dfdc",
+        "polygon_vertex"
+      ]
+    },
+    {
+      "id": "shape_738",
+      "type": "oval",
+      "points": [
+        [
+          630.0,
+          577.0
+        ],
+        [
+          634.0,
+          581.0
+        ]
+      ],
+      "outline_color": "green",
+      "fill_color": "green",
+      "width": 1.0,
+      "style": "solid",
+      "tags": [
+        "polygon_group_66c474dfdc",
+        "polygon_vertex"
+      ]
+    },
+    {
+      "id": "shape_913",
+      "type": "oval",
+      "points": [
+        [
+          230.0,
+          531.0
+        ],
+        [
+          234.0,
+          535.0
+        ]
+      ],
+      "outline_color": "green",
+      "fill_color": "green",
+      "width": 1.0,
+      "style": "solid",
+      "tags": [
+        "polygon_group_66c474dfdc",
+        "polygon_vertex"
+      ]
+    },
+    {
+      "id": "shape_1122",
+      "type": "oval",
+      "points": [
+        [
+          162.0,
+          365.0
+        ],
+        [
+          166.0,
+          369.0
+        ]
+      ],
+      "outline_color": "green",
+      "fill_color": "green",
+      "width": 1.0,
+      "style": "solid",
+      "tags": [
+        "polygon_group_66c474dfdc",
+        "polygon_vertex"
+      ]
+    },
+    {
+      "id": "shape_1429",
+      "type": "oval",
+      "points": [
+        [
+          216.0,
+          213.0
+        ],
+        [
+          220.0,
+          217.0
+        ]
+      ],
+      "outline_color": "green",
+      "fill_color": "green",
+      "width": 1.0,
+      "style": "solid",
+      "tags": [
+        "polygon_group_66c474dfdc",
+        "polygon_vertex"
+      ]
+    },
+    {
+      "id": "shape_1590",
+      "type": "text",
+      "points": [
+        [
+          416.57142857142856,
+          361.42857142857144
+        ]
+      ],
+      "outline_color": "black",
+      "fill_color": "",
+      "width": 0.0,
+      "style": "solid",
+      "tags": [
+        "polygon_group_66c474dfdc",
+        "polygon_label"
+      ]
+    },
+    {
+      "id": "shape_1616",
+      "type": "text",
+      "points": [
+        [
+          574.0,
+          381.0
+        ]
+      ],
+      "outline_color": "#111111",
+      "fill_color": "",
+      "width": 0.0,
+      "style": "solid",
+      "tags": [
+        "room_group_0",
+        "room_label"
+      ]
+    }
+  ],
+  "text": [
+    {
+      "id": "text_2",
+      "content": "0.0",
+      "x": 2.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_4",
+      "content": "1.0",
+      "x": 22.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_6",
+      "content": "2.0",
+      "x": 42.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_8",
+      "content": "3.0",
+      "x": 62.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_10",
+      "content": "4.0",
+      "x": 82.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_12",
+      "content": "5.0",
+      "x": 102.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_14",
+      "content": "6.0",
+      "x": 122.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_16",
+      "content": "7.0",
+      "x": 142.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_18",
+      "content": "8.0",
+      "x": 162.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_20",
+      "content": "9.0",
+      "x": 182.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_22",
+      "content": "10.0",
+      "x": 202.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_24",
+      "content": "11.0",
+      "x": 222.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_26",
+      "content": "12.0",
+      "x": 242.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_28",
+      "content": "13.0",
+      "x": 262.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_30",
+      "content": "14.0",
+      "x": 282.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_32",
+      "content": "15.0",
+      "x": 302.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_34",
+      "content": "16.0",
+      "x": 322.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_36",
+      "content": "17.0",
+      "x": 342.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_38",
+      "content": "18.0",
+      "x": 362.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_40",
+      "content": "19.0",
+      "x": 382.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_42",
+      "content": "20.0",
+      "x": 402.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_44",
+      "content": "21.0",
+      "x": 422.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_46",
+      "content": "22.0",
+      "x": 442.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_48",
+      "content": "23.0",
+      "x": 462.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_50",
+      "content": "24.0",
+      "x": 482.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_52",
+      "content": "25.0",
+      "x": 502.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_54",
+      "content": "26.0",
+      "x": 522.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_56",
+      "content": "27.0",
+      "x": 542.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_58",
+      "content": "28.0",
+      "x": 562.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_60",
+      "content": "29.0",
+      "x": 582.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_62",
+      "content": "30.0",
+      "x": 602.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_64",
+      "content": "31.0",
+      "x": 622.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_66",
+      "content": "32.0",
+      "x": 642.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_68",
+      "content": "33.0",
+      "x": 662.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_70",
+      "content": "34.0",
+      "x": 682.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_72",
+      "content": "35.0",
+      "x": 702.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_74",
+      "content": "36.0",
+      "x": 722.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_76",
+      "content": "37.0",
+      "x": 742.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_78",
+      "content": "38.0",
+      "x": 762.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_80",
+      "content": "39.0",
+      "x": 782.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_82",
+      "content": "40.0",
+      "x": 802.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_84",
+      "content": "41.0",
+      "x": 822.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_86",
+      "content": "42.0",
+      "x": 842.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_88",
+      "content": "43.0",
+      "x": 862.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_90",
+      "content": "44.0",
+      "x": 882.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_92",
+      "content": "45.0",
+      "x": 902.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_94",
+      "content": "46.0",
+      "x": 922.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_96",
+      "content": "47.0",
+      "x": 942.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_98",
+      "content": "48.0",
+      "x": 962.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_100",
+      "content": "49.0",
+      "x": 982.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_102",
+      "content": "50.0",
+      "x": 1002.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_104",
+      "content": "51.0",
+      "x": 1022.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_106",
+      "content": "52.0",
+      "x": 1042.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_108",
+      "content": "53.0",
+      "x": 1062.0,
+      "y": 10.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_110",
+      "content": "0.0",
+      "x": 2.0,
+      "y": 2.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_112",
+      "content": "1.0",
+      "x": 2.0,
+      "y": 22.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_114",
+      "content": "2.0",
+      "x": 2.0,
+      "y": 42.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_116",
+      "content": "3.0",
+      "x": 2.0,
+      "y": 62.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_118",
+      "content": "4.0",
+      "x": 2.0,
+      "y": 82.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_120",
+      "content": "5.0",
+      "x": 2.0,
+      "y": 102.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_122",
+      "content": "6.0",
+      "x": 2.0,
+      "y": 122.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_124",
+      "content": "7.0",
+      "x": 2.0,
+      "y": 142.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_126",
+      "content": "8.0",
+      "x": 2.0,
+      "y": 162.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_128",
+      "content": "9.0",
+      "x": 2.0,
+      "y": 182.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_130",
+      "content": "10.0",
+      "x": 2.0,
+      "y": 202.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_132",
+      "content": "11.0",
+      "x": 2.0,
+      "y": 222.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_134",
+      "content": "12.0",
+      "x": 2.0,
+      "y": 242.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_136",
+      "content": "13.0",
+      "x": 2.0,
+      "y": 262.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_138",
+      "content": "14.0",
+      "x": 2.0,
+      "y": 282.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_140",
+      "content": "15.0",
+      "x": 2.0,
+      "y": 302.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_142",
+      "content": "16.0",
+      "x": 2.0,
+      "y": 322.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_144",
+      "content": "17.0",
+      "x": 2.0,
+      "y": 342.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_146",
+      "content": "18.0",
+      "x": 2.0,
+      "y": 362.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_148",
+      "content": "19.0",
+      "x": 2.0,
+      "y": 382.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_150",
+      "content": "20.0",
+      "x": 2.0,
+      "y": 402.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_152",
+      "content": "21.0",
+      "x": 2.0,
+      "y": 422.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_154",
+      "content": "22.0",
+      "x": 2.0,
+      "y": 442.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_156",
+      "content": "23.0",
+      "x": 2.0,
+      "y": 462.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_158",
+      "content": "24.0",
+      "x": 2.0,
+      "y": 482.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_160",
+      "content": "25.0",
+      "x": 2.0,
+      "y": 502.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_162",
+      "content": "26.0",
+      "x": 2.0,
+      "y": 522.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_164",
+      "content": "27.0",
+      "x": 2.0,
+      "y": 542.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_166",
+      "content": "28.0",
+      "x": 2.0,
+      "y": 562.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_168",
+      "content": "29.0",
+      "x": 2.0,
+      "y": 582.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_170",
+      "content": "30.0",
+      "x": 2.0,
+      "y": 602.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_172",
+      "content": "31.0",
+      "x": 2.0,
+      "y": 622.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_174",
+      "content": "32.0",
+      "x": 2.0,
+      "y": 642.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_176",
+      "content": "33.0",
+      "x": 2.0,
+      "y": 662.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_178",
+      "content": "34.0",
+      "x": 2.0,
+      "y": 682.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_180",
+      "content": "35.0",
+      "x": 2.0,
+      "y": 702.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_182",
+      "content": "36.0",
+      "x": 2.0,
+      "y": 722.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_184",
+      "content": "37.0",
+      "x": 2.0,
+      "y": 742.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_186",
+      "content": "38.0",
+      "x": 2.0,
+      "y": 762.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_188",
+      "content": "39.0",
+      "x": 2.0,
+      "y": 782.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_190",
+      "content": "40.0",
+      "x": 2.0,
+      "y": 802.0,
+      "font": "Arial 7",
+      "color": "#888888",
+      "tags": [
+        "grid"
+      ]
+    },
+    {
+      "id": "text_1590",
+      "content": "Area: 448.49 ft\u00b2\nPerimeter: 84.80 ft",
+      "x": 416.57142857142856,
+      "y": 361.42857142857144,
+      "font": "Arial 9",
+      "color": "black",
+      "tags": [
+        "polygon_group_66c474dfdc",
+        "polygon_label"
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store';
 import { SnappingTestSandbox } from '../domains/editor/components/SnappingTestSandbox';
 import { EditorScreen } from '../domains/editor/components/EditorScreen';
@@ -14,7 +14,10 @@ import { kindsForFamily, getOpeningKind, type OpeningFamily } from '../domains/s
 import { formatClock, azimuthLabel, dayPhase } from '../domains/viewer/services/sun';
 import { loadSampleHouse } from '../domains/editor/services/samplePlan';
 import { loadSampleHall1 } from '../domains/editor/services/sampleHall1';
+import { ROOM_TEMPLATES, placeRoomTemplate } from '../domains/editor/services/roomTemplates';
 import { exportFloorPlan, importFloorPlan } from '../store/persistence/fileIO';
+import { startAutosaveBackups, listBackups, writeBackupNow, restoreBackup, type BackupEntry } from '../store/persistence/backups';
+import { assertVastuLayout, importVastuLayout, MAX_VASTU_FILE_BYTES } from '../store/persistence/importVastu';
 import { exportEditor2D, exportViewer3D, type ImageExportFormat } from '../store/persistence/imageExport';
 import type { RoomType } from '../types/editor';
 
@@ -192,6 +195,12 @@ export const SandboxView: React.FC = () => {
   const setChainMode = useAppStore((s) => s.setChainMode);
   const showDimensions = useAppStore((s) => s.showDimensions);
   const toggleDimensions = useAppStore((s) => s.toggleDimensions);
+  const displayUnit = useAppStore((s) => s.displayUnit);
+  const setDisplayUnit = useAppStore((s) => s.setDisplayUnit);
+  const isCanvasFrozen = useAppStore((s) => s.isCanvasFrozen);
+  const toggleCanvasFreeze = useAppStore((s) => s.toggleCanvasFreeze);
+  const isRegionExportArmed = useAppStore((s) => s.isRegionExportArmed);
+  const setRegionExportArmed = useAppStore((s) => s.setRegionExportArmed);
   const scalePlan = useAppStore((s) => s.scalePlan);
   const furnitureCatalogId = useAppStore((s) => s.furnitureCatalogId);
   const setFurnitureCatalogId = useAppStore((s) => s.setFurnitureCatalogId);
@@ -252,7 +261,21 @@ export const SandboxView: React.FC = () => {
   const resetOpeningSize = useAppStore((s) => s.resetOpeningSize);
   const toggleVastuOverlay2D = useAppStore((s) => s.toggleVastuOverlay2D);
   const toggleVastuOverlay3D = useAppStore((s) => s.toggleVastuOverlay3D);
+  const vastuZoneCount = useAppStore((s) => s.vastuZoneCount);
+  const setVastuZoneCount = useAppStore((s) => s.setVastuZoneCount);
+  const vastuNorthDeg = useAppStore((s) => s.vastuNorthDeg);
+  const setVastuNorthDeg = useAppStore((s) => s.setVastuNorthDeg);
+  const vastuChakraMode = useAppStore((s) => s.vastuChakraMode);
+  const setVastuChakraMode = useAppStore((s) => s.setVastuChakraMode);
+  const showVastuDivisionLines = useAppStore((s) => s.showVastuDivisionLines);
+  const toggleVastuDivisionLines = useAppStore((s) => s.toggleVastuDivisionLines);
   const cameraMode = useAppStore((s) => s.cameraMode);
+  const [backups, setBackups] = useState<BackupEntry[]>([]);
+  useEffect(() => {
+    const stop = startAutosaveBackups();
+    void listBackups().then(setBackups);
+    return stop;
+  }, []);
   const setCameraMode = useAppStore((s) => s.setCameraMode);
   const triggerCameraReset = useAppStore((s) => s.triggerCameraReset);
   const renderQuality = useAppStore((s) => s.renderQuality);
@@ -295,6 +318,7 @@ export const SandboxView: React.FC = () => {
   const [ioMessage, setIoMessage] = useState<string | null>(null);
   const [exportFormat, setExportFormat] = useState<ImageExportFormat>('png');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const pyImportRef = React.useRef<HTMLInputElement>(null);
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -302,6 +326,43 @@ export const SandboxView: React.FC = () => {
     const result = await importFloorPlan(file);
     setIoMessage(result.success ? `Loaded “${file.name}”.` : `Import failed: ${result.error}`);
     e.target.value = ''; // allow re-importing the same file
+  };
+
+  const handleImportPython = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      if (file.size > MAX_VASTU_FILE_BYTES) {
+        throw new Error(`file is larger than ${MAX_VASTU_FILE_BYTES / 1024 / 1024} MB`);
+      }
+      const layout: unknown = JSON.parse(await file.text());
+      assertVastuLayout(layout);
+      const state = useAppStore.getState();
+      const hasExistingPlan = Object.keys(state.vertices).length > 0 ||
+        Object.keys(state.furniture).length > 0 || state.floors.length > 1;
+      if (hasExistingPlan && !window.confirm('Importing this Python layout will replace the current plan. A backup will be saved first. Continue?')) {
+        return;
+      }
+      if (hasExistingPlan) await writeBackupNow();
+
+      const report = importVastuLayout(layout);
+      triggerCameraReset();
+      const warnings = [
+        ...report.unmapped.map((name) =>
+          `unmapped furniture '${name}' is unavailable; marked in red in 2D and omitted from 3D`
+        ),
+        ...report.residuals,
+      ];
+      const warningText = warnings.length > 0 ? ` Warnings: ${warnings.join('; ')}.` : '';
+      setIoMessage(
+        `Imported Python layout: ${report.rooms} rooms, ${report.walls} walls, ` +
+        `${report.openings} openings, ${report.furniture} furniture items.${warningText}`
+      );
+    } catch (err) {
+      setIoMessage(`Python import failed: ${(err as Error).message}`);
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const handleExportImage = async (which: '2d' | '3d') => {
@@ -389,6 +450,7 @@ export const SandboxView: React.FC = () => {
         <Row label="Tool">
           <button style={btn(activeTool === 'select')} onClick={() => setActiveTool('select')}>🖱️ Select</button>
           <button style={btn(activeTool === 'wall')} onClick={() => setActiveTool('wall')}>📏 Draw Wall</button>
+          <button style={btn(activeTool === 'polygon', '#0d9488')} onClick={() => setActiveTool('polygon')}>⬡ Polygon Room</button>
           <button style={btn(activeTool === 'road')} onClick={() => setActiveTool('road')}>🛣️ Road</button>
           <button style={btn(activeTool === 'pillar', '#475569')} onClick={() => setActiveTool('pillar')}>🏛️ Pillar</button>
           <button style={btn(activeTool === 'beam', '#475569')} onClick={() => setActiveTool('beam')}>━ Beam</button>
@@ -401,8 +463,10 @@ export const SandboxView: React.FC = () => {
           <button style={btn(activeTool === 'ac')} onClick={() => setActiveTool('ac')}>❄️ AC</button>
           <button style={btn(activeTool === 'paint')} onClick={() => setActiveTool('paint')}>🎨 Paint</button>
           <button style={btn(activeTool === 'room')} onClick={() => setActiveTool('room')}>🏷️ Name Room</button>
+          <button style={btn(activeTool === 'text', '#0891b2')} onClick={() => setActiveTool('text')}>🔤 Text</button>
           <button style={btn(activeTool === 'stair', '#7c3aed')} onClick={() => setActiveTool('stair')}>🪜 Stair</button>
           <button style={btn(activeTool === 'array', '#f59e0b')} onClick={() => { resetArrayConfig(); setActiveTool('array'); }}>🔁 Array</button>
+          <button style={btn(activeTool === 'erase', '#ef4444')} onClick={() => setActiveTool('erase')}>🧹 Erase Area</button>
           <label style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '0.5rem', fontSize: '0.82rem', color: '#374151', cursor: 'pointer' }}>
             <input type="checkbox" checked={isChainModeEnabled} onChange={(e) => setChainMode(e.target.checked)} />
             Chain mode
@@ -801,12 +865,41 @@ export const SandboxView: React.FC = () => {
           </Row>
         )}
 
-        {activeTool === 'room' && (
-          <Row label="Name Room">
-            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-              Click a room in the 2D editor to select it, then set its type and name in the popup.
+        {activeTool === 'text' && (
+          <Row label="Text">
+            <span style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
+              Click on the plan to drop a label, then double-click it to edit. Drag to move; Delete removes it. Clearing the text deletes the label.
             </span>
           </Row>
+        )}
+
+        {activeTool === 'polygon' && (
+          <Row label="Polygon">
+            <span style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
+              Click to place corners; click the first point (or double-click / Enter) to close. Live area &amp; perimeter show while drawing. Esc cancels. The closed loop becomes a room.
+            </span>
+          </Row>
+        )}
+
+        {activeTool === 'room' && (
+          <>
+            <Row label="Name Room">
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                Click a room in the 2D editor to select it, then set its type and name in the popup.
+              </span>
+            </Row>
+            <Row label="Templates">
+              {ROOM_TEMPLATES.map((t) => (
+                <button
+                  key={t.id}
+                  style={btn(false, '#0d9488')}
+                  onClick={() => placeRoomTemplate(useAppStore.getState().currentMouseWorld ?? { x: 0, y: 0 }, t)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </Row>
+          </>
         )}
 
         {activeTool === 'stair' && (
@@ -877,6 +970,39 @@ export const SandboxView: React.FC = () => {
           <button style={btn(showVastuOverlay3D, '#10b981')} onClick={toggleVastuOverlay3D}>Vastu 3D</button>
           <button style={btn(showDimensions, '#0ea5e9')} onClick={toggleDimensions}>📏 Dimensions</button>
         </Row>
+
+        <Row label="Units">
+          {(['m', 'cm', 'ft', 'in'] as const).map((u) => (
+            <button key={u} style={btn(displayUnit === u, '#0ea5e9')} onClick={() => setDisplayUnit(u)}>{u}</button>
+          ))}
+        </Row>
+
+        <Row label="Canvas">
+          <button style={btn(isCanvasFrozen, '#ef4444')} onClick={toggleCanvasFreeze}>
+            {isCanvasFrozen ? '🔒 Locked' : '🔓 Lock'}
+          </button>
+          <button style={btn(isRegionExportArmed, '#16a34a')} onClick={() => setRegionExportArmed(!isRegionExportArmed)}>
+            {isRegionExportArmed ? '📸 Drag a region…' : '📸 Export Region'}
+          </button>
+          <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Ctrl+C / Ctrl+V to copy/paste furniture</span>
+        </Row>
+
+        {showVastuOverlay2D && (
+          <>
+            <Row label="Vastu zones">
+              {([8, 16, 32] as const).map((n) => (
+                <button key={n} style={btn(vastuZoneCount === n, '#10b981')} onClick={() => setVastuZoneCount(n)}>{n}</button>
+              ))}
+              <button style={btn(vastuChakraMode === 'vedic', '#8b5cf6')} onClick={() => setVastuChakraMode('vedic')}>Vedic</button>
+              <button style={btn(vastuChakraMode === 'modern', '#8b5cf6')} onClick={() => setVastuChakraMode('modern')}>Modern</button>
+              <button style={btn(showVastuDivisionLines, '#0ea5e9')} onClick={toggleVastuDivisionLines}>Lines</button>
+            </Row>
+            <Row label="North °">
+              <input type="range" min={0} max={359} step={1} value={vastuNorthDeg} onChange={(e) => setVastuNorthDeg(Number(e.target.value))} style={{ flex: 1 }} />
+              <span style={{ fontSize: '0.8rem', color: '#334155', minWidth: 36 }}>{vastuNorthDeg}°</span>
+            </Row>
+          </>
+        )}
 
         <Row label="Scale">
           <button style={btn(false, '#6366f1')} onClick={() => scaleBy(1 / 1.1)}>➖ Scale Down</button>
@@ -965,15 +1091,33 @@ export const SandboxView: React.FC = () => {
           </span>
         </Row>
 
+        <Row label="Backups">
+          <button style={btn(false, '#0ea5e9')} onClick={async () => { await writeBackupNow(); setBackups(await listBackups()); }}>💾 Save Backup</button>
+          <button style={btn(false, '#6366f1')} onClick={async () => setBackups(await listBackups())}>🔄 Refresh</button>
+          {backups.map((b) => (
+            <button key={b.index} style={btn(false, '#334155')} title={new Date(b.savedAt).toLocaleString()} onClick={async () => { await restoreBackup(b.index); }}>
+              ⏮ {new Date(b.savedAt).toLocaleTimeString()} ({b.label})
+            </button>
+          ))}
+        </Row>
+
         <Row label="File">
           <button style={btn(false, '#16a34a')} onClick={() => exportFloorPlan()}>💾 Export JSON</button>
           <button style={btn(false, '#16a34a')} onClick={() => fileInputRef.current?.click()}>📂 Import JSON</button>
+          <button style={btn(false, '#8b5cf6')} onClick={() => pyImportRef.current?.click()}>🐍 Import Python Layout</button>
           <input
             ref={fileInputRef}
             type="file"
             accept=".json,application/json"
             style={{ display: 'none' }}
             onChange={handleImportFile}
+          />
+          <input
+            ref={pyImportRef}
+            type="file"
+            accept=".json,application/json"
+            style={{ display: 'none' }}
+            onChange={handleImportPython}
           />
           {ioMessage && <span style={{ fontSize: '0.78rem', color: '#64748b' }}>{ioMessage}</span>}
           <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>

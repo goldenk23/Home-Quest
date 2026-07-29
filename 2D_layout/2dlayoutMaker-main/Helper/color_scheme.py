@@ -1,0 +1,47 @@
+COLORS = {
+    # Glassy slate/navy chrome with restrained teal highlights.
+    # Tkinter has no per-widget alpha, so depth comes from layered tones and borders.
+    "primary": "#2DD4BF",
+    "primary_hover": "#20B9A8",
+    "primary_light": "#67E8D4",
+    "primary_foreground": "#041F1E",
+    "primary_surface": "#0B3538",
+
+    "secondary": "#0F766E",
+    "secondary_hover": "#115E59",
+    "secondary_light": "#2DD4BF",
+
+    "app_bg": "#07111F",
+    "surface": "#13233A",
+    "surface_raised": "#0D1A2D",
+    "surface_muted": "#1A2B45",
+    "canvas_chrome": "#101E32",
+    "canvas_bg": "#091426",
+    "grid_line": "#172943",
+    "grid_label": "#536982",
+    "drawing_ink": "#E2E8F0",
+    "workspace_header": "#081321",
+    "surface_dark": "#07101D",
+    "sidebar": "#0D1A2D",
+    "sidebar_hover": "#162A44",
+    "sidebar_active": "#0B3538",
+    "sidebar_border": "#203650",
+    "sidebar_text": "#F8FAFC",
+    "sidebar_muted": "#8FA2BC",
+    "border": "#203650",
+    "border_strong": "#2D4867",
+    "border_dark": "#253D59",
+    "focus": "#2DD4BF",
+
+    "text_primary": "#F1F5F9",
+    "text_secondary": "#C5D1E1",
+    "text_light": "#8293AA",
+    "text_white": "#FFFFFF",
+
+    "success": "#146B59",
+    "warning": "#7A5514",
+    "error": "#982F3D",
+    "info": "#225F91",
+    "accent": "#1D3552",
+    "accent_hover": "#284867",
+}

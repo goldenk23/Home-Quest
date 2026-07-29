@@ -1,0 +1,133 @@
+{
+  "version": 8,
+  "vertices": {
+    "vertex_e519a8bb-efe1-4777-b211-c1f5629acc74": {
+      "id": "vertex_e519a8bb-efe1-4777-b211-c1f5629acc74",
+      "position": {
+        "x": 180,
+        "y": 830
+      },
+      "connectedWalls": [
+        "wall_f12f6073-a369-4c41-92d8-74b7a9cddb77",
+        "wall_8966d333-1232-4c65-a3f8-d0d1f485578f"
+      ]
+    },
+    "vertex_22e990f1-730e-4163-b68e-9364b5193fb1": {
+      "id": "vertex_22e990f1-730e-4163-b68e-9364b5193fb1",
+      "position": {
+        "x": 1030,
+        "y": 830
+      },
+      "connectedWalls": [
+        "wall_f12f6073-a369-4c41-92d8-74b7a9cddb77",
+        "wall_99f67ba8-d664-4beb-b440-d494f6425656"
+      ]
+    },
+    "vertex_8dc69abc-27a9-406f-abf4-4449dba61719": {
+      "id": "vertex_8dc69abc-27a9-406f-abf4-4449dba61719",
+      "position": {
+        "x": 1030,
+        "y": 160
+      },
+      "connectedWalls": [
+        "wall_99f67ba8-d664-4beb-b440-d494f6425656",
+        "wall_86869975-1346-40ea-afa7-a3144e2c03cd"
+      ]
+    },
+    "vertex_7865d215-13f4-4526-8ae8-d3e67dca452a": {
+      "id": "vertex_7865d215-13f4-4526-8ae8-d3e67dca452a",
+      "position": {
+        "x": 160,
+        "y": 160
+      },
+      "connectedWalls": [
+        "wall_86869975-1346-40ea-afa7-a3144e2c03cd",
+        "wall_8966d333-1232-4c65-a3f8-d0d1f485578f"
+      ]
+    }
+  },
+  "walls": {
+    "wall_f12f6073-a369-4c41-92d8-74b7a9cddb77": {
+      "id": "wall_f12f6073-a369-4c41-92d8-74b7a9cddb77",
+      "startVertexId": "vertex_e519a8bb-efe1-4777-b211-c1f5629acc74",
+      "endVertexId": "vertex_22e990f1-730e-4163-b68e-9364b5193fb1",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    },
+    "wall_99f67ba8-d664-4beb-b440-d494f6425656": {
+      "id": "wall_99f67ba8-d664-4beb-b440-d494f6425656",
+      "startVertexId": "vertex_22e990f1-730e-4163-b68e-9364b5193fb1",
+      "endVertexId": "vertex_8dc69abc-27a9-406f-abf4-4449dba61719",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    },
+    "wall_86869975-1346-40ea-afa7-a3144e2c03cd": {
+      "id": "wall_86869975-1346-40ea-afa7-a3144e2c03cd",
+      "startVertexId": "vertex_8dc69abc-27a9-406f-abf4-4449dba61719",
+      "endVertexId": "vertex_7865d215-13f4-4526-8ae8-d3e67dca452a",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    },
+    "wall_8966d333-1232-4c65-a3f8-d0d1f485578f": {
+      "id": "wall_8966d333-1232-4c65-a3f8-d0d1f485578f",
+      "startVertexId": "vertex_7865d215-13f4-4526-8ae8-d3e67dca452a",
+      "endVertexId": "vertex_e519a8bb-efe1-4777-b211-c1f5629acc74",
+      "thickness": 20,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    }
+  },
+  "rooms": {
+    "room_1f888d11-4687-476f-8e1a-350628e08861": {
+      "id": "room_1f888d11-4687-476f-8e1a-350628e08861",
+      "boundaryVertexIds": [
+        "vertex_22e990f1-730e-4163-b68e-9364b5193fb1",
+        "vertex_e519a8bb-efe1-4777-b211-c1f5629acc74",
+        "vertex_7865d215-13f4-4526-8ae8-d3e67dca452a",
+        "vertex_8dc69abc-27a9-406f-abf4-4449dba61719"
+      ],
+      "roomType": "custom",
+      "label": "Room 1",
+      "floorMaterialId": "default-floor"
+    }
+  },
+  "furniture": {},
+  "openings": {},
+  "roads": {},
+  "pillars": {},
+  "beams": {},
+  "deckSlabs": {},
+  "railings": {},
+  "floors": [
+    {
+      "id": "floor_d255dc66-c740-419d-a17f-c739087f902c",
+      "name": "Ground Floor",
+      "elevationCm": 0
+    }
+  ],
+  "activeFloorId": "floor_d255dc66-c740-419d-a17f-c739087f902c",
+  "floorData": {},
+  "metadata": {
+    "name": "floorplan",
+    "createdAt": "2026-07-09T06:31:39.841Z",
+    "lastModifiedAt": "2026-07-09T06:31:39.841Z",
+    "authorId": null
+  },
+  "settings": {
+    "gridSize": 10,
+    "wallThickness": 20,
+    "wallHeight": 280,
+    "measurementUnit": "cm"
+  }
+}

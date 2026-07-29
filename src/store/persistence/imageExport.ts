@@ -144,6 +144,55 @@ export async function exportEditor2D(format: ImageExportFormat): Promise<{ succe
   }
 }
 
+/**
+ * Exports a rectangular REGION of the 2D editor plan. `region` is in the SVG's own pixel space
+ * (same space as the SVG's default user units, i.e. screen px relative to the SVG top-left).
+ */
+export async function exportEditor2DRegion(
+  region: { x: number; y: number; width: number; height: number },
+  format: ImageExportFormat
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const svg = document.querySelector<SVGSVGElement>('#editor-canvas svg');
+    if (!svg) return { success: false, error: 'The 2D editor is not available to export.' };
+    const w = Math.max(1, Math.round(region.width));
+    const h = Math.max(1, Math.round(region.height));
+    const outW = w * RASTER_SCALE;
+    const outH = h * RASTER_SCALE;
+
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('width', String(outW));
+    clone.setAttribute('height', String(outH));
+    clone.setAttribute('viewBox', `${region.x} ${region.y} ${w} ${h}`);
+    clone.querySelectorAll('[data-export-exclude="true"]').forEach((el) => el.remove());
+
+    const svgString = new XMLSerializer().serializeToString(clone);
+    const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Failed to rasterize the region.'));
+      img.src = svgUrl;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Could not create a drawing context for export.');
+    ctx.fillStyle = EDITOR_BG;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    await exportCanvas(canvas, format, timestampedName('home-quest-region'));
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
 /** Exports the 3D viewer scene as PNG/JPG/PDF. */
 export async function exportViewer3D(format: ImageExportFormat): Promise<{ success: boolean; error?: string }> {
   try {

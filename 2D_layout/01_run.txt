@@ -1,0 +1,1 @@
+Set-Location "C:\Users\golde\Desktop\Projects\Home Quest"; powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\run-home-quest.ps1"

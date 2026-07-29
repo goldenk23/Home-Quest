@@ -59,6 +59,28 @@ export const RoomAssignmentPanel: React.FC = () => {
         style={select}
         placeholder="e.g. Master Bedroom"
       />
+
+      <label style={{ display: 'block', fontSize: '0.78rem', color: '#475569', margin: '8px 0 4px' }}>Fill:</label>
+      <select
+        value={room.fillMode ?? 'filled'}
+        onChange={(e) => {
+          const next = e.target.value as NonNullable<typeof room.fillMode>;
+          useAppStore.getState().recordHistory('Set Room Fill', () => updateRoom(room.id, { fillMode: next }));
+        }}
+        style={select}
+      >
+        <option value="filled">Filled</option>
+        <option value="transparent">Transparent (outline)</option>
+        <option value="walls-only">Walls only</option>
+      </select>
+
+      <label style={{ display: 'block', fontSize: '0.78rem', color: '#475569', margin: '8px 0 4px' }}>Fill color (optional):</label>
+      <input
+        type="color"
+        value={room.fillColor ?? '#60a5fa'}
+        onChange={(e) => updateRoom(room.id, { fillColor: e.target.value })}
+        style={{ ...select, padding: '2px', height: 32 }}
+      />
     </div>
   );
 };

@@ -76,6 +76,7 @@ export const createHistorySlice: StateCreator<
       state.beams = castDraft(snap.beams);
       state.deckSlabs = castDraft(snap.deckSlabs);
       state.railings = castDraft(snap.railings);
+      state.annotations = castDraft(snap.annotations);
       // Selection may point at entities that no longer exist after a restore — clear it.
       state.selectedIds = [];
     });

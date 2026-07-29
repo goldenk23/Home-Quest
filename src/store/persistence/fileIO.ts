@@ -19,6 +19,7 @@ export function exportFloorPlan(filename = 'floorplan.hq.json'): void {
     beams: state.beams,
     deckSlabs: state.deckSlabs,
     railings: state.railings,
+    annotations: state.annotations,
     floors: state.floors,
     activeFloorId: state.activeFloorId,
     floorData: state.floorData,

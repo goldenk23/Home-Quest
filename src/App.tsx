@@ -1,11 +1,11 @@
 import { useAppStore } from './store';
+import { EmbeddedViewer } from './app/EmbeddedViewer';
 import { SandboxView } from './app/SandboxView';
 import { DevToolsPanel } from './domains/shared/components/DevToolsPanel';
 import './App.css';
 
-function App() {
-  const { activeView } = useAppStore();
-
+function RegularApp() {
+  const activeView = useAppStore((state) => state.activeView);
   return (
     <>
       {activeView === 'sandbox' ? (
@@ -18,11 +18,13 @@ function App() {
           <p>Check out the <strong>Developer Sandbox</strong> via the DevTools panel in the bottom right!</p>
         </div>
       )}
-      
-      {/* Dev Tools Panel injected globally */}
       <DevToolsPanel />
     </>
   );
 }
 
-export default App;
+export default function App() {
+  return new URLSearchParams(window.location.search).get('embedded') === '1'
+    ? <EmbeddedViewer />
+    : <RegularApp />;
+}

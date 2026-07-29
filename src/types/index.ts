@@ -23,6 +23,7 @@ export type {
   Beam,
   DeckSlab,
   Railing,
+  TextAnnotation,
   FloorPlan,
   Floor,
   FloorGeometry,

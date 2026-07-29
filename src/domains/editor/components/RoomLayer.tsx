@@ -4,8 +4,11 @@ import React from 'react';
 import { useAppStore } from '@/store';
 import { ROOM_FILL_COLORS } from '../constants';
 import { computeSignedArea } from '../services/roomDetection';
-import { getFinishSwatch, isDefaultFinish } from '@/domains/shared/materials/finishPalette';
+import { getFinishSwatch, isDefaultFinish, getFinishById } from '@/domains/shared/materials/finishPalette';
 import type { Point2D } from '@/types/geometry';
+
+/** cm size of one flooring-texture tile in the 2D plan. ponytail: fixed tile, not per-finish. */
+const FLOOR_TILE_CM = 150;
 
 /**
  * Fill for a room in the 2D editor. A painted room (one whose `floorMaterialId` is a
@@ -16,6 +19,10 @@ import type { Point2D } from '@/types/geometry';
 function roomFill(floorMaterialId: string, roomType: keyof typeof ROOM_FILL_COLORS): string {
   if (isDefaultFinish(floorMaterialId)) {
     return ROOM_FILL_COLORS[roomType];
+  }
+  // Real flooring image (wood/marble/tile/grass) → fill via a tiling <pattern>.
+  if (getFinishById(floorMaterialId)?.imageTexture) {
+    return `url(#floor-tex-${floorMaterialId})`;
   }
   const hex = getFinishSwatch(floorMaterialId, '#d4c5a9');
   return hexToRgba(hex, 0.55);
@@ -50,8 +57,36 @@ export const RoomLayer: React.FC = React.memo(() => {
   const vertices = useAppStore((s) => s.vertices);
   const selectedIds = useAppStore((s) => s.selectedIds);
 
+  // Distinct flooring-image materials in use → one <pattern> each (defined once).
+  const texturedMaterials = React.useMemo(() => {
+    const ids = new Set<string>();
+    for (const room of Object.values(rooms)) {
+      if (getFinishById(room.floorMaterialId)?.imageTexture) ids.add(room.floorMaterialId);
+    }
+    return [...ids];
+  }, [rooms]);
+
   return (
     <g className="room-layer">
+      <defs>
+        {texturedMaterials.map((id) => {
+          const src = getFinishById(id)?.imageTexture;
+          if (!src) return null;
+          return (
+            <pattern
+              key={id}
+              id={`floor-tex-${id}`}
+              width={FLOOR_TILE_CM}
+              height={FLOOR_TILE_CM}
+              patternUnits="userSpaceOnUse"
+            >
+              <image href={src} x={0} y={0} width={FLOOR_TILE_CM} height={FLOOR_TILE_CM} preserveAspectRatio="xMidYMid slice" />
+              {/* Slight dark wash so labels/walls stay legible over busy textures. */}
+              <rect x={0} y={0} width={FLOOR_TILE_CM} height={FLOOR_TILE_CM} fill="rgba(0,0,0,0.12)" />
+            </pattern>
+          );
+        })}
+      </defs>
       {Object.values(rooms).map((room) => {
         // Resolve boundary vertex IDs → positions; skip any room with missing vertices.
         const points = room.boundaryVertexIds
@@ -60,6 +95,13 @@ export const RoomLayer: React.FC = React.memo(() => {
         if (points.length < 3) return null;
 
         const isSelected = selectedIds.includes(room.id);
+        const mode = room.fillMode ?? 'filled';
+        // 'transparent' and 'walls-only' draw no polygon fill; otherwise use the explicit
+        // color, then the texture/tint resolver.
+        const fill =
+          mode === 'filled'
+            ? room.fillColor ?? roomFill(room.floorMaterialId, room.roomType)
+            : 'none';
 
         // Label position = polygon centroid (simple average is fine for convex-ish rooms).
         const cx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
@@ -72,8 +114,8 @@ export const RoomLayer: React.FC = React.memo(() => {
           <g key={room.id}>
             <path
               d={polygonPath(points)}
-              fill={roomFill(room.floorMaterialId, room.roomType)}
-              stroke={isSelected ? '#f59e0b' : 'rgba(255,255,255,0.08)'}
+              fill={fill}
+              stroke={isSelected ? '#f59e0b' : mode === 'transparent' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)'}
               strokeWidth={isSelected ? 4 : 1}
               data-entity-id={room.id}
               data-entity-type="room"

@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { useAppStore } from '@/store';
 import type { Point2D } from '@/types/geometry';
 import { findWallIntersections, splitWallAtPoint, splitWallsAtPoint } from '../services/wallOps';
+import { endpointFromLength } from '../services/geometry';
 
 const MIN_WALL_LENGTH_SQ = 1; // reject sub‑1cm walls (squared, so 1 = 1cm²)
 
@@ -15,19 +16,15 @@ export function useWallDrawing() {
   const [chainOrigin, setChainOrigin] = useState<Point2D | null>(null);
   const chainMode = useAppStore(s => s.isChainModeEnabled);
 
-  /** Call this with a SNAPPED world point on each editor click. */
-  const handleClick = useCallback(
-    (worldPos: Point2D) => {
-      // First click: remember where the wall starts (and where the chain began).
-      if (!drawStart) {
-        setDrawStart(worldPos);
-        setChainOrigin(worldPos);
-        return;
-      }
-
-      // Second click: finish the wall.
+  /**
+   * Place a wall from the current `drawStart` to `end`, splitting crossed/T-junction walls,
+   * as one undo step. Shared by click-to-place and typed exact-length entry. Advances the
+   * chain (or goes idle) exactly like a normal click. No-op if there is no active start.
+   */
+  const placeWallTo = useCallback(
+    (end: Point2D) => {
       const start = drawStart;
-      const end = worldPos;
+      if (!start) return;
       const dx = end.x - start.x;
       const dy = end.y - start.y;
       if (dx * dx + dy * dy < MIN_WALL_LENGTH_SQ) return; // ignore accidental tiny walls
@@ -45,20 +42,16 @@ export function useWallDrawing() {
           splitWallAtPoint(c.wallId, c.point);
         }
 
-        // T-junctions: if either ENDPOINT lands on an existing wall (e.g. a wall drawn
-        // through a room and ending on its far boundary), split that boundary wall so the
-        // new wall shares a real vertex with it. Without this the new wall connects to
-        // nothing and the enclosed area is never divided into two rooms.
+        // T-junctions: if either ENDPOINT lands on an existing wall, split that wall so the
+        // new wall shares a real vertex with it (otherwise the enclosed area is never split).
         splitWallsAtPoint(start);
         splitWallsAtPoint(end);
 
-        // Add the new wall (the store action finds/creates shared vertices for us; because
-        // of the splits above, those vertices now already exist at start/end).
+        // Add the new wall (the store action finds/creates shared vertices for us).
         addWall(start, end);
       });
 
-      // If we just closed the loop back onto the chain origin, the room is complete —
-      // stop drawing so the user doesn't keep extending past the closed rectangle.
+      // If we just closed the loop back onto the chain origin, the room is complete.
       const closedLoop =
         chainMode &&
         chainOrigin != null &&
@@ -77,11 +70,39 @@ export function useWallDrawing() {
     [drawStart, chainMode, chainOrigin]
   );
 
+  /** Call this with a SNAPPED world point on each editor click. */
+  const handleClick = useCallback(
+    (worldPos: Point2D) => {
+      // First click: remember where the wall starts (and where the chain began).
+      if (!drawStart) {
+        setDrawStart(worldPos);
+        setChainOrigin(worldPos);
+        return;
+      }
+      // Second click: finish the wall.
+      placeWallTo(worldPos);
+    },
+    [drawStart, placeWallTo]
+  );
+
+  /**
+   * Place the wall endpoint at an exact distance (cm) and direction. `directionRad` defaults
+   * to the current cursor direction from `drawStart`; pass an explicit angle to override.
+   * World Y is up, so a positive angle rotates counter-clockwise (screen shows it flipped).
+   */
+  const placeWallByLength = useCallback(
+    (lengthCm: number, directionRad: number) => {
+      if (!drawStart || !(lengthCm > 0)) return;
+      placeWallTo(endpointFromLength(drawStart, lengthCm, directionRad));
+    },
+    [drawStart, placeWallTo]
+  );
+
   /** Cancel the in‑progress wall (e.g. on Escape). */
   const cancel = useCallback(() => {
     setDrawStart(null);
     setChainOrigin(null);
   }, []);
 
-  return { drawStart, chainOrigin, chainMode, handleClick, cancel };
+  return { drawStart, chainOrigin, chainMode, handleClick, placeWallTo, placeWallByLength, cancel };
 }

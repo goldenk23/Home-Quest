@@ -1,0 +1,21 @@
+# Python dependencies for the VastuCraft 2D editor (run: pip install -r requirements.txt)
+# Standard library used: tkinter, json, os, sys, pathlib, ctypes  (tkinter ships with the
+# python.org Windows installer — no pip needed).
+
+# --- Hard requirements (app will not start without these) ---
+customtkinter        # themed Tk widgets (model/view/toolbar)
+Pillow               # PIL — furniture symbols, flooring textures, image tracing
+psutil               # parent-process watchdog in app.pyw
+scikit-learn         # furniture suggester (TF-IDF) — imported at startup by model.py/tools.py
+python-constraint    # `from constraint import Problem` in tools.py (layout solver)
+PyYAML               # `import yaml` in layout_serializer.py
+google-genai==2.14.0 # Vertex AI client; timeout/retry API is version-sensitive
+
+# --- Recommended (nicer dialogs on Windows; falls back to plain ttk if missing) ---
+ttkbootstrap
+
+# --- Embedded Home Quest 3D viewer (Windows WebView2 child control) ---
+# Keep these exact: embedded_viewer.py carries the pinned pair's one-field EdgeChrome shim.
+tkwebview2==3.5.0
+pywebview==5.4
+pythonnet==3.0.5

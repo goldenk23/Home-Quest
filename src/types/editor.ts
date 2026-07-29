@@ -115,6 +115,14 @@ export interface Room {
   readonly label: string;
   /** Floor material for 3D */
   readonly floorMaterialId: string;
+  /**
+   * How the room polygon is drawn in the 2D plan. 'filled' (default) tints/textures it,
+   * 'transparent' shows only its outline, 'walls-only' draws nothing (walls carry the shape).
+   * Optional so pre-existing plans stay valid without a migration.
+   */
+  readonly fillMode?: 'filled' | 'transparent' | 'walls-only';
+  /** Optional explicit 2D fill color (overrides the room-type tint when set). */
+  readonly fillColor?: string;
 }
 
 export type RoomType =
@@ -198,6 +206,21 @@ export interface Floor {
   elevationCm: number;
 }
 
+/** A free-standing text label placed on the plan (notes, titles, callouts). */
+export interface TextAnnotation {
+  readonly id: EntityId;
+  /** Anchor point in 2D world space (cm). */
+  readonly position: Point2D;
+  /** The label text. */
+  text: string;
+  /** Font size in centimeters (world units). */
+  fontSizeCm: number;
+  /** Text color (hex). */
+  color: string;
+  /** Rotation in radians (world CCW), optional. */
+  rotation?: number;
+}
+
 /** The full geometry of a single floor — the parked/serialized form of one storey. */
 export interface FloorGeometry {
   vertices: Record<EntityId, Vertex>;
@@ -211,4 +234,5 @@ export interface FloorGeometry {
   beams: Record<EntityId, Beam>;
   deckSlabs: Record<EntityId, DeckSlab>;
   railings: Record<EntityId, Railing>;
+  annotations: Record<EntityId, TextAnnotation>;
 }

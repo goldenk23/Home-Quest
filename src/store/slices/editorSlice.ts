@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AppStore } from '../index';
-import type { EntityId, Vertex, Wall, Room, FurnitureItem, Road, Pillar, Beam, DeckSlab, Railing } from '@/types/editor';
+import type { EntityId, Vertex, Wall, Room, FurnitureItem, Road, Pillar, Beam, DeckSlab, Railing, TextAnnotation } from '@/types/editor';
 import type { Point2D } from '@/types/geometry';
 import { generateId } from '@/utils/id';
 import type { SnapConfig } from '@/domains/editor/hooks/useSnapping';
@@ -23,6 +23,7 @@ export interface EditorSlice {
     beams: Record<EntityId, Beam>;
     deckSlabs: Record<EntityId, DeckSlab>;
     railings: Record<EntityId, Railing>;
+    annotations: Record<EntityId, TextAnnotation>;
     selectedIds: EntityId[];
     snapConfig: SnapConfig;
     currentMouseWorld: Point2D | null;
@@ -75,8 +76,13 @@ export interface EditorSlice {
     /** Clone a selected component once per offset vector. Returns the top-level cloned ids. */
     duplicateComponent: (componentId: EntityId, offsets: Point2D[]) => EntityId[];
 
+    addAnnotation: (annotation: Omit<TextAnnotation, 'id'>) => EntityId;
+    updateAnnotation: (id: EntityId, patch: Partial<Omit<TextAnnotation, 'id'>>) => void;
+    removeAnnotation: (id: EntityId) => void;
+    moveAnnotation: (id: EntityId, position: Point2D) => void;
+
     setRooms: (rooms: Record<EntityId, Room>) => void;
-    updateRoom: (id: EntityId, patch: Partial<Pick<Room, 'roomType' | 'label' | 'floorMaterialId'>>) => void;
+    updateRoom: (id: EntityId, patch: Partial<Pick<Room, 'roomType' | 'label' | 'floorMaterialId' | 'fillMode' | 'fillColor'>>) => void;
     select: (ids: EntityId[]) => void;
     clearSelection: () => void;
     setSnapConfig: (config: Partial<SnapConfig>) => void;
@@ -128,6 +134,7 @@ export const createEditorSlice: StateCreator<
     beams: {},
     deckSlabs: {},
     railings: {},
+    annotations: {},
     selectedIds: [],
     snapConfig: {
         gridSize: 10,
@@ -488,6 +495,29 @@ export const createEditorSlice: StateCreator<
         });
     },
 
+    addAnnotation: (annotation) => {
+        const id = generateId('text');
+        set((state) => {
+            state.annotations[id] = { id, ...annotation };
+        });
+        return id;
+    },
+    updateAnnotation: (id, patch) => {
+        set((state) => {
+            const a = state.annotations[id];
+            if (a) Object.assign(a, patch);
+        });
+    },
+    removeAnnotation: (id) => {
+        set((state) => { delete state.annotations[id]; });
+    },
+    moveAnnotation: (id, position) => {
+        set((state) => {
+            const a = state.annotations[id];
+            if (a) (a as { position: Point2D }).position = position;
+        });
+    },
+
     setRooms: (rooms) => {
         set((state) => {
             state.rooms = castDraft(rooms);
@@ -580,6 +610,7 @@ export const createEditorSlice: StateCreator<
             state.beams = {};
             state.deckSlabs = {};
             state.railings = {};
+            state.annotations = {};
             state.selectedIds = [];
         });
     },

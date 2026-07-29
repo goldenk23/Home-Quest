@@ -136,4 +136,45 @@ export function computeWallQuad(
     };
 }
 
+/**
+ * Endpoint a given distance (cm) and direction from `start`. World Y is up, so `directionRad`
+ * is measured counter-clockwise from +X. Used by typed exact-length wall/segment drawing.
+ */
+export function endpointFromLength(start: Point2D, lengthCm: number, directionRad: number): Point2D {
+    return {
+        x: start.x + Math.cos(directionRad) * lengthCm,
+        y: start.y + Math.sin(directionRad) * lengthCm,
+    };
+}
+
+/**
+ * Signed area (cm²) of a polygon via the Shoelace formula. Sign encodes winding
+ * (positive = counter-clockwise in world space). Use `Math.abs` for a plain area.
+ * Port of the Python editor's `calculate_polygon_area`, but in world cm (no grid/zoom scale).
+ */
+export function shoelaceArea(points: readonly Point2D[]): number {
+    const n = points.length;
+    if (n < 3) return 0;
+    let sum = 0;
+    for (let i = 0; i < n; i++) {
+        const a = points[i];
+        const b = points[(i + 1) % n];
+        sum += a.x * b.y - b.x * a.y;
+    }
+    return sum / 2;
+}
+
+/** Perimeter (cm) of a closed polygon. Port of `calculate_polygon_perimeter`. */
+export function polygonPerimeter(points: readonly Point2D[]): number {
+    const n = points.length;
+    if (n < 2) return 0;
+    let total = 0;
+    for (let i = 0; i < n; i++) {
+        const a = points[i];
+        const b = points[(i + 1) % n];
+        total += Math.hypot(b.x - a.x, b.y - a.y);
+    }
+    return total;
+}
+
 export { planTo3D as world2DTo3D } from '@/domains/viewer/services/transform';

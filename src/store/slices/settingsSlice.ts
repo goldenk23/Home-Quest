@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AppStore } from '../index';
+import type { DisplayUnit } from '@/domains/editor/services/units';
 
 export interface FeatureFlags {
   enableVastuOverlay: boolean;
@@ -12,11 +13,14 @@ export interface SettingsSlice {
   featureFlags: FeatureFlags;
   devMode: boolean;
   activeView: 'app' | 'sandbox';
-  
+  /** User-chosen display unit. World geometry stays in cm; this only affects presentation. */
+  displayUnit: DisplayUnit;
+
   // Actions
   toggleFeatureFlag: (flag: keyof FeatureFlags) => void;
   toggleDevMode: () => void;
   setActiveView: (view: 'app' | 'sandbox') => void;
+  setDisplayUnit: (unit: DisplayUnit) => void;
 }
 
 const initialFeatureFlags: FeatureFlags = {
@@ -34,6 +38,7 @@ export const createSettingsSlice: StateCreator<
   featureFlags: initialFeatureFlags,
   devMode: true, // Enabled by default in dev environment
   activeView: 'sandbox',
+  displayUnit: 'm',
 
   toggleFeatureFlag: (flag) =>
     set((state) => {
@@ -48,5 +53,10 @@ export const createSettingsSlice: StateCreator<
   setActiveView: (view) =>
     set((state) => {
       state.activeView = view;
+    }),
+
+  setDisplayUnit: (unit) =>
+    set((state) => {
+      state.displayUnit = unit;
     }),
 });

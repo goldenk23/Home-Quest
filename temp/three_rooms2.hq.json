@@ -1,0 +1,265 @@
+{
+  "version": 8,
+  "vertices": {
+    "vertex_640dae3a-0567-4227-9a20-658eb34bd770": {
+      "id": "vertex_640dae3a-0567-4227-9a20-658eb34bd770",
+      "position": {
+        "x": 46.28,
+        "y": 46.28
+      },
+      "connectedWalls": [
+        "wall_066df78e-4410-44cd-b4d3-d1b76c41ded9",
+        "wall_211ccc04-8a3c-4bef-a7e4-dc932bb27a8c"
+      ]
+    },
+    "vertex_b0498929-c8c3-4724-8adc-d988ef3b9fc9": {
+      "id": "vertex_b0498929-c8c3-4724-8adc-d988ef3b9fc9",
+      "position": {
+        "x": 240.66,
+        "y": 46.28
+      },
+      "connectedWalls": [
+        "wall_066df78e-4410-44cd-b4d3-d1b76c41ded9",
+        "wall_9e07a2a2-b454-4833-9277-a3f8857b3bd3",
+        "wall_715d1685-4368-42a8-a186-1aff09dcdf30"
+      ]
+    },
+    "vertex_bd9351c4-a2bd-4878-b356-6a8ef32561db": {
+      "id": "vertex_bd9351c4-a2bd-4878-b356-6a8ef32561db",
+      "position": {
+        "x": 240.66,
+        "y": 240.66
+      },
+      "connectedWalls": [
+        "wall_9e07a2a2-b454-4833-9277-a3f8857b3bd3",
+        "wall_def33541-d31b-47ae-b3f1-23f187602b5b",
+        "wall_36c1488b-e6c0-46ea-bacf-5172b2ee2e39"
+      ]
+    },
+    "vertex_a4cac35c-eaf6-448f-b385-e9f93c196652": {
+      "id": "vertex_a4cac35c-eaf6-448f-b385-e9f93c196652",
+      "position": {
+        "x": 46.28,
+        "y": 240.66
+      },
+      "connectedWalls": [
+        "wall_def33541-d31b-47ae-b3f1-23f187602b5b",
+        "wall_211ccc04-8a3c-4bef-a7e4-dc932bb27a8c"
+      ]
+    },
+    "vertex_61b5238c-18b2-4b19-bfa8-da47166f0ceb": {
+      "id": "vertex_61b5238c-18b2-4b19-bfa8-da47166f0ceb",
+      "position": {
+        "x": 435.04,
+        "y": 46.28
+      },
+      "connectedWalls": [
+        "wall_715d1685-4368-42a8-a186-1aff09dcdf30",
+        "wall_f49f83e0-85a7-4282-8347-8b4f99dc3b77",
+        "wall_52c3cbad-55dd-4bce-a947-60cbcb63b26c"
+      ]
+    },
+    "vertex_5d8341a8-fbd8-46e0-9ea1-deae9934c33e": {
+      "id": "vertex_5d8341a8-fbd8-46e0-9ea1-deae9934c33e",
+      "position": {
+        "x": 435.04,
+        "y": 240.66
+      },
+      "connectedWalls": [
+        "wall_f49f83e0-85a7-4282-8347-8b4f99dc3b77",
+        "wall_36c1488b-e6c0-46ea-bacf-5172b2ee2e39",
+        "wall_83f74121-eab8-4b04-a9ed-17a42682007f"
+      ]
+    },
+    "vertex_240be87a-ccff-4c03-b0fb-2491589d9a68": {
+      "id": "vertex_240be87a-ccff-4c03-b0fb-2491589d9a68",
+      "position": {
+        "x": 629.42,
+        "y": 46.28
+      },
+      "connectedWalls": [
+        "wall_52c3cbad-55dd-4bce-a947-60cbcb63b26c",
+        "wall_527fe1cb-c5f4-45a1-a358-9bf0ef12aade"
+      ]
+    },
+    "vertex_7c9a5c04-2062-4f04-80db-f28f99a6c6df": {
+      "id": "vertex_7c9a5c04-2062-4f04-80db-f28f99a6c6df",
+      "position": {
+        "x": 629.42,
+        "y": 240.66
+      },
+      "connectedWalls": [
+        "wall_527fe1cb-c5f4-45a1-a358-9bf0ef12aade",
+        "wall_83f74121-eab8-4b04-a9ed-17a42682007f"
+      ]
+    }
+  },
+  "walls": {
+    "wall_066df78e-4410-44cd-b4d3-d1b76c41ded9": {
+      "id": "wall_066df78e-4410-44cd-b4d3-d1b76c41ded9",
+      "startVertexId": "vertex_640dae3a-0567-4227-9a20-658eb34bd770",
+      "endVertexId": "vertex_b0498929-c8c3-4724-8adc-d988ef3b9fc9",
+      "thickness": 6.1,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    },
+    "wall_9e07a2a2-b454-4833-9277-a3f8857b3bd3": {
+      "id": "wall_9e07a2a2-b454-4833-9277-a3f8857b3bd3",
+      "startVertexId": "vertex_b0498929-c8c3-4724-8adc-d988ef3b9fc9",
+      "endVertexId": "vertex_bd9351c4-a2bd-4878-b356-6a8ef32561db",
+      "thickness": 6.1,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    },
+    "wall_def33541-d31b-47ae-b3f1-23f187602b5b": {
+      "id": "wall_def33541-d31b-47ae-b3f1-23f187602b5b",
+      "startVertexId": "vertex_bd9351c4-a2bd-4878-b356-6a8ef32561db",
+      "endVertexId": "vertex_a4cac35c-eaf6-448f-b385-e9f93c196652",
+      "thickness": 6.1,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    },
+    "wall_211ccc04-8a3c-4bef-a7e4-dc932bb27a8c": {
+      "id": "wall_211ccc04-8a3c-4bef-a7e4-dc932bb27a8c",
+      "startVertexId": "vertex_a4cac35c-eaf6-448f-b385-e9f93c196652",
+      "endVertexId": "vertex_640dae3a-0567-4227-9a20-658eb34bd770",
+      "thickness": 6.1,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    },
+    "wall_715d1685-4368-42a8-a186-1aff09dcdf30": {
+      "id": "wall_715d1685-4368-42a8-a186-1aff09dcdf30",
+      "startVertexId": "vertex_b0498929-c8c3-4724-8adc-d988ef3b9fc9",
+      "endVertexId": "vertex_61b5238c-18b2-4b19-bfa8-da47166f0ceb",
+      "thickness": 6.1,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    },
+    "wall_f49f83e0-85a7-4282-8347-8b4f99dc3b77": {
+      "id": "wall_f49f83e0-85a7-4282-8347-8b4f99dc3b77",
+      "startVertexId": "vertex_61b5238c-18b2-4b19-bfa8-da47166f0ceb",
+      "endVertexId": "vertex_5d8341a8-fbd8-46e0-9ea1-deae9934c33e",
+      "thickness": 6.1,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    },
+    "wall_36c1488b-e6c0-46ea-bacf-5172b2ee2e39": {
+      "id": "wall_36c1488b-e6c0-46ea-bacf-5172b2ee2e39",
+      "startVertexId": "vertex_5d8341a8-fbd8-46e0-9ea1-deae9934c33e",
+      "endVertexId": "vertex_bd9351c4-a2bd-4878-b356-6a8ef32561db",
+      "thickness": 6.1,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    },
+    "wall_52c3cbad-55dd-4bce-a947-60cbcb63b26c": {
+      "id": "wall_52c3cbad-55dd-4bce-a947-60cbcb63b26c",
+      "startVertexId": "vertex_61b5238c-18b2-4b19-bfa8-da47166f0ceb",
+      "endVertexId": "vertex_240be87a-ccff-4c03-b0fb-2491589d9a68",
+      "thickness": 6.1,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    },
+    "wall_527fe1cb-c5f4-45a1-a358-9bf0ef12aade": {
+      "id": "wall_527fe1cb-c5f4-45a1-a358-9bf0ef12aade",
+      "startVertexId": "vertex_240be87a-ccff-4c03-b0fb-2491589d9a68",
+      "endVertexId": "vertex_7c9a5c04-2062-4f04-80db-f28f99a6c6df",
+      "thickness": 6.1,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    },
+    "wall_83f74121-eab8-4b04-a9ed-17a42682007f": {
+      "id": "wall_83f74121-eab8-4b04-a9ed-17a42682007f",
+      "startVertexId": "vertex_7c9a5c04-2062-4f04-80db-f28f99a6c6df",
+      "endVertexId": "vertex_5d8341a8-fbd8-46e0-9ea1-deae9934c33e",
+      "thickness": 6.1,
+      "height": 280,
+      "materialId": "default-wall",
+      "isLoadBearing": false,
+      "openingIds": []
+    }
+  },
+  "rooms": {
+    "room_91d6d2ec-f8f8-4f9e-96a8-397a2200f7ca": {
+      "id": "room_91d6d2ec-f8f8-4f9e-96a8-397a2200f7ca",
+      "boundaryVertexIds": [
+        "vertex_640dae3a-0567-4227-9a20-658eb34bd770",
+        "vertex_b0498929-c8c3-4724-8adc-d988ef3b9fc9",
+        "vertex_bd9351c4-a2bd-4878-b356-6a8ef32561db",
+        "vertex_a4cac35c-eaf6-448f-b385-e9f93c196652"
+      ],
+      "roomType": "custom",
+      "label": "moahk",
+      "floorMaterialId": "default-floor"
+    },
+    "room_f5d6623f-513f-492e-8c41-5e6da01168f8": {
+      "id": "room_f5d6623f-513f-492e-8c41-5e6da01168f8",
+      "boundaryVertexIds": [
+        "vertex_b0498929-c8c3-4724-8adc-d988ef3b9fc9",
+        "vertex_61b5238c-18b2-4b19-bfa8-da47166f0ceb",
+        "vertex_5d8341a8-fbd8-46e0-9ea1-deae9934c33e",
+        "vertex_bd9351c4-a2bd-4878-b356-6a8ef32561db"
+      ],
+      "roomType": "custom",
+      "label": "moahk1",
+      "floorMaterialId": "default-floor"
+    },
+    "room_9282df7c-5fc4-442e-9993-a85431c15690": {
+      "id": "room_9282df7c-5fc4-442e-9993-a85431c15690",
+      "boundaryVertexIds": [
+        "vertex_61b5238c-18b2-4b19-bfa8-da47166f0ceb",
+        "vertex_240be87a-ccff-4c03-b0fb-2491589d9a68",
+        "vertex_7c9a5c04-2062-4f04-80db-f28f99a6c6df",
+        "vertex_5d8341a8-fbd8-46e0-9ea1-deae9934c33e"
+      ],
+      "roomType": "custom",
+      "label": "1",
+      "floorMaterialId": "default-floor"
+    }
+  },
+  "furniture": {},
+  "openings": {},
+  "roads": {},
+  "pillars": {},
+  "beams": {},
+  "deckSlabs": {},
+  "railings": {},
+  "floors": [
+    {
+      "id": "floor_cfe36a2c-1fd4-46e1-9f20-05b16c003852",
+      "name": "Ground Floor",
+      "elevationCm": 0
+    }
+  ],
+  "activeFloorId": "floor_cfe36a2c-1fd4-46e1-9f20-05b16c003852",
+  "floorData": {},
+  "metadata": {
+    "name": "Floor Plan",
+    "createdAt": "2026-07-10T09:55:00.611Z",
+    "lastModifiedAt": "2026-07-10T09:55:00.611Z",
+    "authorId": null
+  },
+  "settings": {
+    "gridSize": 10,
+    "wallThickness": 20,
+    "wallHeight": 280,
+    "measurementUnit": "cm"
+  }
+}

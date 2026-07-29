@@ -29,6 +29,15 @@ import { OpeningsLayer } from './OpeningsLayer';
 import { FurnitureLayer } from './FurnitureLayer';
 import { SelectionLayer } from './SelectionLayer';
 import { DrawingPreview } from './DrawingPreview';
+import { TypedLengthInput } from './TypedLengthInput';
+import { FurnitureSuggestionPopup } from './FurnitureSuggestionPopup';
+import { suggestFurniture } from '../services/furnitureSuggestions';
+import { usePolygonDrawing } from '../hooks/usePolygonDrawing';
+import { PolygonPreview } from './PolygonPreview';
+import { normalizeRect, collectEntitiesInRect } from '../services/marqueeSelect';
+import { computeAlignment } from '../services/alignmentGuides';
+import { exportEditor2DRegion } from '@/store/persistence/imageExport';
+import { AnnotationLayer } from './AnnotationLayer';
 import { GhostFloorLayer } from './GhostFloorLayer';
 import { StairLayer } from './StairLayer';
 import { StairToolOverlay } from './StairToolOverlay';
@@ -149,6 +158,18 @@ function hitTestRoad(cursor: Point2D, state: AppStore): string | null {
     const projY = start.y + t * (end.y - start.y);
     const dist = Math.sqrt((cursor.x - projX) ** 2 + (cursor.y - projY) ** 2);
     if (dist <= road.width / 2) return road.id;
+  }
+  return null;
+}
+
+/** Hit-test a text annotation by an approximate bounding box around its anchor. */
+function hitTestAnnotation(cursor: Point2D, state: AppStore, margin = 0): string | null {
+  for (const a of Object.values(state.annotations)) {
+    const halfW = a.text.length * a.fontSizeCm * 0.32 + margin;
+    const halfH = a.fontSizeCm * 0.7 + margin;
+    if (Math.abs(cursor.x - a.position.x) <= halfW && Math.abs(cursor.y - a.position.y) <= halfH) {
+      return a.id;
+    }
   }
   return null;
 }
@@ -337,9 +358,43 @@ export const EditorCanvas: React.FC = () => {
   const snapConfig = useAppStore((s) => s.snapConfig);
   const activeTool = useAppStore((s) => s.activeTool);
   const showDimensions = useAppStore((s) => s.showDimensions);
+  const displayUnit = useAppStore((s) => s.displayUnit);
+  const isCanvasFrozen = useAppStore((s) => s.isCanvasFrozen);
 
-  const { drawStart, chainOrigin, handleClick, cancel } = useWallDrawing();
+  // Track the SVG's pixel size so the grid can cull labels to the visible world rect.
+  const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const update = () => setCanvasSize({ w: el.clientWidth, h: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Visible world bounds (cm), quantized to the major step so the labeled grid only
+  // re-renders when the viewport moves by a whole cell (avoids per-pixel pan thrash).
+  const gridBounds = useMemo(() => {
+    const { w, h } = canvasSize;
+    const { offsetX, offsetY, scale } = viewTransform;
+    if (w === 0 || h === 0 || scale === 0) return null;
+    const minX = (0 - offsetX) / scale;
+    const maxX = (w - offsetX) / scale;
+    const maxY = (offsetY - 0) / scale; // screen y=0 (top) → world max Y
+    const minY = (offsetY - h) / scale; // screen y=h (bottom) → world min Y
+    const q = 100; // quantize to 1 m
+    return {
+      minX: Math.floor(minX / q) * q,
+      maxX: Math.ceil(maxX / q) * q,
+      minY: Math.floor(minY / q) * q,
+      maxY: Math.ceil(maxY / q) * q,
+    };
+  }, [canvasSize, viewTransform]);
+
+  const { drawStart, chainOrigin, handleClick, placeWallByLength, cancel } = useWallDrawing();
   const { drawStart: roadStart, handleClick: handleRoadClick, cancel: cancelRoad } = useRoadDrawing();
+  const { points: polygonPoints, handleClick: handlePolygonClick, closePolygon, cancel: cancelPolygon } = usePolygonDrawing();
   const [stairToolState, stairHandles] = useStairTool();
   const stairWidthCm = useAppStore((s) => s.stairWidthCm);
   const [deckPoints, setDeckPoints] = useState<Point2D[]>([]);
@@ -352,7 +407,7 @@ export const EditorCanvas: React.FC = () => {
   viewTransformRef.current = viewTransform;
 
   // Drag state (refs avoid re-renders on every mouse move).
-  const dragRef = useRef<{ kind: 'furniture' | 'wall' | 'pillar' | 'beam' | 'deck' | 'railing' | 'road' | 'gizmo-rotate' | 'gizmo-scale'; id: string; baseScale?: number; baseDist?: number } | null>(null);
+  const dragRef = useRef<{ kind: 'furniture' | 'wall' | 'pillar' | 'beam' | 'deck' | 'railing' | 'road' | 'annotation' | 'gizmo-rotate' | 'gizmo-scale'; id: string; baseScale?: number; baseDist?: number } | null>(null);
   const dragLastWorldRef = useRef<Point2D | null>(null);
   const didDragRef = useRef(false);
   // Grab-to-pan state (left-drag on empty space while using the Select tool).
@@ -365,6 +420,41 @@ export const EditorCanvas: React.FC = () => {
   // Live drag readout (length + angle) shown while dragging a component.
   const [dragHud, setDragHud] = useState<{ sx: number; sy: number; cx: number; cy: number } | null>(null);
 
+  // Furniture-suggestion popup shown on double-click inside a room.
+  const [suggestion, setSuggestion] = useState<{ roomId: string; sx: number; sy: number; at: Point2D; items: string[] } | null>(null);
+
+  // Marquee (rubber-band) erase: start world point + live rect.
+  const eraseStartRef = useRef<Point2D | null>(null);
+  const [marquee, setMarquee] = useState<{ start: Point2D; end: Point2D } | null>(null);
+
+  // Live alignment guides shown while dragging furniture.
+  const [alignGuides, setAlignGuides] = useState<{ x?: number; y?: number } | null>(null);
+
+  // Auto-pan while drawing near the viewport edge.
+  const autoPanVecRef = useRef({ x: 0, y: 0 });
+  const autoPanRafRef = useRef<number | null>(null);
+  const startAutoPan = useCallback(() => {
+    if (autoPanRafRef.current != null) return;
+    const step = () => {
+      const v = autoPanVecRef.current;
+      if (v.x === 0 && v.y === 0) {
+        autoPanRafRef.current = null;
+        return;
+      }
+      panBy(v.x, v.y);
+      autoPanRafRef.current = requestAnimationFrame(step);
+    };
+    autoPanRafRef.current = requestAnimationFrame(step);
+  }, [panBy]);
+  const stopAutoPan = useCallback(() => {
+    autoPanVecRef.current = { x: 0, y: 0 };
+    if (autoPanRafRef.current != null) {
+      cancelAnimationFrame(autoPanRafRef.current);
+      autoPanRafRef.current = null;
+    }
+  }, []);
+  useEffect(() => stopAutoPan, [stopAutoPan]); // stop the loop on unmount
+
   /**
    * Smart alignment applied when a component drag ends, so the house keeps clean right
    * angles instead of drifting into arbitrary shapes.
@@ -372,7 +462,7 @@ export const EditorCanvas: React.FC = () => {
    *  - Walls: snaps the moved endpoints to the grid and straightens every wall meeting
    *    them that is near-axis-aligned (horizontal/vertical), restoring orthogonality.
    */
-  const smartAlign = useCallback((drag: { kind: 'furniture' | 'wall' | 'pillar' | 'beam' | 'deck' | 'railing' | 'road' | 'gizmo-rotate' | 'gizmo-scale'; id: string }) => {
+  const smartAlign = useCallback((drag: { kind: 'furniture' | 'wall' | 'pillar' | 'beam' | 'deck' | 'railing' | 'road' | 'annotation' | 'gizmo-rotate' | 'gizmo-scale'; id: string }) => {
     const st = useAppStore.getState();
     const grid = st.snapConfig.gridSize || 10;
     const snap = (v: number) => Math.round(v / grid) * grid;
@@ -452,6 +542,17 @@ export const EditorCanvas: React.FC = () => {
     (e: React.MouseEvent<SVGSVGElement>) => {
       handlers.onMouseDown(e); // pan (alt / middle) — no-ops otherwise
       if (e.button !== 0 || e.altKey) return;
+      // Canvas freeze: block edit gestures (alt/middle pan + wheel zoom already handled above).
+      if (useAppStore.getState().isCanvasFrozen) return;
+
+      if (activeTool === 'erase' || useAppStore.getState().isRegionExportArmed) {
+        const cursor = computeWorld(e);
+        if (!cursor) return;
+        eraseStartRef.current = cursor;
+        setMarquee({ start: cursor, end: cursor });
+        didDragRef.current = false;
+        return;
+      }
 
       if (activeTool === 'select') {
         const cursor = computeWorld(e);
@@ -477,7 +578,16 @@ export const EditorCanvas: React.FC = () => {
           }
         }
 
-        // 1) Grab a specific component (furniture first, then walls) to move it.
+        // 1) Grab a specific component (annotation, then furniture, then walls) to move it.
+        const annotationId = hitTestAnnotation(cursor, state, GRAB_MARGIN);
+        if (annotationId) {
+          state.select([annotationId]);
+          state.beginTransaction();
+          dragRef.current = { kind: 'annotation', id: annotationId };
+          dragLastWorldRef.current = cursor;
+          didDragRef.current = false;
+          return;
+        }
         const furnitureId = hitTestFurniture(cursor, state.furniture, GRAB_MARGIN);
         if (furnitureId) {
           state.select([furnitureId]);
@@ -581,6 +691,37 @@ export const EditorCanvas: React.FC = () => {
       useAppStore.setState({ currentMouseWorld: snapped });
       if (activeTool === 'stair') stairHandles.handleMove(snapped);
 
+      // Marquee erase: grow the selection rect while dragging.
+      if (eraseStartRef.current) {
+        setMarquee({ start: eraseStartRef.current, end: snapped });
+        didDragRef.current = true;
+        return;
+      }
+
+      // Auto-pan: while drawing and the cursor nears a viewport edge, scroll the canvas.
+      const drawingInProgress =
+        (activeTool === 'wall' && drawStart != null) ||
+        (activeTool === 'polygon' && polygonPoints.length > 0) ||
+        (activeTool === 'deck' && deckPoints.length > 0) ||
+        (activeTool === 'road' && roadStart != null);
+      if (drawingInProgress && svgRef.current) {
+        const rect = svgRef.current.getBoundingClientRect();
+        const ex = e.clientX - rect.left;
+        const ey = e.clientY - rect.top;
+        const MARGIN = 35;
+        const SPEED = 0.6;
+        let vx = 0;
+        let vy = 0;
+        if (ex < MARGIN) vx = (MARGIN - ex) * SPEED;
+        else if (rect.width - ex < MARGIN) vx = -(MARGIN - (rect.width - ex)) * SPEED;
+        if (ey < MARGIN) vy = (MARGIN - ey) * SPEED;
+        else if (rect.height - ey < MARGIN) vy = -(MARGIN - (rect.height - ey)) * SPEED;
+        autoPanVecRef.current = { x: vx, y: vy };
+        if (vx !== 0 || vy !== 0) startAutoPan();
+      } else if (autoPanRafRef.current != null) {
+        stopAutoPan();
+      }
+
       // Drag the selected component by the world-space delta (smooth — no jump-to-cursor).
       const drag = dragRef.current;
       const last = dragLastWorldRef.current;
@@ -606,7 +747,19 @@ export const EditorCanvas: React.FC = () => {
             }
           } else if (drag.kind === 'furniture') {
             const item = state.furniture[drag.id];
-            if (item) state.moveFurniture(drag.id, { x: item.position.x + dx, y: item.position.y + dy });
+            if (item) {
+              let nx = item.position.x + dx;
+              let ny = item.position.y + dy;
+              // Live alignment: snap the center to other furniture centers / wall vertices.
+              const anchors: Point2D[] = [];
+              for (const f of Object.values(state.furniture)) if (f.id !== drag.id) anchors.push(f.position);
+              for (const v of Object.values(state.vertices)) anchors.push(v.position);
+              const al = computeAlignment({ x: nx, y: ny }, anchors);
+              if (al.snapX !== undefined) nx = al.snapX;
+              if (al.snapY !== undefined) ny = al.snapY;
+              setAlignGuides(al.snapX !== undefined || al.snapY !== undefined ? { x: al.snapX, y: al.snapY } : null);
+              state.moveFurniture(drag.id, { x: nx, y: ny });
+            }
           } else if (drag.kind === 'pillar') {
             const pillar = state.pillars[drag.id];
             if (pillar) state.movePillar(drag.id, { x: pillar.position.x + dx, y: pillar.position.y + dy });
@@ -618,6 +771,9 @@ export const EditorCanvas: React.FC = () => {
             state.moveRailing(drag.id, { x: dx, y: dy });
           } else if (drag.kind === 'road') {
             state.moveRoad(drag.id, { x: dx, y: dy });
+          } else if (drag.kind === 'annotation') {
+            const a = state.annotations[drag.id];
+            if (a) state.moveAnnotation(drag.id, { x: a.position.x + dx, y: a.position.y + dy });
           } else {
             const wall = state.walls[drag.id];
             if (wall) {
@@ -633,13 +789,65 @@ export const EditorCanvas: React.FC = () => {
         setDragHud((prev) => (prev ? { ...prev, cx: snapped.x, cy: snapped.y } : prev));
       }
     },
-    [handlers, computeWorld, panBy, activeTool, stairHandles]
+    [handlers, computeWorld, panBy, activeTool, stairHandles, drawStart, roadStart, polygonPoints, deckPoints, startAutoPan, stopAutoPan]
   );
+
+  // Stop any auto-pan loop when the tool changes.
+  useEffect(() => stopAutoPan(), [activeTool, stopAutoPan]);
 
   const handleMouseUp = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
       handlers.onMouseUp();
       void e;
+
+      // Marquee: either export the region (if armed) or erase everything inside it.
+      if (eraseStartRef.current) {
+        const start = eraseStartRef.current;
+        const end = useAppStore.getState().currentMouseWorld ?? start;
+        eraseStartRef.current = null;
+        setMarquee(null);
+        const rect = normalizeRect(start, end);
+
+        // Region export takes precedence when armed.
+        if (useAppStore.getState().isRegionExportArmed) {
+          useAppStore.getState().setRegionExportArmed(false);
+          if (rect.maxX - rect.minX > 1 && rect.maxY - rect.minY > 1) {
+            const v = viewTransformRef.current;
+            // World → SVG px (svg user space = px; no canvasRect offset needed inside the SVG).
+            const x1 = rect.minX * v.scale + v.offsetX;
+            const x2 = rect.maxX * v.scale + v.offsetX;
+            const yTop = -rect.maxY * v.scale + v.offsetY; // world maxY → smaller screen y
+            const yBot = -rect.minY * v.scale + v.offsetY;
+            void exportEditor2DRegion(
+              { x: Math.min(x1, x2), y: Math.min(yTop, yBot), width: Math.abs(x2 - x1), height: Math.abs(yBot - yTop) },
+              'png'
+            );
+          }
+          return;
+        }
+
+        if (rect.maxX - rect.minX > 1 && rect.maxY - rect.minY > 1) {
+          const s = useAppStore.getState();
+          const ids = collectEntitiesInRect(s, rect);
+          if (ids.length > 0) {
+            s.recordHistory('Erase', () => {
+              const st = useAppStore.getState();
+              for (const id of ids) {
+                if (st.walls[id]) st.removeWall(id);
+                else if (st.furniture[id]) st.removeFurniture(id);
+                else if (st.roads[id]) st.removeRoad(id);
+                else if (st.pillars[id]) st.removePillar(id);
+                else if (st.beams[id]) st.removeBeam(id);
+                else if (st.deckSlabs[id]) st.removeDeckSlab(id);
+                else if (st.railings[id]) st.removeRailing(id);
+              }
+              st.clearSelection();
+            });
+          }
+        }
+        return;
+      }
+
       // Smart-align the component we just dragged so the layout stays orthogonal.
       const drag = dragRef.current;
       const state = useAppStore.getState();
@@ -653,6 +861,7 @@ export const EditorCanvas: React.FC = () => {
           drag.kind === 'beam' ? 'Move Beam' :
           drag.kind === 'deck' ? 'Move Deck' :
           drag.kind === 'railing' ? 'Move Railing' :
+          drag.kind === 'annotation' ? 'Move Text' :
           drag.kind === 'pillar' ? 'Move Pillar' : 'Move Furniture';
         state.commitTransaction(label);
       } else {
@@ -663,19 +872,23 @@ export const EditorCanvas: React.FC = () => {
       dragLastWorldRef.current = null;
       panningRef.current = false;
       setDragHud(null);
+      setAlignGuides(null);
+      stopAutoPan();
       if (svgRef.current) svgRef.current.style.cursor = '';
     },
-    [handlers, smartAlign]
+    [handlers, smartAlign, stopAutoPan]
   );
 
   const handleSvgClick = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
       if (e.button !== 0 || e.altKey) return;
+      if (useAppStore.getState().isCanvasFrozen) return; // accidental-edit guard
       // If this "click" was actually the end of a furniture drag, don't treat it as a click.
       if (didDragRef.current) {
         didDragRef.current = false;
         return;
       }
+      if (activeTool === 'erase') return; // erasing is a drag gesture, not a click-select
       const state = useAppStore.getState();
       const cursor = state.currentMouseWorld;
       if (!cursor) return;
@@ -776,6 +989,20 @@ export const EditorCanvas: React.FC = () => {
 
       if (activeTool === 'road') {
         handleRoadClick(cursor);
+        return;
+      }
+
+      if (activeTool === 'polygon') {
+        handlePolygonClick(cursor);
+        return;
+      }
+
+      if (activeTool === 'text') {
+        let id = '';
+        state.recordHistory('Add Text', () => {
+          id = state.addAnnotation({ position: cursor, text: 'Text', fontSizeCm: 30, color: '#fde68a' });
+        });
+        if (id) state.select([id]);
         return;
       }
 
@@ -999,7 +1226,7 @@ export const EditorCanvas: React.FC = () => {
         }
       }
     },
-    [activeTool, handleClick, handleRoadClick, stairHandles]
+    [activeTool, handleClick, handleRoadClick, handlePolygonClick, stairHandles]
   );
 
   // Keyboard: Escape cancels drawing; Delete/Backspace erases selection; R rotates furniture.
@@ -1008,7 +1235,9 @@ export const EditorCanvas: React.FC = () => {
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
 
-      if (e.key === 'Escape') { cancel(); cancelRoad(); stairHandles.cancel(); setDeckPoints([]); cancelArray(); }
+      if (e.key === 'Escape') { cancel(); cancelRoad(); cancelPolygon(); stairHandles.cancel(); setDeckPoints([]); cancelArray(); }
+
+      if (e.key === 'Enter' && activeTool === 'polygon') { closePolygon(); return; }
 
       if (e.key === 'Enter' && activeTool === 'stair' && stairToolState.inProgress) {
         const pts = stairToolState.pathPoints;
@@ -1030,6 +1259,7 @@ export const EditorCanvas: React.FC = () => {
               if (state.beams[id]) state.removeBeam(id);
               if (state.deckSlabs[id]) state.removeDeckSlab(id);
               if (state.railings[id]) state.removeRailing(id);
+              if (state.annotations[id]) state.removeAnnotation(id);
             });
             state.clearSelection();
           });
@@ -1051,10 +1281,10 @@ export const EditorCanvas: React.FC = () => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [cancel, cancelRoad, stairHandles, stairToolState, activeTool]);
+  }, [cancel, cancelRoad, cancelPolygon, closePolygon, stairHandles, stairToolState, activeTool]);
 
   const cursorClass =
-    activeTool === 'wall' || activeTool === 'road' || activeTool === 'pillar' || activeTool === 'beam' || activeTool === 'deck' || activeTool === 'furniture' || activeTool === 'paint' || activeTool === 'stair'
+    activeTool === 'wall' || activeTool === 'road' || activeTool === 'pillar' || activeTool === 'beam' || activeTool === 'deck' || activeTool === 'furniture' || activeTool === 'paint' || activeTool === 'stair' || activeTool === 'polygon' || activeTool === 'text' || activeTool === 'erase'
       ? 'cursor-crosshair'
       : 'cursor-grab';
 
@@ -1079,6 +1309,7 @@ export const EditorCanvas: React.FC = () => {
             drag.kind === 'deck' ? 'Move Deck' :
             drag.kind === 'railing' ? 'Move Railing' :
             drag.kind === 'road' ? 'Move Road' :
+            drag.kind === 'annotation' ? 'Move Text' :
             drag.kind === 'pillar' ? 'Move Pillar' : 'Move Furniture';
           state.commitTransaction(label);
         } else {
@@ -1087,7 +1318,11 @@ export const EditorCanvas: React.FC = () => {
         dragRef.current = null;
         dragLastWorldRef.current = null;
         panningRef.current = false;
+        eraseStartRef.current = null;
+        setMarquee(null);
+        setAlignGuides(null);
         setDragHud(null);
+        stopAutoPan();
         if (svgRef.current) svgRef.current.style.cursor = '';
       }}
       onClick={handleSvgClick}
@@ -1124,10 +1359,39 @@ export const EditorCanvas: React.FC = () => {
           e.preventDefault();
           return;
         }
+
+        if (activeTool === 'polygon') {
+          closePolygon();
+          e.preventDefault();
+          return;
+        }
+
+        // Any other tool: double-click inside a room offers furniture suggestions.
+        if (!cursor) return;
+        const roomId = hitTestRoom(cursor, state);
+        if (!roomId) {
+          setSuggestion(null);
+          return;
+        }
+        const room = state.rooms[roomId];
+        const items = suggestFurniture({ roomType: room.roomType, label: room.label });
+        if (items.length === 0) {
+          setSuggestion(null);
+          return;
+        }
+        const v = viewTransformRef.current;
+        setSuggestion({
+          roomId,
+          sx: cursor.x * v.scale + v.offsetX + 12,
+          sy: -cursor.y * v.scale + v.offsetY + 12,
+          at: cursor,
+          items,
+        });
       }}
       onContextMenu={(e) => {
         e.preventDefault();
         cancel();
+        cancelPolygon();
         setDeckPoints([]);
         stairHandles.cancel();
         // Right-click finishes an array/replication session: clear the source and
@@ -1140,7 +1404,7 @@ export const EditorCanvas: React.FC = () => {
       }}
     >
       <g transform={`translate(${viewTransform.offsetX}, ${viewTransform.offsetY}) scale(${viewTransform.scale})`}>
-        <GridLayer gridSize={snapConfig.gridSize} />
+        <GridLayer gridSize={snapConfig.gridSize} unit={displayUnit} bounds={gridBounds} scale={viewTransform.scale} />
         <GhostFloorLayer />
         <RoadLayer />
         <DeckLayer />
@@ -1153,7 +1417,8 @@ export const EditorCanvas: React.FC = () => {
         <StairLayer />
         <FurnitureLayer />
         <SelectionLayer />
-        {showDimensions && <DimensionLayer />}
+        {showDimensions && <DimensionLayer scale={viewTransform.scale} />}
+        <AnnotationLayer scale={viewTransform.scale} />
         <VastuOverlay2D />
         {activeTool === 'wall' && <DrawingPreview start={drawStart} chainOrigin={chainOrigin} />}
         {activeTool === 'beam' && <DrawingPreview start={drawStart} chainOrigin={null} />}
@@ -1162,6 +1427,30 @@ export const EditorCanvas: React.FC = () => {
         {activeTool === 'deck' && <PillarSnapIndicator activeTool="deck" currentPoint={useAppStore.getState().currentMouseWorld} />}
         {activeTool === 'pillar' && <PillarAlignmentGuide cursor={useAppStore.getState().currentMouseWorld} />}
         {activeTool === 'road' && <DrawingPreview start={roadStart} />}
+        {activeTool === 'polygon' && <PolygonPreview points={polygonPoints} />}
+        {alignGuides && gridBounds && (
+          <g pointerEvents="none" stroke="#22d3ee" strokeWidth={1 / viewTransform.scale} strokeDasharray={`${6 / viewTransform.scale} ${4 / viewTransform.scale}`}>
+            {alignGuides.x !== undefined && (
+              <line x1={alignGuides.x} y1={-gridBounds.minY} x2={alignGuides.x} y2={-gridBounds.maxY} />
+            )}
+            {alignGuides.y !== undefined && (
+              <line x1={gridBounds.minX} y1={-alignGuides.y} x2={gridBounds.maxX} y2={-alignGuides.y} />
+            )}
+          </g>
+        )}
+        {marquee && (
+          <rect
+            x={Math.min(marquee.start.x, marquee.end.x)}
+            y={-Math.max(marquee.start.y, marquee.end.y)}
+            width={Math.abs(marquee.end.x - marquee.start.x)}
+            height={Math.abs(marquee.end.y - marquee.start.y)}
+            fill="rgba(239,68,68,0.15)"
+            stroke="#ef4444"
+            strokeWidth={1.5}
+            strokeDasharray="8 6"
+            pointerEvents="none"
+          />
+        )}
         {activeTool === 'stair' && (
           <StairToolOverlay toolState={stairToolState} stairWidthCm={stairWidthCm} />
         )}
@@ -1170,6 +1459,50 @@ export const EditorCanvas: React.FC = () => {
       </g>
       {/* Screen-anchored compass (outside the pan/zoom group) so it never moves or scales. */}
       <CompassRose />
+      {/* Canvas lock indicator. */}
+      {isCanvasFrozen && (
+        <g pointerEvents="none">
+          <rect x={10} y={10} width={132} height={26} rx={6} fill="rgba(239,68,68,0.9)" />
+          <text x={76} y={27} textAnchor="middle" fontSize={13} fontWeight={700} fill="#fff" fontFamily="sans-serif">🔒 Canvas locked</text>
+        </g>
+      )}
+      {/* Typed exact-length entry while drawing a wall (screen-anchored). */}
+      {activeTool === 'wall' && drawStart && (
+        <TypedLengthInput
+          start={drawStart}
+          cursor={currentMouseWorld}
+          view={viewTransform}
+          unit={displayUnit}
+          onSubmit={(lengthCm, dirRad) => placeWallByLength(lengthCm, dirRad)}
+          onCancel={cancel}
+        />
+      )}
+      {/* Room furniture suggestions (double-click a room). */}
+      {suggestion && (
+        <FurnitureSuggestionPopup
+          items={suggestion.items}
+          sx={suggestion.sx}
+          sy={suggestion.sy}
+          onPick={(catalogId) => {
+            const state = useAppStore.getState();
+            const entry = getCatalogEntry(catalogId);
+            let id = '';
+            state.recordHistory('Place Suggested Furniture', () => {
+              id = state.addFurniture({
+                position: suggestion.at,
+                rotation: 0,
+                scale: 1,
+                catalogId,
+                roomId: suggestion.roomId,
+                bounds: { width: entry.bounds.width, depth: entry.bounds.depth },
+              });
+            });
+            if (id) state.select([id]);
+            setSuggestion(null);
+          }}
+          onClose={() => setSuggestion(null)}
+        />
+      )}
     </svg>
   );
 };

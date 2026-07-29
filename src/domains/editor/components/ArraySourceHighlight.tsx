@@ -19,7 +19,8 @@ export const ArraySourceHighlight: React.FC = React.memo(() => {
   const furniture = useAppStore((s) => s.furniture);
   const roads = useAppStore((s) => s.roads);
 
-  if (config.entityType !== 'component' || !config.referenceId) return null;
+  // Only pillar/furniture modes pick a single source entity to highlight; building has none.
+  if (!config.referenceId) return null;
 
   const g: ComponentCloneGeometry = { vertices, walls, openings, pillars, beams, deckSlabs, railings, furniture, roads };
   const bounds = computeComponentBounds(config.referenceId, g);

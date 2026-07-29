@@ -26,7 +26,7 @@ import type { OpeningFamily } from '@/domains/shared/openings/openingCatalog';
 import { defaultKindForFamily } from '@/domains/shared/openings/openingCatalog';
 
 /** What the user is currently holding in their cursor (e.g. wall tool, select tool) */
-export type Tool = 'select' | 'wall' | 'road' | 'pillar' | 'beam' | 'deck' | 'railing' | 'furniture' | 'array' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'ac' | 'paint' | 'room' | 'stair';
+export type Tool = 'select' | 'wall' | 'road' | 'pillar' | 'beam' | 'deck' | 'railing' | 'furniture' | 'array' | 'pan' | 'measure' | 'door' | 'window' | 'vent' | 'ac' | 'paint' | 'room' | 'stair' | 'polygon' | 'erase' | 'text';
 
 export interface ArrayToolConfig {
   /** Kind of element to replicate. 'building' clones the whole constructed unit; 'pillar' and 'furniture' clone one picked entity. */
@@ -92,6 +92,17 @@ export interface UISlice {
   /** Incremented to ask the 2D editor to fit/center the view on the current plan. */
   fitViewNonce: number;
 
+  /** When true, the canvas ignores edit gestures (pan/zoom still work) — accidental-edit guard. */
+  isCanvasFrozen: boolean;
+  /** When true, the next marquee drag exports that region as an image instead of editing. */
+  isRegionExportArmed: boolean;
+
+  /**
+   * In-memory copy/paste buffer for furniture (transient; not persisted). Holds deep copies of
+   * the copied items; paste regenerates ids at an offset.
+   */
+  clipboard: import('@/types/editor').FurnitureItem[];
+
   // Controls (How we change the memory)
   setActiveTool: (tool: Tool) => void;
   togglePanel: (panel: PanelId) => void;
@@ -122,6 +133,12 @@ export interface UISlice {
   resetOpeningSize: (family: OpeningFamily) => void;
   /** Ask the 2D editor to fit/center the view on the current plan. */
   requestFitView: () => void;
+  /** Toggle the accidental-edit guard (canvas freeze/lock). */
+  toggleCanvasFreeze: () => void;
+  /** Arm/disarm the region-export marquee. */
+  setRegionExportArmed: (armed: boolean) => void;
+  /** Replace the copy/paste buffer. */
+  setClipboard: (items: import('@/types/editor').FurnitureItem[]) => void;
 }
 
 export const createUISlice: StateCreator<
@@ -161,6 +178,9 @@ export const createUISlice: StateCreator<
     ac: {},
   },
   fitViewNonce: 0,
+  isCanvasFrozen: false,
+  isRegionExportArmed: false,
+  clipboard: [],
 
   setActiveTool: (tool) => {
     set((state) => {
@@ -275,6 +295,24 @@ export const createUISlice: StateCreator<
   requestFitView: () => {
     set((state) => {
       state.fitViewNonce += 1;
+    });
+  },
+
+  toggleCanvasFreeze: () => {
+    set((state) => {
+      state.isCanvasFrozen = !state.isCanvasFrozen;
+    });
+  },
+
+  setRegionExportArmed: (armed) => {
+    set((state) => {
+      state.isRegionExportArmed = armed;
+    });
+  },
+
+  setClipboard: (items) => {
+    set((state) => {
+      state.clipboard = items;
     });
   },
 });

@@ -48,7 +48,7 @@ export function useRoomDetection(): void {
         prior != null && !usedPriorKeys.has(key) && !usedIds.has(prior.id);
 
       const merged = canReusePrior
-        ? { ...room, id: prior!.id, roomType: prior!.roomType, label: prior!.label, floorMaterialId: prior!.floorMaterialId }
+        ? { ...room, id: prior!.id, roomType: prior!.roomType, label: prior!.label, floorMaterialId: prior!.floorMaterialId, fillMode: prior!.fillMode, fillColor: prior!.fillColor }
         : room;
 
       if (canReusePrior) usedPriorKeys.add(key);

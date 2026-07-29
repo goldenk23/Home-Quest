@@ -6,6 +6,7 @@ import type { Point2D } from '@/types';
 
 const NUDGE_AMOUNT = 10; // cm
 const FINE_NUDGE = 1; // cm with Shift
+const PASTE_OFFSET = 40; // cm — nudge pasted copies so they don't sit exactly on the originals
 
 export function useKeyboardEditor(): void {
   const selectedIds = useAppStore((s) => s.selectedIds);
@@ -19,6 +20,25 @@ export function useKeyboardEditor(): void {
     (e: KeyboardEvent) => {
       // Ignore when typing in a field.
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      // Copy/paste (furniture) — handled before the selection guard so paste works with an
+      // empty selection. Ctrl (Windows/Linux) or Cmd (macOS).
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && (e.key === 'c' || e.key === 'C')) {
+        const state = useAppStore.getState();
+        const items = state.selectedIds.map((id) => state.furniture[id]).filter(Boolean);
+        if (items.length > 0) {
+          state.setClipboard(items.map((it) => ({ ...it, bounds: { ...it.bounds }, position: { ...it.position } })));
+          e.preventDefault();
+        }
+        return;
+      }
+      if (mod && (e.key === 'v' || e.key === 'V')) {
+        pasteClipboard();
+        e.preventDefault();
+        return;
+      }
+
       if (selectedIds.length === 0) return;
       const nudge = e.shiftKey ? FINE_NUDGE : NUDGE_AMOUNT;
 
@@ -67,6 +87,41 @@ export function useKeyboardEditor(): void {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+}
+
+/**
+ * Paste the furniture clipboard as new items. Positions the group's centroid at the cursor
+ * (currentMouseWorld) when known, else offsets each copy by a fixed nudge. New items are
+ * selected so they can be immediately moved. One undo step.
+ */
+function pasteClipboard(): void {
+  const state = useAppStore.getState();
+  const clip = state.clipboard;
+  if (clip.length === 0) return;
+
+  // Centroid of the copied group (for cursor-anchored paste).
+  const cx = clip.reduce((s, it) => s + it.position.x, 0) / clip.length;
+  const cy = clip.reduce((s, it) => s + it.position.y, 0) / clip.length;
+  const cursor = state.currentMouseWorld;
+  const dx = cursor ? cursor.x - cx : PASTE_OFFSET;
+  const dy = cursor ? cursor.y - cy : PASTE_OFFSET;
+
+  const newIds: string[] = [];
+  state.recordHistory('Paste', () => {
+    const s = useAppStore.getState();
+    for (const it of clip) {
+      const id = s.addFurniture({
+        position: { x: it.position.x + dx, y: it.position.y + dy },
+        rotation: it.rotation,
+        scale: it.scale,
+        catalogId: it.catalogId,
+        roomId: null,
+        bounds: { width: it.bounds.width, depth: it.bounds.depth },
+      });
+      if (id) newIds.push(id);
+    }
+  });
+  if (newIds.length > 0) useAppStore.getState().select(newIds);
 }
 
 function nudgeSelection(

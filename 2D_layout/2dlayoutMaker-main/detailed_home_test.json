@@ -1,0 +1,187 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "Detailed Test Home",
+    "description": "Full-featured compatibility test layout",
+    "created": "2026-07-22T19:00:00.000000",
+    "modified": "2026-07-22T19:00:00.000000",
+    "unit": "ft",
+    "grid_spacing": 35,
+    "canvas_width": 1400,
+    "canvas_height": 1000,
+    "zoom_level": 1.0,
+    "grid_visible": true
+  },
+  "rooms": [
+    {
+      "id": "room_group_0",
+      "name": "Living Room",
+      "group_tag": "room_group_0",
+      "group_id": 0,
+      "x0": 105, "y0": 105, "x1": 595, "y1": 595,
+      "width": 490, "height": 490,
+      "width_real": 14.0, "height_real": 14.0,
+      "fill_mode": "filled",
+      "fill_color": "#d0f0c0",
+      "outline_color": "black",
+      "wall_thickness_ft": 0.2,
+      "flooring": { "has_flooring": true, "flooring_type": "wood" }
+    },
+    {
+      "id": "room_group_1",
+      "name": "Kitchen",
+      "group_tag": "room_group_1",
+      "group_id": 1,
+      "x0": 595, "y0": 105, "x1": 945, "y1": 455,
+      "width": 350, "height": 350,
+      "width_real": 10.0, "height_real": 10.0,
+      "fill_mode": "walls_only",
+      "fill_color": "#ffe0b2",
+      "outline_color": "black",
+      "wall_thickness_ft": 0.2,
+      "flooring": { "has_flooring": true, "flooring_type": "tile" },
+      "wall_erased_regions": {
+        "left": [[227.5, 332.5]],
+        "top": [[700, 840]]
+      }
+    },
+    {
+      "id": "room_group_2",
+      "name": "Master Bedroom",
+      "group_tag": "room_group_2",
+      "group_id": 2,
+      "x0": 945, "y0": 105, "x1": 1330, "y1": 525,
+      "width": 385, "height": 420,
+      "width_real": 11.0, "height_real": 12.0,
+      "fill_mode": "filled",
+      "fill_color": "#d1c4e9",
+      "outline_color": "black",
+      "wall_thickness_ft": 0.2,
+      "flooring": { "has_flooring": true, "flooring_type": "wood" }
+    },
+    {
+      "id": "room_group_3",
+      "name": "Bathroom",
+      "group_tag": "room_group_3",
+      "group_id": 3,
+      "x0": 945, "y0": 525, "x1": 1190, "y1": 770,
+      "width": 245, "height": 245,
+      "width_real": 7.0, "height_real": 7.0,
+      "fill_mode": "walls_only",
+      "fill_color": "#b3e5fc",
+      "outline_color": "black",
+      "wall_thickness_ft": 0.2,
+      "flooring": { "has_flooring": true, "flooring_type": "tile" },
+      "wall_erased_regions": {
+        "top": [[997.5, 1102.5]],
+        "right": [[612.5, 717.5]]
+      }
+    },
+    {
+      "id": "room_group_4",
+      "name": "Dining Room",
+      "group_tag": "room_group_4",
+      "group_id": 4,
+      "x0": 105, "y0": 595, "x1": 455, "y1": 945,
+      "width": 350, "height": 350,
+      "width_real": 10.0, "height_real": 10.0,
+      "fill_mode": "transparent",
+      "fill_color": "#fff9c4",
+      "outline_color": "black",
+      "wall_thickness_ft": 0.2,
+      "flooring": { "has_flooring": true, "flooring_type": "tile" }
+    },
+    {
+      "id": "room_group_5",
+      "name": "Puja Room",
+      "group_tag": "room_group_5",
+      "group_id": 5,
+      "x0": 455, "y0": 595, "x1": 630, "y1": 770,
+      "width": 175, "height": 175,
+      "width_real": 5.0, "height_real": 5.0,
+      "fill_mode": "filled",
+      "fill_color": "#ffccbc",
+      "outline_color": "black",
+      "wall_thickness_ft": 0.2,
+      "flooring": { "has_flooring": true, "flooring_type": "marble" }
+    },
+    {
+      "id": "room_group_6",
+      "name": "Kids Bedroom",
+      "group_tag": "room_group_6",
+      "group_id": 6,
+      "x0": 455, "y0": 770, "x1": 805, "y1": 1155,
+      "width": 350, "height": 385,
+      "width_real": 10.0, "height_real": 11.0,
+      "fill_mode": "walls_only",
+      "fill_color": "#c8e6c9",
+      "outline_color": "black",
+      "wall_thickness_ft": 0.2,
+      "flooring": { "has_flooring": true, "flooring_type": "wood" },
+      "wall_erased_regions": {
+        "bottom": [[560, 700]]
+      }
+    }
+  ],
+  "shapes": [
+    {
+      "id": "shape_balcony",
+      "type": "polygon",
+      "points": [[945, 770], [1330, 770], [1330, 1015], [945, 1015]],
+      "outline_color": "green",
+      "fill_color": "",
+      "width": 2.0,
+      "style": "solid",
+      "tags": ["closed_shape", "polygon_group_balcony", "polygon_shape"],
+      "flooring": { "has_flooring": true, "flooring_type": "garden" }
+    },
+    { "id": "shape_bv1", "type": "oval", "points": [[943, 768], [947, 772]], "outline_color": "blue", "fill_color": "blue", "width": 1.0, "style": "solid", "tags": ["polygon_group_balcony", "polygon_vertex"] },
+    { "id": "shape_bv2", "type": "oval", "points": [[1328, 768], [1332, 772]], "outline_color": "blue", "fill_color": "blue", "width": 1.0, "style": "solid", "tags": ["polygon_group_balcony", "polygon_vertex"] },
+    { "id": "shape_bv3", "type": "oval", "points": [[1328, 1013], [1332, 1017]], "outline_color": "blue", "fill_color": "blue", "width": 1.0, "style": "solid", "tags": ["polygon_group_balcony", "polygon_vertex"] },
+    { "id": "shape_bv4", "type": "oval", "points": [[943, 1013], [947, 1017]], "outline_color": "blue", "fill_color": "blue", "width": 1.0, "style": "solid", "tags": ["polygon_group_balcony", "polygon_vertex"] },
+    { "id": "shape_bl", "type": "text", "points": [[1137.5, 892.5]], "outline_color": "black", "fill_color": "", "width": 1.0, "style": "solid", "tags": ["polygon_group_balcony", "polygon_label"] }
+  ],
+  "furniture": [
+    { "id": "f_door_1", "image_path": "Images/singlehand_door.png", "x": 595, "y": 280, "image_filename": "singlehand_door.png", "image_name": "singlehand_door", "scale": 1.0, "angle": 90 },
+    { "id": "f_door_2", "image_path": "Images/singlehand_door.png", "x": 1050, "y": 525, "image_filename": "singlehand_door.png", "image_name": "singlehand_door", "scale": 1.0, "angle": 0 },
+    { "id": "f_door_3", "image_path": "Images/doublehand_door.png", "x": 350, "y": 115.5, "image_filename": "doublehand_door.png", "image_name": "doublehand_door", "scale": 1.0, "angle": 0 },
+    { "id": "f_door_4", "image_path": "Images/doublehand_door.png", "x": 945, "y": 315, "image_filename": "doublehand_door.png", "image_name": "doublehand_door", "scale": 1.0, "angle": 90 },
+
+    { "id": "f_sofa", "image_path": "Images/sofa.png", "x": 350, "y": 210, "image_filename": "sofa.png", "image_name": "sofa", "scale": 1.0, "angle": 180 },
+    { "id": "f_coffee", "image_path": "Images/coffee_table.png", "x": 350, "y": 297.5, "image_filename": "coffee_table.png", "image_name": "coffee_table", "scale": 1.0, "angle": 0 },
+    { "id": "f_tv", "image_path": "Images/tv.png", "x": 350, "y": 560, "image_filename": "tv.png", "image_name": "tv", "scale": 1.0, "angle": 0 },
+
+    { "id": "f_stove", "image_path": "Images/stove.png", "x": 665, "y": 157.5, "image_filename": "stove.png", "image_name": "stove", "scale": 1.0, "angle": 0 },
+    { "id": "f_sink", "image_path": "Images/sink.png", "x": 805, "y": 157.5, "image_filename": "sink.png", "image_name": "sink", "scale": 1.0, "angle": 0 },
+    { "id": "f_fridge", "image_path": "Images/fridge.png", "x": 910, "y": 157.5, "image_filename": "fridge.png", "image_name": "fridge", "scale": 1.0, "angle": 0 },
+    { "id": "f_kplatform", "image_path": "Images/kitchen_platform.png", "x": 735, "y": 157.5, "image_filename": "kitchen_platform.png", "image_name": "kitchen_platform", "scale": 1.0, "angle": 0 },
+
+    { "id": "f_dbed", "image_path": "Images/double_bed.png", "x": 1137.5, "y": 280, "image_filename": "double_bed.png", "image_name": "double_bed", "scale": 1.0, "angle": 0 },
+    { "id": "f_wardrobe", "image_path": "Images/wardrobe.png", "x": 1295, "y": 164.5, "image_filename": "wardrobe.png", "image_name": "wardrobe", "scale": 1.0, "angle": 0 },
+    { "id": "f_cabinet", "image_path": "Images/standing_cabinet.png", "x": 980, "y": 164.5, "image_filename": "standing_cabinet.png", "image_name": "Standing_Cabinet", "scale": 1.0, "angle": 0 },
+    { "id": "f_ssofa", "image_path": "Images/single_sofa.png", "x": 1260, "y": 472.5, "image_filename": "single_sofa.png", "image_name": "single_sofa", "scale": 1.0, "angle": 270 },
+
+    { "id": "f_toilet", "image_path": "Images/toilet.png", "x": 1004.5, "y": 584.5, "image_filename": "toilet.png", "image_name": "Toilet", "scale": 1.0, "angle": 0 },
+    { "id": "f_basin", "image_path": "Images/wash_basin.png", "x": 1137.5, "y": 584.5, "image_filename": "wash_basin.png", "image_name": "Wash_Basin", "scale": 1.0, "angle": 0 },
+    { "id": "f_tub", "image_path": "Images/bath_tub.png", "x": 1032.5, "y": 717.5, "image_filename": "bath_tub.png", "image_name": "Bath_Tub", "scale": 1.0, "angle": 0 },
+    { "id": "f_shower", "image_path": "Images/shower.png", "x": 1155, "y": 710.5, "image_filename": "shower.png", "image_name": "shower", "scale": 1.0, "angle": 0 },
+
+    { "id": "f_dtable", "image_path": "Images/dining_table_6_seat.png", "x": 280, "y": 770, "image_filename": "dining_table_6_seat.png", "image_name": "dining_table_6_seat", "scale": 1.0, "angle": 0 },
+    { "id": "f_chair1", "image_path": "Images/chair.png", "x": 199.5, "y": 717.5, "image_filename": "chair.png", "image_name": "Chair", "scale": 1.0, "angle": 90 },
+    { "id": "f_chair2", "image_path": "Images/chair.png", "x": 360.5, "y": 822.5, "image_filename": "chair.png", "image_name": "Chair", "scale": 1.0, "angle": 270 },
+
+    { "id": "f_pcabinet", "image_path": "Images/standing_cabinet.png", "x": 588, "y": 640.5, "image_filename": "standing_cabinet.png", "image_name": "Standing_Cabinet", "scale": 1.0, "angle": 0 },
+
+    { "id": "f_sbed", "image_path": "Images/single_bed.png", "x": 532, "y": 1067.5, "image_filename": "single_bed.png", "image_name": "single_bed", "scale": 1.0, "angle": 0 },
+    { "id": "f_study", "image_path": "Images/study_table_chair.png", "x": 752.5, "y": 822.5, "image_filename": "study_table_chair.png", "image_name": "Study_Table_Chair", "scale": 1.0, "angle": 0 },
+    { "id": "f_wardrobe2", "image_path": "Images/wardrobe.png", "x": 770, "y": 1120, "image_filename": "wardrobe.png", "image_name": "wardrobe", "scale": 1.0, "angle": 0 },
+
+    { "id": "f_swing", "image_path": "Images/jhula_swing.png", "x": 1295, "y": 962.5, "image_filename": "jhula_swing.png", "image_name": "jhula_swing", "scale": 1.0, "angle": 0 }
+  ],
+  "text": [
+    { "id": "text_balcony_label", "content": "Balcony", "x": 1137.5, "y": 892.5, "font": "Arial 10", "color": "black", "tags": ["polygon_group_balcony", "polygon_label"] },
+    { "id": "text_entrance", "content": "Main Entrance", "x": 350, "y": 77, "font": "Arial 12", "color": "#1a5c1a", "tags": [] },
+    { "id": "text_corridor", "content": "Corridor", "x": 700, "y": 560, "font": "Arial 11", "color": "#555555", "tags": [] }
+  ],
+  "compass": { "direction": "E" }
+}

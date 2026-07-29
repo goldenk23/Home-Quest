@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "finishes": [
+    {"id":"default-wall","label":"Default Wall","category":"wall","surfaces":["wall","pillar","beam","railing"],"swatch":"#b34730"},
+    {"id":"paint-white","label":"White Paint","category":"wall","surfaces":["wall","pillar","beam","railing"],"swatch":"#f8fafc"},
+    {"id":"paint-cream","label":"Cream Paint","category":"wall","surfaces":["wall","pillar","beam","railing"],"swatch":"#f5ecd9"},
+    {"id":"paint-grey","label":"Grey Paint","category":"wall","surfaces":["wall","pillar","beam","railing"],"swatch":"#cbd5e1"},
+    {"id":"paint-sage","label":"Sage Paint","category":"wall","surfaces":["wall","pillar","beam","railing"],"swatch":"#9caf88"},
+    {"id":"wall-concrete","label":"Concrete","category":"wall","surfaces":["wall","pillar","beam"],"swatch":"#9a9a98"},
+    {"id":"default-floor","label":"Default Floor","category":"floor","surfaces":["floor","deck"],"swatch":"#d4c5a9"},
+    {"id":"floor-wood","label":"Wood","category":"floor","surfaces":["floor","deck"],"swatch":"#9c6b3f"},
+    {"id":"floor-tile","label":"Tile","category":"floor","surfaces":["floor","deck"],"swatch":"#dfe6ec"},
+    {"id":"floor-marble","label":"Marble","category":"floor","surfaces":["floor","deck"],"swatch":"#f1efe9"},
+    {"id":"floor-grass","label":"Grass","category":"floor","surfaces":["floor","deck"],"swatch":"#6a994e"}
+  ]
+}
