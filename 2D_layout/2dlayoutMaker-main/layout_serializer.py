@@ -54,6 +54,11 @@ class LayoutSerializer:
         self.project_state = project_state if project_state is not None else ProjectState()
         if not isinstance(self.project_state, ProjectState):
             raise TypeError("project_state must be a ProjectState")
+        existing_serializer = getattr(self.actions, "serializer", None)
+        if existing_serializer is not None and existing_serializer is not self:
+            raise RuntimeError(
+                "Only one LayoutSerializer may own the application ProjectState; reuse actions.serializer"
+            )
         self.actions.serializer = self
 
         if not hasattr(self.tools, "image_furniture_items"):

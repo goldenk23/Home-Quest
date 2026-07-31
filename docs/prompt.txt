@@ -1,0 +1,351 @@
+Design a single-floor, north-facing Vastu-compliant home that maximizes usable
+built area on a rectangular plot, 52 ft (East–West, road frontage) × 76 ft
+(North–South, depth). Space efficiency is a hard priority: minimize every
+unassigned, decorative, or leftover area within the building footprint.
+Orientation: North = top, East = right, South = bottom, West = left.
+Every item below is a hard requirement. Do not add or drop rooms.
+
+PLOT / ENVELOPE — MAXIMIZED
+- Use code-minimum setbacks only: 5 ft front (north), 3 ft rear (south),
+  3 ft each side (east/west). Buildable envelope ≈ 46 ft × 68 ft = 3,128 sq ft.
+- Target ground coverage: 68–72% of plot area for the built footprint
+  (≈ 2,690–2,845 sq ft), consistent with typical municipal FSI/coverage caps —
+  do not push past 72% even if the layout allows it.
+- Wall standard: 9 in exterior, 4 in interior partitions (thinner partitions
+  recover floor area vs. the standard 4.5 in, while remaining structurally
+  normal for load-bearing-light interior walls).
+- Use a 6-inch coordinate grid for all placement so the layout tiles without
+  gaps: no strip of floor area may be narrower than 2 ft or unassigned to any
+  room, corridor, or wall.
+- Any space between the building footprint and the setback line is exterior
+  margin only (driveway/garden) — not part of this brief, not a room.
+
+ROOMS (exactly these 10; dimensions may flex ±1 ft per side, elastically,
+specifically to consume any leftover grid space so no gaps remain — do not
+leave a room at its minimum size if adjoining unassigned space could instead
+be folded into it)
+1. Master bedroom — SW, ~14×15 ft (flex up to 15×16 ft if adjacent space allows),
+   attached master bathroom.
+2. Bedroom 2 — NW, ~11×12 ft, for elderly parents: step-free threshold,
+   door width ≥3 ft.
+3. Bedroom 3 — W (between Bedroom 2 and Master Bedroom), ~11×12 ft.
+4. Bedroom 4 — S / south-central, between Master Bedroom and Kitchen/Dining,
+   ~11×12 ft, on the south exterior wall.
+5. Master bathroom — ~6×8 ft, entered only from the master bedroom, tucked
+   against the bedroom's north-west internal wall (avoid extreme SW corner).
+6. Common bathroom — ~6×7 ft, west-central, entered only from the circulation
+   spine (never through a bedroom); share a plumbing wall with the master
+   bathroom to shorten pipe runs and let both bathrooms nest into one compact
+   wet-zone block instead of two separated ones.
+7. Living room — center-north, ~15×18 ft (flex to fill remaining north-central
+   width), extending east along its southern portion to meet the kitchen.
+8. Kitchen — SE, ~11×13 ft, open (no wall) along its shared edge with living.
+9. Dining area — adjacent to kitchen (south or west side), ~10×12 ft
+   (flex to absorb any leftover SE-zone space), direct door to kitchen.
+10. Puja room — NE, ~6×7 ft, corner alcove off the living room's east
+    extension, sized to fully close the NE corner (no sliver left beside it).
+
+CIRCULATION — MINIMIZED
+- One private circulation spine, ≤3 ft wide (step-free, still ≥3 ft clear per
+  Bedroom 2's accessibility requirement), branching once from the living room.
+  All four bedroom doors and the common bathroom door open off this spine.
+- The spine's footprint counts against the coverage target above — do not
+  oversize it "for comfort"; 3 ft is the ceiling, not a starting point.
+- No bedroom may be a through-passage to any other room.
+- Every room must be reachable from the main entrance via the living room
+  and/or spine.
+- Do not add any secondary corridor, landing, or buffer zone beyond this
+  single spine.
+
+GATES AND DOORS
+- Exactly one main entrance gate, north exterior wall, into the living room,
+  centered on the living room's north wall, ≥2 ft clear of each corner.
+- Door widths: 3 ft bedrooms/bathrooms/kitchen-dining; entrance 3.5 ft.
+- Internal doors: living room ↔ spine; spine ↔ each bedroom; master bedroom
+  → master bath (only entry); spine → common bathroom; kitchen ↔ dining.
+  Living room ↔ kitchen = open boundary, no door.
+- No door at a room corner (≥2 ft clearance both sides); no two openings on
+  the same wall may overlap (≥6 in gap).
+
+WINDOWS / VENTILATION
+- Every bedroom, both bathrooms, living room, kitchen, and dining area must
+  touch an exterior wall with ≥1 ventilation window.
+- Minimum widths: 3.5 ft bedrooms/living/kitchen/dining; 1.5 ft bathrooms
+  (frosted, high-sill).
+- A window and the entrance gate must never share the same wall interval.
+- Where two rooms both need exterior wall footage in a tight zone (e.g.
+  Bedroom 4 and Dining both wanting south-facing wall), split the wall length
+  proportionally rather than shrinking either room's minimum window width.
+
+PRIVACY
+- The sleeping wing (all bedrooms + attached bath) must stay outside the
+  direct sightline from the entrance/living room, even with the tightened
+  spine.
+
+VASTU ZONES (hard): Master bedroom SW, Bedroom 2 NW, Kitchen SE, Puja NE.
+
+SPACE-EFFICIENCY CHECK (apply after initial layout)
+- Sum all room + spine + wall areas; compare to the built footprint. Any
+  unassigned residual over 20 sq ft must be resolved by flexing an adjoining
+  room's dimension (within its stated tolerance) to absorb it — not left as
+  open floor space.
+
+EXCLUDED: foyer, utility/laundry, storage room, office, balcony, garage, and
+any bedroom or bathroom beyond the ten rooms listed above.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Design a single-floor, north-facing Vastu-compliant home, 52 ft (E–W) × 76 ft
+(N–S) plot. North = top, East = right, South = bottom, West = left.
+Do not add or drop rooms. Keep every requirement simple enough that a
+floor-plan generator can satisfy it directly — no requirement should need
+its own separate sub-calculation to check.
+
+SITE
+- Plot area: 3,952 sq ft.
+- Setbacks: 8 ft front (north), 8 ft rear (south), 5 ft each side (east/west).
+- Buildable footprint: approx. 42 ft × 60 ft = 2,520 sq ft (about 64% of plot).
+- This footprint comfortably fits the 10 rooms below with room to spare —
+  do not shrink the footprint further, and do not feel pressure to fill
+  100% of it; some open margin inside the footprint is fine.
+
+ROOMS (exactly these 10; sizes are approximate, ±1 ft per side is fine)
+1. Master bedroom — SW — about 15×16 ft. Attached master bathroom.
+2. Bedroom 2 — NW — about 12×13 ft. For elderly parents: no-step entry,
+   door at least 3 ft wide.
+3. Bedroom 3 — W — about 12×13 ft.
+4. Bedroom 4 — south side — about 12×13 ft.
+5. Master bathroom — about 6×8 ft. Only entered from the master bedroom.
+6. Common bathroom — about 6×7 ft. Only entered from the shared
+   circulation area, never through a bedroom.
+7. Living room — center-north — about 16×19 ft, near the main entrance.
+8. Kitchen — SE — about 12×14 ft, open (no dividing wall) to the living room.
+9. Dining area — next to the kitchen — about 11×13 ft, with a door to the kitchen.
+10. Puja room — NE — about 6×7 ft.
+
+CIRCULATION
+- One short internal passage connecting the living room to the four
+  bedrooms and the common bathroom. Keep it as narrow and short as the
+  layout allows — this is the only corridor permitted.
+- No bedroom may be used as a passage to reach another room.
+- Every room must be reachable from the main entrance.
+- Keep the bedrooms out of direct view from the entrance.
+
+DOORS
+- One main entrance, centered on the living room's north wall, not at a corner.
+- Each bedroom has one door onto the shared passage.
+- Master bathroom's only door is from the master bedroom.
+- Common bathroom's only door is from the shared passage.
+- Kitchen and dining connect by a direct door.
+- Kitchen and living room share an open opening — no door between them.
+- No two doors on the same wall may overlap.
+
+WINDOWS
+- Every bedroom, both bathrooms, the living room, kitchen, and dining area
+  must have at least one window on an exterior wall.
+- The entrance and a window should not sit on the same wall section.
+
+VASTU ZONES (hard): Master bedroom SW, Bedroom 2 NW, Kitchen SE, Puja NE.
+
+EXCLUDED: foyer, utility/laundry, storage room, office, balcony, garage,
+and any bedroom or bathroom beyond the 10 listed above.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Design a single-floor, north-facing Vastu-compliant home, 52 ft (E–W) × 76 ft
+(N–S) plot. North = top, East = right, South = bottom, West = left.
+Do not add or drop rooms. Keep every requirement simple and directly
+checkable — no requirement should need its own separate sub-calculation.
+
+SITE
+- Plot area: 3,952 sq ft.
+- Setbacks: 8 ft front (north), 8 ft rear (south), 5 ft each side (east/west).
+- Buildable footprint: approx. 42 ft × 60 ft = 2,520 sq ft (about 64% of plot).
+  This comfortably fits the rooms below with margin to spare — some open
+  space inside the footprint is expected and fine.
+- A small covered entrance porch (roofed, open on at least one side, not
+  enclosed) may sit just outside the main entrance, within the front
+  setback. This is an outdoor covered space, not an internal room.
+
+ROOMS (exactly these 10; sizes approximate, ±1 ft per side is fine)
+1. Master bedroom — SW — about 15×16 ft. Attached master bathroom.
+2. Bedroom 2 — NW — about 12×13 ft. For elderly parents: no-step entry,
+   door at least 3 ft wide.
+3. Bedroom 3 — W — about 12×13 ft.
+4. Bedroom 4 — south side — about 12×13 ft.
+5. Master bathroom — about 6×8 ft. Only entered from the master bedroom.
+6. Common bathroom — about 6×7 ft. Only entered from the shared
+   circulation area, never through a bedroom.
+7. Living room — center-north — about 16×19 ft, near the main entrance.
+8. Kitchen — SE — about 12×14 ft, open (no dividing wall) to the living room.
+9. Dining area — next to the kitchen — about 11×13 ft, with a door to the kitchen.
+10. Puja room — NE — about 6×7 ft.
+
+CENTER OF THE PLAN
+- Keep a small patch near the geometric center of the house free of heavy
+  fixtures (no bathroom, no kitchen platform) as an open courtyard or
+  light-well area, per Vastu convention. This can be modest in size — a
+  few feet square is enough; it does not need to be a large room.
+
+CIRCULATION
+- One short internal passage connecting the living room to the four
+  bedrooms and the common bathroom. Keep it as narrow and short as the
+  layout allows.
+- Along this passage, stagger the bedroom doors so no two doors sit
+  directly opposite each other.
+- No bedroom may be used as a passage to reach another room.
+- Every room must be reachable from the main entrance.
+- Keep the bedrooms out of direct view from the entrance.
+
+DOORS
+- One main entrance, centered on the living room's north wall, not at a corner.
+- Each bedroom has one door onto the shared passage.
+- Master bathroom's only door is from the master bedroom.
+- Common bathroom's only door is from the shared passage.
+- Kitchen and dining connect by a direct door.
+- Kitchen and living room share an open opening — no door between them.
+- No two doors on the same wall may overlap.
+
+WINDOWS
+- Every bedroom, both bathrooms, the living room, kitchen, and dining area
+  must have at least one window on an exterior wall.
+- The living room and master bedroom, being the largest rooms, should each
+  get two windows on two different walls for cross-ventilation.
+- The entrance and a window should not sit on the same wall section.
+
+KITCHEN NOTE
+- Place the cooking platform along the kitchen's west or south wall, so
+  the cook faces east while cooking — a common Vastu preference. This is
+  a placement note, not a separate measured requirement.
+
+VASTU ZONES (hard): Master bedroom SW, Bedroom 2 NW, Kitchen SE, Puja NE.
+
+EXCLUDED: foyer, utility/laundry, storage room, office, balcony, garage,
+and any bedroom or bathroom beyond the 10 listed above.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Design a two-storey (G+1), north-facing, Vastu-compliant home on a rectangular
+plot of 30 ft (East-West, road frontage) x 36 ft (North-South, depth) —
+1,080 sq ft footprint per floor, ~2,160 sq ft total built-up area.
+North = top, East = right, South = bottom, West = left.
+No setbacks: the building line coincides with the plot boundary on all
+four sides.
+
+NOTE: this is a conceptual/idealized brief. Real construction in India is
+normally governed by local Development Control Regulations (DCR), which
+mandate minimum setbacks (commonly 3-5 ft front, 3 ft sides/rear). Treat
+"no setbacks" as a deliberate design simplification, not a real-world
+exemption — flag this if the design is ever taken to actual construction.
+
+STRUCTURAL & CONSTRUCTION ASSUMPTIONS
+- RCC framed structure (columns + beams); internal partitions are non-load-bearing.
+- External wall thickness: 9 in (230 mm). Internal partition thickness: 4.5 in (115 mm).
+- Floor-to-floor height: 10 ft (9 ft clear + ~12 in slab/beam).
+- Staircase: dog-leg with mid-landing, 2 flights, flight width 3.5 ft,
+  riser 7 in / tread 10 in (~16-17 risers total), min headroom 7 ft.
+  MUST occupy the identical footprint on both floors (structural continuity),
+  located in the south-central zone — clear of the NE (Puja) corner and the
+  north-center (Living) zone.
+- Minimum window area per habitable room: ~1/8 of that room's floor area.
+  Main door: 3'6" x 7'. Internal doors: 2'6"-3' x 7'. Bathroom doors: 2'3" x 7'.
+- Common bathrooms on both floors should be vertically aligned (or close to
+  it) to keep plumbing stacks simple.
+
+AREA BUDGET (per floor; both floors total exactly 1,080 sq ft — individual
+room sizes may flex ±10% as long as the floor total is preserved)
+
+GROUND FLOOR
+- Living / family room .......... 18 x 20 ft = 360 sq ft
+- Kitchen ........................ 10 x 12 ft = 120 sq ft
+- Dining ......................... 10 x 12 ft = 120 sq ft
+- Puja room ...................... 6 x 7 ft   = 42 sq ft
+- Common bathroom ................ 6 x 7 ft   = 42 sq ft
+- Staircase ...................... 4 x 13 ft  = 52 sq ft
+- Circulation / entrance lobby ... remainder  = 344 sq ft
+  TOTAL = 1,080 sq ft
+
+FIRST FLOOR
+- Master bedroom ................. 14 x 16 ft = 224 sq ft
+- Master bathroom (attached) ..... 6 x 8 ft   = 48 sq ft
+- Bedroom 2 ...................... 13 x 14 ft = 182 sq ft
+- Bedroom 3 ...................... 13 x 14 ft = 182 sq ft
+- Common bathroom ................ 6 x 7 ft   = 42 sq ft
+- Staircase (same spot as GF) .... 4 x 13 ft  = 52 sq ft
+- Circulation / landing .......... remainder  = 350 sq ft
+  TOTAL = 1,080 sq ft
+
+GROUND FLOOR (public / living)
+- Living/family room - center-north, at the main entrance, ~18x20 ft, open
+  (no dividing wall) to the kitchen.
+- Kitchen - SE, ~10x12 ft, open to the living room.
+- Dining - next to the kitchen, ~10x12 ft, with a door to the kitchen.
+- Puja room - NE, ~6x7 ft, door facing east or north.
+- Common bathroom - ~6x7 ft, entered from the circulation area only
+  (never through a room), located away from the NE corner and the plot
+  center.
+- Staircase to the first floor - south-central zone, per spec above.
+
+FIRST FLOOR (private / bedrooms)
+- Master bedroom - SW, ~14x16 ft, with an attached master bathroom.
+- Bedroom 2 - NW, ~13x14 ft.
+- Bedroom 3 - W, ~13x14 ft.
+- Master bathroom - ~6x8 ft, entered only from the master bedroom, placed
+  in the western part of the bedroom rather than the extreme SW corner.
+- Common bathroom - ~6x7 ft, entered from the circulation area only,
+  away from the NE corner and plot center.
+- Staircase - identical footprint/location to the ground floor.
+
+REQUIREMENTS (simple and directly checkable)
+- Main entrance centered on the ground-floor living room's north wall,
+  not at a corner; min. door width 3'6".
+- Every bedroom, both bathrooms on each floor, the living room, the
+  kitchen, and the dining area must have at least one window on an
+  exterior wall, sized per the window rule above.
+- No habitable room narrower than 7 ft in either direction.
+- Vastu zones (hard): Kitchen SE and Puja NE on the ground floor; Master
+  bedroom SW and Bedroom 2 NW on the first floor.
+- Vastu zones (soft preference): keep all bathrooms and the staircase out
+  of the NE corner and the exact plot center on both floors.
+- No bedroom may be used as a passage to another room; every room must be
+  reachable independently from the main entrance (ground floor) and the
+  staircase (both floors) without passing through another private room.
+- Staircase occupies the same footprint on both floors.
+- Floor-to-floor height 10 ft on both levels; total building height
+  ~20-21 ft plus parapet.
+
+EXCLUDED: foyer, utility/laundry, storage room, office, balcony, garage, and
+any bedroom or bathroom beyond those listed above.

@@ -68,6 +68,7 @@ _PHASE_PRESENTATION = {
 _DEFAULT_PRESENTATION = ("◌", "Working", "#2563EB")
 
 from .service import GenerateLayoutService
+from . import design_spec
 from .ai_client import (
     generate_layout as ai_generate_layout,
     AIConfigError,
@@ -91,6 +92,16 @@ class GenerateLayoutTab:
         # AI generation state
         self._ai_busy = False
         self._ai_previous_layout = None
+        # Multi-floor: after a multi-storey generation the whole v2 project is loaded into the
+        # serializer; these let the user switch which floor is drawn on the canvas.
+        self._ai_floors_row = None
+        self._ai_floor_buttons: dict[str, object] = {}
+        self._ai_active_floor_id = None
+        # Monotonic id stamped on each request; a worker result whose id no longer matches
+        # (superseded by a newer request or a reset) is dropped and never applied.
+        self._ai_generation_id = 0
+        # Accepted canonical DesignSpec (Phase 1), stored beside the accepted native layout.
+        self._ai_spec: design_spec.DesignSpec | None = None
         self._ai_messages: list[dict[str, str]] = []
         self._ai_queue: "queue.Queue[tuple[str, object]]" = queue.Queue()
         self._ai_cancel_event: threading.Event | None = None
@@ -700,6 +711,10 @@ class GenerateLayoutTab:
         self._ai_activity_log.pack(fill="x", padx=12, pady=(0, 10))
         self._ai_activity_log.insert("1.0", "Waiting for a design brief…\n")
         self._ai_activity_log.configure(state="disabled")
+
+        # Floor switcher (shown only after a multi-floor generation). Each button activates a
+        # floor in the serializer's project so it is drawn on the canvas.
+        self._ai_floors_row = ctk.CTkFrame(card, fg_color="transparent")
         self._render_ai_messages()
 
     def _schedule_ai_prompt_resize(self, _event=None) -> None:
@@ -842,6 +857,64 @@ class GenerateLayoutTab:
         self._ai_prompt.insert("1.0", self._ai_pending_prompt)
         self._schedule_ai_prompt_resize()
 
+    def _show_floor_switcher(self, floors: list, active_id) -> None:
+        """Render one button per floor (or hide the row for a single-floor plan)."""
+        row = self._ai_floors_row
+        if row is None:
+            return
+        for child in row.winfo_children():
+            child.destroy()
+        self._ai_floor_buttons = {}
+        if not floors or len(floors) < 2:
+            row.pack_forget()
+            return
+        ctk.CTkLabel(
+            row, text="🏢 FLOORS",
+            font=("Arial", 9, "bold"),
+            text_color=COLORS.get("text_secondary", "#64748B"),
+            anchor="w",
+        ).pack(fill="x", padx=2, pady=(0, 3))
+        button_bar = ctk.CTkFrame(row, fg_color="transparent")
+        button_bar.pack(fill="x")
+        for floor in floors:
+            fid, fname = floor.get("id"), floor.get("name") or "Floor"
+            btn = ctk.CTkButton(
+                button_bar,
+                text=fname,
+                command=lambda i=fid: self._on_switch_floor(i),
+                height=28,
+                corner_radius=6,
+                font=("Arial", 10, "bold"),
+            )
+            btn.pack(side="left", padx=2, pady=2)
+            self._ai_floor_buttons[fid] = btn
+        row.pack(fill="x", padx=12, pady=(0, 10))
+        self._highlight_active_floor(active_id)
+
+    def _highlight_active_floor(self, active_id) -> None:
+        self._ai_active_floor_id = active_id
+        for fid, btn in self._ai_floor_buttons.items():
+            if fid == active_id:
+                btn.configure(fg_color=COLORS.get("secondary", "#0F766E"),
+                              text_color=COLORS.get("text_white", "#FFFFFF"))
+            else:
+                btn.configure(fg_color=COLORS.get("surface_muted", "#263449"),
+                              text_color=COLORS.get("text_secondary", "#CBD5E1"))
+
+    def _on_switch_floor(self, floor_id) -> None:
+        """Draw the chosen floor on the canvas via the serializer's native floor model."""
+        if self._ai_busy or floor_id == self._ai_active_floor_id:
+            return
+        serializer = getattr(self._actions, "serializer", None)
+        if serializer is None or not hasattr(serializer, "activate_floor"):
+            return
+        try:
+            serializer.activate_floor(floor_id)
+        except Exception as exc:  # noqa: BLE001 - report switch failures without crashing the tab
+            show_message("error", "Floors", f"Could not switch floor: {exc}")
+            return
+        self._highlight_active_floor(floor_id)
+
     def _rollback_pending_turn(self) -> None:
         if self._ai_messages and self._ai_messages[-1].get("role") == "user":
             self._ai_messages.pop()
@@ -851,9 +924,12 @@ class GenerateLayoutTab:
     def _on_ai_reset(self) -> None:
         if self._ai_busy:
             return
+        self._ai_generation_id += 1  # invalidate any late result from a prior generation
+        self._ai_spec = None
         self._ai_messages = []
         self._ai_previous_layout = None
         self._ai_pending_prompt = ""
+        self._show_floor_switcher([], None)  # clear any multi-floor buttons
         if self._ai_prompt is not None:
             self._ai_prompt.delete("1.0", "end")
         self._render_ai_messages()
@@ -885,12 +961,15 @@ class GenerateLayoutTab:
             except queue.Empty:
                 break
 
+        self._ai_generation_id += 1
+        gen = self._ai_generation_id
         self._ai_cancel_event = threading.Event()
         cancel_event = self._ai_cancel_event
         self._ai_pending_prompt = prompt
         self._ai_messages.append({"role": "user", "content": prompt})
         messages = list(self._ai_messages)
         previous = self._ai_previous_layout
+        current_spec = self._ai_spec
         self._render_ai_messages()
         if self._ai_prompt is not None:
             self._ai_prompt.delete("1.0", "end")
@@ -907,21 +986,22 @@ class GenerateLayoutTab:
         self._set_ai_status("Generation is time- and cost-bounded. You can cancel safely at any time.")
 
         def report_progress(phase: str, message: str) -> None:
-            self._ai_queue.put(("progress", (phase, message)))
+            self._ai_queue.put(("progress", (gen, phase, message)))
 
         def worker() -> None:
             try:
                 result = ai_generate_layout(
                     messages,
                     previous,
+                    previous_spec=current_spec,
                     on_progress=report_progress,
                     cancel_event=cancel_event,
                 )
-                self._ai_queue.put(("cancelled", None) if cancel_event.is_set() else ("ok", result))
+                self._ai_queue.put(("cancelled", (gen, None)) if cancel_event.is_set() else ("ok", (gen, result)))
             except (AIConfigError, AIGenerationError) as exc:
-                self._ai_queue.put(("cancelled", None) if cancel_event.is_set() else ("err", exc))
+                self._ai_queue.put(("cancelled", (gen, None)) if cancel_event.is_set() else ("err", (gen, exc)))
             except Exception as exc:  # noqa: BLE001 - report any unexpected failure to the UI
-                self._ai_queue.put(("cancelled", None) if cancel_event.is_set() else ("err", exc))
+                self._ai_queue.put(("cancelled", (gen, None)) if cancel_event.is_set() else ("err", (gen, exc)))
 
         threading.Thread(target=worker, name="ai-layout", daemon=True).start()
         self._schedule_ai_poll()
@@ -956,7 +1036,12 @@ class GenerateLayoutTab:
             except queue.Empty:
                 break
             if kind == "progress":
-                progress_events.append(payload)  # type: ignore[arg-type]
+                if isinstance(payload, tuple) and len(payload) == 3:
+                    event_gen, phase, message = payload
+                    if event_gen == self._ai_generation_id:
+                        progress_events.append((phase, message))
+                elif isinstance(payload, tuple) and len(payload) == 2:
+                    progress_events.append(payload)
             else:
                 terminal = (kind, payload)
 
@@ -968,6 +1053,16 @@ class GenerateLayoutTab:
                 self._append_ai_activity(str(phase), str(message))
             phase, message = progress_events[-1]
             self._set_ai_phase(str(phase), str(message))
+
+        if terminal is not None:
+            # Terminal payloads are (generation_id, value). A mismatch means a stale worker
+            # (superseded request or reset) finished late; drop it so it can never apply.
+            t_kind, wrapped = terminal
+            if isinstance(wrapped, tuple) and len(wrapped) == 2:
+                result_gen, real_payload = wrapped
+            else:  # defensive: unstamped payload from an unexpected producer
+                result_gen, real_payload = self._ai_generation_id, wrapped
+            terminal = (t_kind, real_payload) if result_gen == self._ai_generation_id else None
 
         if terminal is None:
             if self._ai_busy:
@@ -994,11 +1089,50 @@ class GenerateLayoutTab:
             assistant_message = str(result.get("assistantMessage", "")).strip()
             calls = int(result.get("calls", result.get("attempts", 1)))
             elapsed = float(result.get("elapsed_seconds", 0.0))
+            change_kind = str(result.get("change_kind", "structural"))
+
+            # Answer/no-op chat turn: reply in the conversation and leave the canvas, the accepted
+            # layout, and the stored spec exactly as they were.
+            if change_kind == "answer" or layout is None:
+                self._ai_messages.append(
+                    {"role": "assistant", "content": assistant_message or "…"})
+                self._ai_pending_prompt = ""
+                self._render_ai_messages()
+                self._set_ai_busy(False)
+                if self._ai_progress_bar is not None:
+                    self._ai_progress_bar.configure(mode="determinate")
+                    self._ai_progress_bar.set(1)
+                self._set_ai_phase("ready", "Answered your question; the layout is unchanged.")
+                self._append_ai_activity("complete", "Answered without changing the canvas.")
+                self._set_ai_status("Ask another question, request a change, or choose New design.")
+                return
+
+            # A multi-floor result carries a native v2 document (every floor). Loading it puts all
+            # floors into the serializer's project and draws the ground floor; single-floor results
+            # load their v1 layout exactly as before.
+            version_2 = result.get("version_2") if isinstance(result, dict) else None
+            apply_payload = version_2 if isinstance(version_2, dict) else layout
             self._set_ai_phase("applying", "Loading the validated layout through the native serializer.")
+            # The AI apply is the user's explicit intent (they ran generation and accepted the
+            # result), so we must NOT block on load_document's modal "Replace current layout?"
+            # confirmation — that modal stalls the whole apply (the layout never commits) and was
+            # why a generated multi-floor plan never reached the canvas/viewer. We preserve the
+            # safety intent of confirm=True by writing a backup of the current plan first, then
+            # apply with confirm=False so the commit is non-blocking.
+            serializer = self._actions.serializer
             try:
+                # Keep replacement non-modal, but never replace user work unless its backup is
+                # durably written. Reuse the serializer's atomic writer so a failed write cannot
+                # leave a partial file that looks recoverable.
+                import datetime as _dt
+                from layout_serializer import atomic_write_document
+                backup_dir = getattr(serializer, "default_save_dir", _LAYOUT_MAKER_DIR)
+                backup_path = os.path.join(
+                    backup_dir, f"before_ai_apply_{_dt.datetime.now():%Y%m%d_%H%M%S}.json")
+                atomic_write_document(serializer.serialize_layout(), backup_path)
                 if self._ai_result_title is not None:
                     self._ai_result_title.update_idletasks()
-                applied = self._actions.serializer.load_document(layout, confirm=True)
+                applied = serializer.load_document(apply_payload, confirm=False)
             except Exception as exc:  # noqa: BLE001 - surface apply/import failures
                 self._set_ai_busy(False)
                 self._rollback_pending_turn()
@@ -1013,6 +1147,56 @@ class GenerateLayoutTab:
                 return
 
             self._ai_previous_layout = layout
+
+            # Multi-storey (Scope A): every floor is now loaded into the serializer's project.
+            # Show in-app Floor buttons so the user can switch which floor is drawn; a single-floor
+            # result hides the switcher.
+            if isinstance(version_2, dict):
+                serializer = getattr(self._actions, "serializer", None)
+                project_state = getattr(serializer, "project_state", None)
+                try:
+                    floors = project_state.floors if project_state is not None else version_2.get("floors", [])
+                    active_id = (project_state.active_floor_id if project_state is not None
+                                 else version_2.get("active_floor_id"))
+                except Exception:  # noqa: BLE001 - fall back to the document's own floor list
+                    floors, active_id = version_2.get("floors", []), version_2.get("active_floor_id")
+                self._show_floor_switcher(floors, active_id)
+                self._append_ai_activity(
+                    "success", f"Loaded {len(floors)} floors — use the Floor buttons to switch.")
+            else:
+                self._show_floor_switcher([], None)
+
+            # Store the accepted canonical intent beside the native layout. Multi mode
+            # returns the direct spec; comb mode keeps its legacy program adapter.
+            raw_spec = result.get("spec") if isinstance(result, dict) else None
+            program = result.get("program") if isinstance(result, dict) else None
+            try:
+                if isinstance(raw_spec, dict):
+                    self._ai_spec = design_spec.from_dict(raw_spec)
+                elif isinstance(program, dict):
+                    self._ai_spec = design_spec.from_program(program)
+                if self._ai_spec is not None:
+                    self._append_ai_activity("complete", f"Interpreted intent — {self._ai_spec.summary()}")
+            except (TypeError, ValueError):
+                self._ai_spec = None
+            # Multi-planner telemetry (Phase 2-6/7): report the chosen topology, its score,
+            # the diverse alternatives, and any disclosed feasibility assumptions/compromises.
+            multi = result.get("multi") if isinstance(result, dict) else None
+            if isinstance(multi, dict):
+                try:
+                    self._append_ai_activity(
+                        "complete", f"Selected topology '{multi.get('selected_strategy')}'.")
+                    for cand in (multi.get("candidates") or [])[:4]:
+                        mark = "✓" if cand.get("valid") else "✗"
+                        line = f"  {mark} {cand.get('strategy')}: score {cand.get('score', 0):.2f}"
+                        if cand.get("compromises"):
+                            line += f" — {cand['compromises'][0]}"
+                        self._append_ai_activity("complete", line)
+                    feas = multi.get("feasibility") or {}
+                    for note in (feas.get("assumptions") or []) + (feas.get("warnings") or []):
+                        self._append_ai_activity("complete", f"  note: {note}")
+                except Exception:  # noqa: BLE001 - telemetry display must never break apply
+                    pass
             self._ai_messages.append({"role": "assistant", "content": assistant_message})
             self._ai_pending_prompt = ""
             self._render_ai_messages()

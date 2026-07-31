@@ -34,7 +34,6 @@ except ModuleNotFoundError:
     else:
         COLORS = {}
 
-from layout_serializer import LayoutSerializer
 from local_autosave import try_load_json
 from app_paths import AppPathManager
 
@@ -281,8 +280,12 @@ class EditToolbarTab:
 
         freeze_btn_text = tk.StringVar(value="Freeze Canvas")
 
-        # Create serializer instance
-        serializer = LayoutSerializer(self.model, self.view, self.tools, self.actions)
+        # Reuse the application's serializer. Creating another one here gives the toolbar/AI tab
+        # and 3D viewer different ProjectState objects: AI can load two floors while 3D still
+        # serializes the original one-floor project.
+        serializer = self.actions.serializer
+        if serializer is None:
+            raise RuntimeError("Edit toolbar requires the application LayoutSerializer")
 
         # === Local layout section ===
         local_group = ctk.CTkFrame(

@@ -105,8 +105,33 @@ def _column_widths_ft(specs: list[dict[str, Any]], total_ft: int) -> list[int]:
     return widths
 
 
+# Rollout flag values for AI_LAYOUT_PLANNER. Both modes build the initial shell with the
+# deterministic comb engine; "multi" additionally runs the feasibility/candidate/scoring
+# pipeline in ai_client to explore and select diverse topologies. An unknown mode fails
+# loudly rather than silently picking an arbitrary planner.
+_PLANNER_MODES = ("comb", "multi")
+
+
+def get_planner(mode: str):
+    """Resolve the stage-1 shell builder by rollout flag; raise clearly on an unknown mode.
+
+    Both "comb" and "multi" return the comb ``build_layout`` for the initial shell — "multi"
+    layers additional strategies on top downstream (see ``ai_client._run_multi_planner``).
+    """
+    mode = (mode or "comb").strip().lower()
+    if mode not in _PLANNER_MODES:
+        raise ValueError(
+            f"Unknown AI_LAYOUT_PLANNER={mode!r}; expected 'comb' (default) or 'multi'."
+        )
+    return build_layout
+
+
 def build_layout(program: dict[str, Any]) -> dict[str, Any]:
-    """Turn a room program into a complete, valid native v1 room shell."""
+    """Turn a room program into a complete, valid native v1 room shell.
+
+    Deterministic: identical program input yields identical output, so a planner seed is
+    unnecessary for this strategy (reserved in the flag/config for future randomized ones).
+    """
     plot = program.get("plot", {})
     width_ft = int(round(float(plot.get("width_ft", 40))))
     height_ft = int(round(float(plot.get("height_ft", 40))))

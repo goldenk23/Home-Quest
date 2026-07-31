@@ -10,6 +10,7 @@ scikit-learn         # furniture suggester (TF-IDF) — imported at startup by m
 python-constraint    # `from constraint import Problem` in tools.py (layout solver)
 PyYAML               # `import yaml` in layout_serializer.py
 google-genai==2.14.0 # Vertex AI client; timeout/retry API is version-sensitive
+ortools==9.11.4210   # CP-SAT constraint_solver planner (hard multi-room floor plans)
 
 # --- Recommended (nicer dialogs on Windows; falls back to plain ttk if missing) ---
 ttkbootstrap

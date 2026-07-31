@@ -1530,9 +1530,15 @@ function convertV2Layout(layout: RawObject): ConvertResult {
       };
     }
     if (collection('shapes').length > 0) warnings.push(`${base}.shapes: canvas-only shapes were skipped`);
+    // Each nested Python canvas has its own pan/zoom viewport offset. That offset is not
+    // building geometry: normalize it per floor after merging any canonical overlays, or
+    // independently generated storeys appear as separate buildings instead of one stack.
+    if (canvas) shiftProjectOrigin({ [String(floor.id)]: geometry });
     geometryByFloor[String(floor.id)] = geometry;
   }
 
+  // Canonical-only floors share one coordinate system; this is also a harmless final no-op for
+  // nested canvases already normalized above.
   shiftProjectOrigin(geometryByFloor);
   const northDeg = v2North(layout);
   const project: ConvertedVastuProject = {
