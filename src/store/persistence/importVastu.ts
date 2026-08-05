@@ -5,7 +5,9 @@ import type {
   Railing, Room, RoomType, TextAnnotation, Vertex, Wall,
 } from '@/types/editor';
 import type { Point2D } from '@/types/geometry';
+import type { StairEntity } from '@/types/stair';
 import { generateId } from '@/utils/id';
+import { buildStair } from '@/domains/editor/services/stairBuilder';
 import { FURNITURE_CATALOG, getCatalogEntry } from '@/domains/viewer/hooks/useAssetLoader';
 import { getOpeningKind } from '@/domains/shared/openings/openingCatalog';
 import { FURNITURE_NAME_TO_CATALOG, FLOORING_TYPE_TO_MATERIAL } from '@/domains/shared/assets/pythonAssetMap';
@@ -57,6 +59,10 @@ const DEFAULT_WALL_HEIGHT_CM = 280;
 const VERTEX_SNAP_CM = 5;
 const TJUNCTION_TOL_CM = 2;
 const DOOR_SNAP_CM = 60;
+// Explicit windows/vents are placed on the wall centreline in the editor, but after the
+// coordinate flip + T-junction splitting the projected foot can drift a little, so allow a
+// generous snap radius before giving up.
+const OPENING_SNAP_CM = 150;
 const MIN_OPENING_WIDTH_CM = 40;
 const MAX_LAYOUT_ENTITIES = 2_000;
 const MAX_GEOMETRY_POINTS = 4_000;
@@ -121,6 +127,7 @@ interface ValidatedVastuLayout extends RawObject {
   furniture: RawObject[];
   shapes: RawObject[];
   text: RawObject[];
+  wall_openings?: RawObject[];
   compass?: RawObject;
 }
 
@@ -225,6 +232,16 @@ export function assertVastuLayout(layout: unknown): asserts layout is ValidatedN
     if (!isObject(value)) throw new Error(`text[${index}] must be an object`);
     finiteNumber(value.x, `text[${index}].x`);
     finiteNumber(value.y, `text[${index}].y`);
+  }
+
+  if (layout.wall_openings != null) {
+    if (!Array.isArray(layout.wall_openings)) throw new Error("Python layout 'wall_openings' must be an array");
+    for (const [index, value] of (layout.wall_openings as unknown[]).entries()) {
+      if (!isObject(value)) throw new Error(`wall_openings[${index}] must be an object`);
+      finiteNumber(value.x, `wall_openings[${index}].x`);
+      finiteNumber(value.y, `wall_openings[${index}].y`);
+      if (value.width_cm != null) finiteNumber(value.width_cm, `wall_openings[${index}].width_cm`, true);
+    }
   }
 
   if (layout.compass != null) {
@@ -805,6 +822,36 @@ function convertV1Layout(layout: unknown, normalizeOrigin = true): ConvertResult
     addOpening(g.wallId, 'window', 'window-standard', g.offsetCm, g.widthCm);
   }
 
+  // Explicit windows / ventilation placed on hand-drawn walls with the editor's
+  // "Windows & Ventilation" tool. These are symbols (no wall gap), so project each onto the
+  // nearest wall — the same closest-wall fallback doors use — and render it in 3D.
+  for (const [index, raw] of (v1Layout.wall_openings ?? []).entries()) {
+    const type: Opening['type'] = raw.type === 'vent' ? 'vent' : 'window';
+    const kind = String(raw.kind ?? (type === 'vent' ? 'vent-normal' : 'window-standard'));
+    const c = toWorld(Number(raw.x ?? 0), Number(raw.y ?? 0));
+    const widthCm = Number(raw.width_cm) > 0 ? Number(raw.width_cm) : undefined;
+    let bestWall: Wall | null = null;
+    let bestT = 0;
+    let bestDist = OPENING_SNAP_CM;
+    for (const w of Object.values(walls)) {
+      const p = vertices[w.startVertexId].position;
+      const q = vertices[w.endVertexId].position;
+      const len = dist(p, q);
+      if (len < 1e-9) continue;
+      const t = Math.max(0, Math.min(1, lineParam(c, p, q) / len));
+      const proj = { x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t };
+      const d = dist(c, proj);
+      if (d < bestDist) { bestWall = w; bestT = t; bestDist = d; }
+    }
+    if (bestWall) {
+      const p = vertices[bestWall.startVertexId].position;
+      const q = vertices[bestWall.endVertexId].position;
+      addOpening(bestWall.id, type, kind, bestT * dist(p, q), widthCm);
+    } else {
+      residuals.push(`${type} opening[${index}] not near any wall — skipped`);
+    }
+  }
+
   /* ------------------------------ furniture ------------------------------- */
   for (const f of furnList) {
     const name = String(f.image_name ?? f.image_filename ?? '');
@@ -933,7 +980,7 @@ export function importVastuLayout(layout: unknown): ImportReport {
 
 const V2_COLLECTIONS = [
   'vertices', 'walls', 'rooms', 'openings', 'furniture', 'shapes', 'text',
-  'pillars', 'beams', 'deck_slabs', 'railings',
+  'pillars', 'beams', 'deck_slabs', 'railings', 'stairs',
 ] as const;
 const ROOM_TYPES = new Set<RoomType>([
   'living', 'bedroom', 'kitchen', 'bathroom', 'puja', 'study', 'dining',
@@ -1023,15 +1070,17 @@ function validateSimplePolygon(value: unknown, path: string): void {
 
 function assertV2Layout(layout: RawObject): asserts layout is ValidatedV2Layout {
   if (layout.version !== '2.0') throw new Error(`Unsupported Python layout version '${String(layout.version)}'`);
-  v2Metadata(layout);
+  const projectPx2cm = v2Metadata(layout).px2cm;
   const floors = rawArray(layout.floors, 'floors');
   if (floors.length === 0) throw new Error('floors must contain at least one floor');
   const floorIds = new Set<string>();
   const floorNames = new Set<string>();
   const elevations = new Set<number>();
+  const floorElevations = new Map<string, number>();
   const entityOwner = new Map<string, string>();
   const entityKind = new Map<string, string>();
   const entities: Array<{ raw: RawObject; path: string; floorId: string }> = [];
+  const stairEntities: Array<{ raw: RawObject; path: string; floorId: string }> = [];
   let totalEntities = 0;
   let totalPoints = 0;
   let groundFloors = 0;
@@ -1049,6 +1098,7 @@ function assertV2Layout(layout: RawObject): asserts layout is ValidatedV2Layout 
     const elevation = finiteNumber(value.elevation_cm, `${base}.elevation_cm`);
     if (elevation < 0 || elevations.has(elevation)) throw new Error(`${base}.elevation_cm must be unique and non-negative`);
     elevations.add(elevation);
+    floorElevations.set(floorId, elevation);
     if (elevation === 0) groundFloors++;
     if (!isObject(value.geometry)) throw new Error(`${base}.geometry must be an object`);
     if (value.geometry.canvas != null) {
@@ -1062,6 +1112,9 @@ function assertV2Layout(layout: RawObject): asserts layout is ValidatedV2Layout 
         throw new Error(`${canvasPath}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
       }
     }
+    const floorPx2cm = isObject(value.geometry.canvas)
+      ? v2Metadata(value.geometry.canvas).px2cm
+      : projectPx2cm;
     for (const collection of V2_COLLECTIONS) {
       const values = value.geometry[collection] == null ? [] : rawArray(value.geometry[collection], `${base}.geometry.${collection}`);
       totalEntities += values.length;
@@ -1073,6 +1126,7 @@ function assertV2Layout(layout: RawObject): asserts layout is ValidatedV2Layout 
         entityOwner.set(id, floorId);
         entityKind.set(id, collection);
         entities.push({ raw, path, floorId });
+        if (collection === 'stairs') stairEntities.push({ raw, path, floorId });
 
         if (collection === 'vertices') rawPoint(raw.position ?? { x: raw.x, y: raw.y }, `${path}.position`);
         if (collection === 'walls') {
@@ -1142,6 +1196,23 @@ function assertV2Layout(layout: RawObject): asserts layout is ValidatedV2Layout 
           finiteNumber(raw.elevation_cm ?? 0, `${path}.elevation_cm`);
           if (raw.style != null && !['open', 'solid'].includes(String(raw.style))) throw new Error(`${path}.style is unsupported`);
         }
+        if (collection === 'stairs') {
+          const rawPoints = rawArray(raw.path_points, `${path}.path_points`);
+          if (rawPoints.length < 2) throw new Error(`${path}.path_points must contain at least two points`);
+          totalPoints += rawPoints.length;
+          const points = rawPoints.map((point, index) => rawPoint(point, `${path}.path_points[${index}]`));
+          for (let index = 1; index < points.length; index++) {
+            const dxCm = floorPx2cm(points[index].x - points[index - 1].x);
+            const dyCm = floorPx2cm(points[index].y - points[index - 1].y);
+            if (Math.hypot(dxCm, dyCm) < 1) {
+              throw new Error(`${path}.path_points[${index}] must be at least 1 cm from the previous point`);
+            }
+          }
+          const width = finiteNumber(raw.width_cm, `${path}.width_cm`, true);
+          if (width < 60 || width > 500) throw new Error(`${path}.width_cm must be in [60, 500]`);
+          requiredText(raw.lower_floor_id, `${path}.lower_floor_id`);
+          requiredText(raw.upper_floor_id, `${path}.upper_floor_id`);
+        }
       });
     }
   });
@@ -1157,6 +1228,20 @@ function assertV2Layout(layout: RawObject): asserts layout is ValidatedV2Layout 
   if (compass && compass.north_deg_clockwise == null) {
     const direction = String(compass.direction ?? '').toUpperCase();
     if (!(direction in DIRECTION_TO_DEG)) throw new Error('compass.direction must be N, NE, E, SE, S, SW, W, or NW');
+  }
+
+  for (const { raw, path, floorId } of stairEntities) {
+    const lowerFloorId = requiredText(raw.lower_floor_id, `${path}.lower_floor_id`);
+    const upperFloorId = requiredText(raw.upper_floor_id, `${path}.upper_floor_id`);
+    if (lowerFloorId !== floorId) {
+      throw new Error(`${path}.lower_floor_id must equal the floor containing the staircase`);
+    }
+    const lowerElevation = floorElevations.get(lowerFloorId);
+    const upperElevation = floorElevations.get(upperFloorId);
+    if (upperElevation == null) throw new Error(`${path}.upper_floor_id must reference an existing floor`);
+    if (lowerElevation == null || upperElevation <= lowerElevation) {
+      throw new Error(`${path}.upper_floor_id must reference a floor above the staircase`);
+    }
   }
 
   const requireReference = (value: unknown, path: string, owner: string, kind?: string) => {
@@ -1267,6 +1352,7 @@ function shiftProjectOrigin(geometryByFloor: Record<EntityId, FloorGeometry>): v
       ...Object.values(geometry.beams).flatMap((item) => [item.start, item.end]),
       ...Object.values(geometry.deckSlabs).flatMap((item) => item.polygon),
       ...Object.values(geometry.railings).flatMap((item) => [item.start, item.end]),
+      ...Object.values(geometry.stairs).flatMap((item) => item.pathPoints),
     );
   }
   if (points.length === 0) return;
@@ -1287,6 +1373,17 @@ function shiftProjectOrigin(geometryByFloor: Record<EntityId, FloorGeometry>): v
     for (const item of Object.values(geometry.beams)) { item.start = shift(item.start); item.end = shift(item.end); }
     for (const item of Object.values(geometry.deckSlabs)) item.polygon = item.polygon.map(shift);
     for (const item of Object.values(geometry.railings)) { item.start = shift(item.start); item.end = shift(item.end); }
+    for (const [id, item] of Object.entries(geometry.stairs)) {
+      geometry.stairs[id] = {
+        ...item,
+        pathPoints: item.pathPoints.map(shift),
+        flights: item.flights.map((flight) => ({
+          ...flight, startPoint: shift(flight.startPoint), endPoint: shift(flight.endPoint),
+        })),
+        landings: item.landings.map((landing) => ({ ...landing, center: shift(landing.center) })),
+        stairwellVoid: item.stairwellVoid.map(shift),
+      };
+    }
   }
 }
 
@@ -1529,16 +1626,32 @@ function convertV2Layout(layout: RawObject): ConvertResult {
         materialId: finishId(raw.material_id, 'wall', 'default-wall', `${base}.railings[${index}].material_id`, warnings),
       };
     }
+    for (const [index, raw] of collection('stairs').entries()) {
+      const id = String(raw.id);
+      const lowerFloorId = String(raw.lower_floor_id);
+      const upperFloorId = String(raw.upper_floor_id);
+      const lowerFloor = layout.floors.find((candidate) => String(candidate.id) === lowerFloorId)!;
+      const upperFloor = layout.floors.find((candidate) => String(candidate.id) === upperFloorId)!;
+      const pathPoints = (raw.path_points as unknown[]).map((point, pointIndex) =>
+        toWorld(point, `${base}.stairs[${index}].path_points[${pointIndex}]`)
+      );
+      const built = buildStair(
+        pathPoints,
+        Number(raw.width_cm),
+        Number(upperFloor.elevation_cm) - Number(lowerFloor.elevation_cm),
+        lowerFloorId,
+        upperFloorId,
+        Number(lowerFloor.elevation_cm),
+      );
+      if (!built.ok) throw new Error(`${base}.stairs[${index}]: ${built.error}`);
+      geometry.stairs[id] = { ...built.stair, id } as StairEntity;
+    }
     if (collection('shapes').length > 0) warnings.push(`${base}.shapes: canvas-only shapes were skipped`);
-    // Each nested Python canvas has its own pan/zoom viewport offset. That offset is not
-    // building geometry: normalize it per floor after merging any canonical overlays, or
-    // independently generated storeys appear as separate buildings instead of one stack.
-    if (canvas) shiftProjectOrigin({ [String(floor.id)]: geometry });
     geometryByFloor[String(floor.id)] = geometry;
   }
 
-  // Canonical-only floors share one coordinate system; this is also a harmless final no-op for
-  // nested canvases already normalized above.
+  // Remove the shared canvas viewport offset once for the whole project. Per-floor
+  // normalization would erase the horizontal relationship between storeys.
   shiftProjectOrigin(geometryByFloor);
   const northDeg = v2North(layout);
   const project: ConvertedVastuProject = {
