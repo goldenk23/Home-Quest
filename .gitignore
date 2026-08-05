@@ -44,3 +44,9 @@ __pycache__/
 
 # Local source bundle exports
 2D_layout/*source-only-*.base64.txt
+
+# Local AI session transcripts (large, not source)
+session-ses_*.md
+
+# Local scratch / bug-prompt notes
+WHITE_BOX_BUG_PROMPT.md
