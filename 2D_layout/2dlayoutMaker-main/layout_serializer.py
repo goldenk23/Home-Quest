@@ -16,6 +16,32 @@ from app_paths import AppPathManager
 from Helper.showMessage import show_message
 from layout_schema import empty_geometry, validate_document
 from project_state import ProjectState
+import room_detection
+import structural_joints
+
+
+def _point_on_polygon_outline(point: tuple[float, float], polygon: list[tuple[float, float]], tol: float = 6.0) -> bool:
+    """Return True if ``point`` lies within ``tol`` of any polygon edge."""
+    n = len(polygon)
+    if n < 2:
+        return False
+    px, py = float(point[0]), float(point[1])
+    for i in range(n):
+        ax, ay = float(polygon[i][0]), float(polygon[i][1])
+        bx, by = float(polygon[(i + 1) % n][0]), float(polygon[(i + 1) % n][1])
+        dx, dy = bx - ax, by - ay
+        seg_len2 = dx * dx + dy * dy
+        if seg_len2 <= 1e-9:
+            dist2 = (px - ax) ** 2 + (py - ay) ** 2
+        else:
+            t = ((px - ax) * dx + (py - ay) * dy) / seg_len2
+            t = max(0.0, min(1.0, t))
+            proj_x = ax + t * dx
+            proj_y = ay + t * dy
+            dist2 = (px - proj_x) ** 2 + (py - proj_y) ** 2
+        if dist2 <= tol * tol:
+            return True
+    return False
 
 
 def atomic_write_document(document: dict[str, Any], path: str) -> None:
@@ -60,6 +86,12 @@ class LayoutSerializer:
                 "Only one LayoutSerializer may own the application ProjectState; reuse actions.serializer"
             )
         self.actions.serializer = self
+
+        # User-assigned name + fill style for detected (line-loop) rooms, keyed by
+        # the stable detected-face room id produced in _derive_canvas_geometry. The
+        # overlay is recomputed from scratch on every canvas mutation, so without
+        # an override store the label/color applied via "Lines → Room" is wiped.
+        self._detected_room_overrides: dict[str, dict[str, Any]] = {}
 
         if not hasattr(self.tools, "image_furniture_items"):
             self.tools.image_furniture_items = []
@@ -156,6 +188,9 @@ class LayoutSerializer:
                 {key: value for key, value in window.items() if key != "item_ids"}
                 for window in getattr(self.tools, "windows", [])
             ],
+            # Vector openings placed on hand-drawn walls (Windows & Ventilation tool). The web
+            # importer projects each onto the nearest wall and renders it in 3D.
+            "wall_openings": self._serialize_wall_openings(),
             "shapes": self._serialize_shapes(),
             "text": self._serialize_text(),
         }
@@ -314,7 +349,150 @@ class LayoutSerializer:
                     if field in old:
                         item[field] = old[field]
             geometry[collection] = retained + [item for item in derived if item["id"] not in retained_ids]
+
+        # === Planar-graph room detection (port of React detectRooms) ===
+        # Merge vertices by canvas position so a wall drawn across a shared edge, or
+        # a chain of Line-tool segments forming an enclosure, becomes a single
+        # connected wall graph. Then trace every directed edge using the standard
+        # smallest-CCW-turn face walk; interior faces become canonical rooms. This
+        # replaces the per-shape ring rooms generated above so adjacent rectangles
+        # merge into shared-wall rooms and loose line segments cleanly enclose a
+        # polygon. Original label/finish material is preserved by inheriting from
+        # the smallest enclosing canvas-derived ring room.
+        merged_vertices, vertex_alias = room_detection.merge_vertices_by_position(
+            generated["vertices"]
+        )
+        merged_walls = room_detection.dedupe_walls(generated["walls"], vertex_alias)
+        # Make the graph planar: add vertices where walls cross and break walls at
+        # T-junctions, so divider lines drawn across a room actually split the
+        # enclosure into separately detectable faces.
+        merged_vertices, merged_walls = room_detection.planarize(merged_vertices, merged_walls)
+
+        vertex_index = {v["id"]: v for v in merged_vertices.values()}
+        wall_index = {w["id"]: w for w in merged_walls}
+        detected_faces = room_detection.detect_rooms(vertex_index, wall_index) if wall_index else []
+
+        # Index existing ring rooms for finish/label inheritance.
+        ring_by_area = []
+        for ring in generated.get("rooms", []):
+            boundary = ring.get("boundary_vertex_ids", [])
+            # Ring rooms reference the original per-shape vertex ids; alias them to the
+            # merged canonical ids before shadowing the position lookup against the merged
+            # vertex index so inheritance matches detected faces correctly.
+            aliased_boundary = [vertex_alias.get(vid, vid) for vid in boundary]
+            polygon = [vertex_index.get(vid) for vid in aliased_boundary if vid in vertex_index]
+            if any(p is None for p in polygon) or len(polygon) < 3:
+                continue
+            try:
+                area = abs(room_detection.compute_signed_area([p["position"] for p in polygon]))
+            except Exception:
+                continue
+            polygon_pts = [p["position"] for p in polygon]
+            ring_by_area.append((area, polygon_pts, ring))
+
+        def centroid(polygon_pts):
+            sx = sum(p[0] for p in polygon_pts)
+            sy = sum(p[1] for p in polygon_pts)
+            return sx / len(polygon_pts), sy / len(polygon_pts)
+
+        def point_in_polygon(point, polygon_pts):
+            x, y = point
+            inside = False
+            previous = polygon_pts[-1]
+            for current in polygon_pts:
+                x1, y1 = previous
+                x2, y2 = current
+                if (y1 > y) != (y2 > y):
+                    cross = (x2 - x1) * (y - y1) / (y2 - y1) + x1
+                    if x < cross:
+                        inside = not inside
+                previous = current
+            return inside
+
+        detected_rooms = []
+        for index, face in enumerate(detected_faces):
+            boundary = list(face["boundary_vertex_ids"])
+            polygon_pts = [vertex_index[vid]["position"] for vid in boundary if vid in vertex_index]
+            if len(polygon_pts) < 3:
+                continue
+            cx, cy = centroid(polygon_pts)
+            # Inherit finish material + friendly label from the smallest enclosing ring room.
+            inherited = next(
+                (
+                    ring for _area, poly, ring in sorted(ring_by_area, key=lambda item: item[0])
+                    if point_in_polygon((cx, cy), poly)
+                ),
+                None,
+            )
+            room_id = self._stable_canvas_id(
+                floor_id, "room", "detected:" + "-".join(boundary)
+            )
+            record = {
+                "id": room_id,
+                "boundary_vertex_ids": boundary,
+                "label": (inherited or {}).get("label", f"Room {index + 1}"),
+                "room_type": (inherited or {}).get("room_type", "custom"),
+                "floor_material_id": (inherited or {}).get("floor_material_id", "default-floor"),
+                "source_canvas_id": f"detected-room-{index}",
+                "source_canvas_kind": "detected_face",
+            }
+            if (inherited or {}).get("fill_color"):
+                record["fill_color"] = inherited["fill_color"]
+            if (inherited or {}).get("fill_mode"):
+                record["fill_mode"] = inherited["fill_mode"]
+            detected_rooms.append(record)
+
+        if detected_rooms:
+            # Preserve finish assignments from the prior derived rooms so painted
+            # floors survive a re-snapshot without losing their swatch.
+            prior_rooms = {
+                item.get("id"): item for item in geometry.get("rooms", [])
+                if isinstance(item, dict) and "source_canvas_id" in item
+            }
+            for record in detected_rooms:
+                old = prior_rooms.get(record["id"], {})
+                if old.get("floor_material_id"):
+                    record["floor_material_id"] = old["floor_material_id"]
+                if old.get("fill_color"):
+                    record["fill_color"] = old["fill_color"]
+                if old.get("label") and old.get("source_canvas_kind") == "detected_face":
+                    record["label"] = old["label"]
+            geometry["rooms"] = detected_rooms + [
+                item for item in geometry.get("rooms", [])
+                if isinstance(item, dict) and "source_canvas_id" not in item
+            ]
+            # Replace derived vertices/walls with the merged graph so downstream
+            # tools (paint, vastu analysis) operate on the shared-wall topology.
+            merged_vertex_records = [copy.deepcopy(v) for v in merged_vertices.values()]
+            for v in merged_vertex_records:
+                if "source_canvas_id" not in v:
+                    v["source_canvas_id"] = v["id"]
+                self._attach_position_fields(v)
+            geometry["vertices"] = merged_vertex_records + [
+                item for item in geometry.get("vertices", [])
+                if isinstance(item, dict) and "source_canvas_id" not in item
+            ]
+            merged_wall_records = [copy.deepcopy(w) for w in merged_walls]
+            for w in merged_wall_records:
+                if "source_canvas_id" not in w:
+                    w["source_canvas_id"] = w["id"]
+            geometry["walls"] = merged_wall_records + [
+                item for item in geometry.get("walls", [])
+                if isinstance(item, dict) and "source_canvas_id" not in item
+            ]
         return geometry
+
+    @staticmethod
+    def _attach_position_fields(vertex: dict) -> None:
+        """Ensure vertices expose both ``position`` and legacy {x, y} for older readers."""
+        position = vertex.get("position")
+        if isinstance(position, (list, tuple)) and len(position) == 2:
+            vertex.setdefault("x", float(position[0]))
+            vertex.setdefault("y", float(position[1]))
+        elif isinstance(position, dict):
+            vertex.setdefault("x", float(position.get("x", 0.0)))
+            vertex.setdefault("y", float(position.get("y", 0.0)))
+            vertex["position"] = [float(position.get("x", 0.0)), float(position.get("y", 0.0))]
 
     def _snapshot_active_canvas(self) -> dict[str, Any]:
         canvas_payload = self._serialize_canvas_v1()
@@ -681,6 +859,19 @@ class LayoutSerializer:
 
         # Fallback: raw rectangle (no label/bindings)
         if room_id is None:
+            # ponytail: Warn once per load session instead of per room to avoid spam
+            if not hasattr(self, "_load_fallback_warned"):
+                self._load_fallback_warned = True
+                room_name = room_data.get("name", "Unknown")
+                messagebox.showwarning(
+                    "Room Loading Fallback",
+                    f"Room '{room_name}' could not be fully restored.\n\n"
+                    f"It will appear as a basic rectangle without labels or normal editing behavior.\n\n"
+                    f"This usually happens when:\n"
+                    f"• RoomEntity class is unavailable\n"
+                    f"• Room data format is incompatible\n\n"
+                    f"Subsequent rooms with similar issues will load silently."
+                )
             room_id = self.canvas.create_rectangle(
                 float(x0),
                 float(y0),
@@ -1319,9 +1510,72 @@ class LayoutSerializer:
         except (TypeError, ValueError, ZeroDivisionError):
             return 20 / 30.48
 
+    def _draw_floor_underlay(self) -> None:
+        """Draw the nearest lower floor as a muted, non-editable reference."""
+        document = self.project_state.snapshot()
+        active = next(
+            floor for floor in document["floors"]
+            if floor["id"] == document["active_floor_id"]
+        )
+        lower_floors = [
+            floor for floor in document["floors"]
+            if float(floor["elevation_cm"]) < float(active["elevation_cm"])
+        ]
+        if not lower_floors:
+            return
+
+        floor = max(lower_floors, key=lambda item: float(item["elevation_cm"]))
+        layout = self._canvas_from_geometry(document, floor)
+        tags = ("parity_structure", "parity_floor_underlay", f"floor:{floor['id']}")
+        # ponytail: Tk canvas vectors have no alpha. An unfilled dashed outline is
+        # clearer than stippling on the regular dark grid and still reads as reference geometry.
+        outline, dash = "#60a5fa", (6, 4)
+
+        for shape in layout.get("shapes", []) or []:
+            try:
+                coords = [float(value) for point in shape.get("points", []) for value in point]
+                kind = shape.get("type")
+                if kind == "line" and len(coords) >= 4:
+                    self.canvas.create_line(
+                        *coords, fill=outline, width=2, dash=dash, tags=tags,
+                    )
+                elif kind in ("rectangle", "oval") and len(coords) == 4:
+                    creator = self.canvas.create_rectangle if kind == "rectangle" else self.canvas.create_oval
+                    creator(
+                        *coords, fill="", outline=outline, width=2,
+                        dash=dash, tags=tags,
+                    )
+                elif kind == "polygon" and len(coords) >= 6:
+                    self.canvas.create_polygon(
+                        *coords, fill="", outline=outline, width=2,
+                        dash=dash, tags=tags,
+                    )
+            except (TypeError, ValueError, tk.TclError):
+                continue
+
+        for room in layout.get("rooms", []) or []:
+            try:
+                x0 = float(room.get("x0", room.get("x", 0)))
+                y0 = float(room.get("y0", room.get("y", 0)))
+                raw_x1, raw_y1 = room.get("x1"), room.get("y1")
+                x1 = float(raw_x1) if raw_x1 is not None else x0 + float(room.get("width", 0))
+                y1 = float(raw_y1) if raw_y1 is not None else y0 + float(room.get("height", 0))
+                self.canvas.create_rectangle(
+                    x0, y0, x1, y1, fill="", outline=outline,
+                    width=2, dash=dash, tags=tags,
+                )
+            except (TypeError, ValueError, tk.TclError):
+                continue
+
+        # Keep the grid at the very back, then the underlay, then active-floor items.
+        self.canvas.tag_lower("parity_floor_underlay")
+        self.canvas.tag_lower("grid")
+
     def _draw_active_structures(self) -> None:
-        """Redraw canonical structures as non-serializable, tagged 2D symbols."""
-        self.canvas.delete("parity_structure")
+        """Redraw canonical structures without disturbing the stable floor underlay."""
+        for item in self.canvas.find_withtag("parity_structure"):
+            if "parity_floor_underlay" not in self.canvas.gettags(item):
+                self.canvas.delete(item)
         floor = self.project_state.active_floor
         floor_id, geometry = floor["id"], floor["geometry"]
         swatches = {}
@@ -1338,13 +1592,44 @@ class LayoutSerializer:
                 f"entity:{entity_id}", f"floor:{floor_id}",
             )
 
+        for stair in geometry.get("stairs", []):
+            points = stair.get("path_points", [])
+            if len(points) < 2:
+                continue
+            try:
+                coords = [float(coordinate) for point in points for coordinate in point]
+                width_px = max(2, float(stair.get("width_cm", 110)) * scale)
+            except (TypeError, ValueError):
+                continue
+            stair_tags = tags("stair", stair["id"])
+            self.canvas.create_line(
+                *coords, fill="#c7d2fe", width=width_px,
+                capstyle="projecting", joinstyle="miter", tags=stair_tags,
+            )
+            self.canvas.create_line(
+                *coords, fill="#6366f1", width=2, arrow="last", tags=stair_tags,
+            )
+            for point in points[1:-1]:
+                x, y = map(float, point)
+                half = width_px / 2
+                self.canvas.create_rectangle(
+                    x - half, y - half, x + half, y + half,
+                    fill="", outline="#6366f1", width=2, tags=stair_tags,
+                )
+            middle = points[len(points) // 2]
+            self.canvas.create_text(
+                float(middle[0]), float(middle[1]) - width_px / 2 - 10,
+                text=f"Stair {float(stair.get('width_cm', 110)):g} cm",
+                fill="#4f46e5", font=("Segoe UI", 9, "bold"), tags=stair_tags,
+            )
+
         for deck in geometry.get("deck_slabs", []):
             points = deck.get("polygon", [])
             if len(points) >= 3:
                 coords = [coordinate for point in points for coordinate in point]
                 self.canvas.create_polygon(
                     *coords, fill=swatches.get(deck.get("material_id"), "#d6d3d1"),
-                    outline="#475569", width=2, stipple="gray25",
+                    outline="#475569", width=2,
                     tags=tags("deck", deck["id"]),
                 )
         for beam in geometry.get("beams", []):
@@ -1369,6 +1654,344 @@ class LayoutSerializer:
             }
             creator = self.canvas.create_oval if pillar.get("shape") == "round" else self.canvas.create_rectangle
             creator(x - half_width, y - half_depth, x + half_width, y + half_depth, **options)
+
+        # Detected rooms have one overlay owner. Rebuild the live overlay after
+        # canonical structures are drawn instead of creating an ungrouped copy here.
+        self.refresh_detected_room_overlay()
+        # Filled room overlays are recreated above earlier items. Keep load-bearing
+        # members and stairs visible without raising deck fills over the room.
+        self.canvas.tag_raise("parity_stair")
+        self.canvas.tag_raise("parity_beam")
+        self.canvas.tag_raise("parity_pillar")
+        if not self.canvas.find_withtag("parity_floor_underlay"):
+            self._draw_floor_underlay()
+
+    def refresh_detected_room_overlay(self) -> None:
+        """Recompute detected rooms from the LIVE canvas and redraw overlays.
+
+        Runs the planar-graph face extraction on a fresh derived geometry
+        (without mutating the persisted project state) so the user sees
+        enclosures update in real time as walls/lines are drawn. The
+        authoritative detected rooms are still written to v2 geometry on
+        save via ``_derive_canvas_geometry``.
+        """
+        try:
+            canvas_payload = self._serialize_canvas_v1()
+        except Exception as exc:
+            print(f"[Serializer] overlay snapshot failed: {exc}")
+            return
+        try:
+            derived = self._derive_canvas_geometry(
+                self.project_state.active_floor_id,
+                canvas_payload,
+                empty_geometry(),
+            )
+        except Exception as exc:
+            print(f"[Serializer] overlay derive failed: {exc}")
+            return
+        rooms = [r for r in derived.get("rooms", []) if r.get("source_canvas_kind") == "detected_face"]
+        # Overlay polygons are recreated on every detection pass, but boundary lines
+        # persist. Remove their previous synthetic room tags before rebuilding the
+        # current groups; otherwise edited room topology can select a stale group.
+        try:
+            for item in self.canvas.find_all():
+                for tag in self.canvas.gettags(item):
+                    if str(tag).startswith("parity_room_drag:"):
+                        self.canvas.dtag(item, tag)
+        except tk.TclError:
+            pass
+        if not rooms:
+            try:
+                self.canvas.delete("parity_detected_room")
+            except tk.TclError:
+                pass
+            return
+        vertices = {
+            v.get("id"): v for v in derived.get("vertices", []) if isinstance(v, dict)
+        }
+        try:
+            self.canvas.delete("parity_detected_room")
+        except tk.TclError:
+            pass
+        floor_id = self.project_state.active_floor_id
+        overrides = getattr(self, "_detected_room_overrides", {}) or {}
+        # A room's id is built from its boundary vertex ids, and those change when
+        # corners merge as rooms are patched together or pulled apart. Keying the
+        # name/colour purely by id therefore loses the styling on the first snap, so
+        # fall back to the last known centroid and re-key the override.
+
+        for index, room in enumerate(rooms):
+            boundary = list(room.get("boundary_vertex_ids", []))
+            points = []
+            for vid in boundary:
+                v = vertices.get(vid)
+                if not v:
+                    break
+                pos = v.get("position", [v.get("x", 0), v.get("y", 0)])
+                if not isinstance(pos, (list, tuple)) or len(pos) != 2:
+                    break
+                points.extend((float(pos[0]), float(pos[1])))
+            if len(points) < 6:
+                continue
+            # This overlay only exists to visualize enclosures drawn as loose lines.
+            # A face derived from a real room rectangle or polygon shape is already
+            # drawn and draggable by its own entity, so drawing an overlay on top of
+            # it would steal the click and drag only the overlay + its label.
+            poly_pts = [
+                (points[i], points[i + 1]) for i in range(0, len(points) - 1, 2)
+            ]
+            # Skip faces that coincide with a real RoomEntity — those already have their
+            # own label and fill from the entity itself; overlaying another label causes
+            # the "duplicate room name" the user sees.
+            face_bbox = (min(p[0] for p in poly_pts), min(p[1] for p in poly_pts),
+                         max(p[0] for p in poly_pts), max(p[1] for p in poly_pts))
+            skip = False
+            for room_entity in getattr(self.tools, "room_entities_by_group_tag", {}).values():
+                try:
+                    rc = self.canvas.coords(getattr(room_entity, "rect_id", None))
+                    if rc and len(rc) >= 4:
+                        if (abs(rc[0] - face_bbox[0]) < 8 and abs(rc[1] - face_bbox[1]) < 8
+                                and abs(rc[2] - face_bbox[2]) < 8 and abs(rc[3] - face_bbox[3]) < 8):
+                            skip = True
+                            break
+                except Exception:
+                    continue
+            if skip:
+                continue
+            boundary_lines = self._boundary_line_items(room, derived, poly_pts)
+            if not boundary_lines:
+                continue
+            # Apply user-assigned name + fill style (from "Lines → Room") so the
+            # overlay survives the periodic re-detection triggered on every canvas
+            # mutation (drag, click, wall erase, …) instead of being wiped.
+            # A room's id is rebuilt from its geometry, so it changes when the room is
+            # dragged or snapped and an id-keyed override would be lost (the "name/colour
+            # vanished" report). The room's boundary WALL ITEMS (line_<uuid>) are stable
+            # across a move, so recover the styling by wall signature and re-key it to the
+            # room's current id when the id lookup misses.
+            room_id = room.get("id")
+            override = overrides.get(room_id) or {}
+            wall_sig = self._detected_room_wall_signature(boundary_lines)
+            if not override and wall_sig:
+                recovered_key = self._match_override_by_walls(wall_sig, overrides)
+                if recovered_key is not None:
+                    override = overrides.pop(recovered_key)
+            if override:
+                override["_walls"] = sorted(wall_sig)  # keep signature current for next move
+                overrides[room_id] = override
+            label_text = str(
+                override.get("label")
+                or room.get("label")
+                or f"Room {index + 1}"
+            )
+            fill_mode = str(override.get("fill_mode") or "")
+            fill_color = override.get("fill_color") or ""
+            if fill_mode == "filled" and fill_color:
+                poly_fill = fill_color
+                poly_outline = "black"
+                poly_width = 2
+            elif fill_mode == "transparent":
+                poly_fill = ""
+                poly_outline = "black"
+                poly_width = 2
+            elif fill_mode == "walls_only":
+                poly_fill = ""
+                poly_outline = "black"
+                poly_width = 4
+            else:
+                poly_fill = ""
+                poly_outline = ""
+                poly_width = 1
+            poly_id = self.canvas.create_polygon(
+                *points, fill=poly_fill, outline=poly_outline, width=poly_width,
+                tags=("parity_detected_room", f"entity:{room['id']}", f"floor:{floor_id}"),
+            )
+            cx = sum(points[0::2]) / (len(points) // 2)
+            cy = sum(points[1::2]) / (len(points) // 2)
+            label_id = self.canvas.create_text(
+                cx, cy, text=label_text,
+                fill="#0f172a", font=("Segoe UI", 9, "bold"),
+                tags=("parity_detected_room", f"detected_room_label:{room['id']}", f"floor:{floor_id}"),
+            )
+            # Keep the label ABOVE the polygon so a colored fill never hides the
+            # room name. (Tk z-order is creation order, so the label is already
+            # above the polygon; tag_raise(label_id) makes sure it stays there
+            # even after later stacking changes.)
+            try:
+                self.canvas.tag_raise(label_id)
+            except tk.TclError:
+                pass
+            # Synthesize a draggable group that includes the polygon, the label,
+            # and the committed line walls that form this room's boundary, so the
+            # detected room can be moved as a unit (polygon + underlying walls)
+            # and the colored fill no longer detaches from the boundary on drag.
+            try:
+                self._tag_detected_room_drag_group(
+                    room.get("id"), poly_id, label_id, boundary_lines, poly_pts,
+                )
+            except Exception:
+                pass
+
+
+
+    def _detected_room_wall_signature(self, boundary_lines) -> frozenset:
+        """The set of stable wall-group tags (line_<uuid>) forming this room's boundary.
+
+        Unlike the room id (rebuilt from geometry, so it changes on every move), these wall
+        item tags travel with the room, so they are a durable key for its name/colour.
+        """
+        tags = set()
+        for item in boundary_lines or ():
+            try:
+                for t in self.canvas.gettags(item):
+                    t_str = str(t)
+                    if t_str.startswith("line_") and t_str not in ("line_label", "line_point"):
+                        tags.add(t_str)
+            except tk.TclError:
+                continue
+        return frozenset(tags)
+
+    def _match_override_by_walls(self, wall_sig: frozenset, overrides: dict):
+        """Key of the stored override whose remembered wall signature best matches `wall_sig`.
+
+        Used only when the id lookup misses (the room moved/snapped and its id changed).
+        Requires a majority of walls to coincide so an unrelated room is never adopted.
+        Returns the matching key, or None.
+        """
+        best_key, best_overlap = None, 0
+        for key, data in overrides.items():
+            if not isinstance(data, dict):
+                continue
+            stored = set(data.get("_walls") or ())
+            if not stored:
+                continue
+            overlap = len(stored & wall_sig)
+            # Majority of BOTH sets must agree, so a shared wall between neighbours is
+            # not enough to steal another room's styling.
+            if overlap > best_overlap and overlap * 2 > len(stored) and overlap * 2 > len(wall_sig):
+                best_key, best_overlap = key, overlap
+        return best_key
+
+    def _boundary_line_items(
+        self, room: dict, derived: dict[str, Any],
+        poly_pts: list[tuple[float, float]], tol: float = 6.0,
+    ) -> set[int]:
+        """Return the canvas LINE items that form ``room``'s boundary.
+
+        Resolution is exact first: derived walls keep ``source_canvas_id`` from
+        ``_serialize_shapes`` (``shape_<canvas-item-id>`` for fresh lines,
+        ``source_shape:<id>`` after a reload), so grouping does not depend on
+        tolerance or on which tags a wall happened to be created with. A geometric
+        pass then catches lines lying on the outline that identity missed.
+
+        An empty result means the face is not made of lines (a real room rectangle
+        or polygon shape), and the caller must not draw an overlay for it.
+        """
+        boundary = set(room.get("boundary_vertex_ids", []))
+        # Map each live line back to the token _serialize_shapes used for it, so both
+        # freshly drawn lines (shape_<item>) and reloaded lines (source_shape:<id>)
+        # resolve exactly.
+        token_to_item: dict[str, int] = {}
+        for item in self.canvas.find_all():
+            try:
+                if self.canvas.type(item) != "line":
+                    continue
+                tags = self.canvas.gettags(item)
+            except tk.TclError:
+                continue
+            token = next(
+                (str(t).split(":", 1)[1] for t in tags if str(t).startswith("source_shape:")),
+                f"shape_{item}",
+            )
+            token_to_item[token] = item
+        items: set[int] = set()
+        for wall in derived.get("walls", []):
+            if not isinstance(wall, dict):
+                continue
+            if wall.get("start_vertex_id") not in boundary or wall.get("end_vertex_id") not in boundary:
+                continue
+            item_id = token_to_item.get(str(wall.get("source_canvas_id") or ""))
+            if item_id is not None:
+                items.add(item_id)
+
+        # Geometric pass catches lines identity missed (e.g. a rehydrated document).
+        if len(poly_pts) >= 3:
+            for line_item in self.canvas.find_withtag("line"):
+                if line_item in items:
+                    continue
+                try:
+                    if self.canvas.type(line_item) != "line":
+                        continue
+                    lc = self.canvas.coords(line_item)
+                except tk.TclError:
+                    continue
+                if len(lc) < 4:
+                    continue
+                p0 = (float(lc[0]), float(lc[1]))
+                p1 = (float(lc[2]), float(lc[3]))
+                if _point_on_polygon_outline(p0, poly_pts, tol) and _point_on_polygon_outline(p1, poly_pts, tol):
+                    items.add(line_item)
+
+        return items
+
+    def _tag_detected_room_drag_group(
+        self, room_id: Any, poly_id: int, label_id: int,
+        boundary_lines: set[int], poly_pts: list[tuple[float, float]],
+        tol: float = 6.0,
+    ) -> None:
+        """Tag the detected-room polygon, label, and its boundary lines together so
+        dragging the room moves the overlay AND the underlying lines as one unit
+        (instead of the colored fill detaching from the boundary).
+        """
+        if room_id is None:
+            return
+        drag_tag = f"parity_room_drag:{room_id}"
+        # Polygon + label.
+        self.canvas.addtag_withtag(drag_tag, poly_id)
+        self.canvas.addtag_withtag(drag_tag, label_id)
+        # Boundary lines, each with its measurement label and endpoint marker.
+        for item_id in boundary_lines:
+            self._tag_line_group(drag_tag, item_id)
+        if len(poly_pts) < 3:
+            return
+
+        # The Line tool also creates a `closed_shape` polygon when a loop closes. It is
+        # drawn in the line colour directly over the walls, so if it is left behind the
+        # room looks like its boundary detached. Move it with the room.
+        for shape in self.canvas.find_withtag("closed_shape"):
+            try:
+                if self.canvas.type(shape) != "polygon":
+                    continue
+                coords = self.canvas.coords(shape)
+            except tk.TclError:
+                continue
+            if len(coords) < 6:
+                continue
+            shape_pts = [
+                (float(coords[i]), float(coords[i + 1]))
+                for i in range(0, len(coords) - 1, 2)
+            ]
+            if not all(_point_on_polygon_outline(point, poly_pts, tol) for point in shape_pts):
+                continue
+            group_tag = next(
+                (t for t in self.canvas.gettags(shape) if str(t).startswith("polygon_group_")),
+                None,
+            )
+            for item in (self.canvas.find_withtag(group_tag) if group_tag else (shape,)):
+                self.canvas.addtag_withtag(drag_tag, item)
+
+    def _tag_line_group(self, drag_tag: str, line_item: int) -> None:
+        """Tag a wall plus its measurement label and endpoint marker."""
+        try:
+            tags = self.canvas.gettags(line_item)
+        except tk.TclError:
+            return
+        line_tag = next((t for t in tags if str(t).startswith("line_")), None)
+        if line_tag:
+            for item in self.canvas.find_withtag(line_tag):
+                self.canvas.addtag_withtag(drag_tag, item)
+        else:
+            self.canvas.addtag_withtag(drag_tag, line_item)
 
     def _materialize_active_floor(self) -> None:
         document = self.project_state.snapshot()
@@ -1467,7 +2090,7 @@ class LayoutSerializer:
 
     def set_floor_elevation(self, floor_id, elevation_cm):
         return self._commit_project_change(
-            lambda manager: manager.set_elevation(floor_id, float(elevation_cm)), materialize=False
+            lambda manager: manager.set_elevation(floor_id, float(elevation_cm))
         )
 
     def delete_floor(self, floor_id):
@@ -2036,6 +2659,37 @@ class LayoutSerializer:
 
 
 
+    def _serialize_wall_openings(self):
+        """Serialize windows/ventilation placed on hand-drawn walls for the web 3D importer.
+
+        Centre is recomputed from the symbol's live canvas items so a dragged opening
+        exports at its current position; width is the physical span in cm; `kind`/`type`
+        map to the web opening catalog.
+        """
+        out = []
+        for opening in getattr(self.tools, "wall_openings", []) or []:
+            xs, ys = [], []
+            for item in opening.get("item_ids", []) or []:
+                try:
+                    coords = self.canvas.coords(item)
+                except Exception:
+                    continue
+                xs.extend(coords[0::2])
+                ys.extend(coords[1::2])
+            if xs and ys:
+                cx = (min(xs) + max(xs)) / 2.0
+                cy = (min(ys) + max(ys)) / 2.0
+            else:
+                cx, cy = opening.get("cx", 0.0), opening.get("cy", 0.0)
+            out.append({
+                "id": opening.get("id"),
+                "type": opening.get("otype", "window"),
+                "kind": opening.get("kind_id", "window-standard"),
+                "x": float(cx), "y": float(cy),
+                "width_cm": float(opening.get("width_cm", 90.0)),
+            })
+        return out
+
     def _serialize_furniture(self):
         furniture = []
         items = list(getattr(self.tools, "image_furniture_items", []) or [])
@@ -2088,6 +2742,7 @@ class LayoutSerializer:
             # Skip helper/overlay items that should not be persisted
             if (
                 "grid" in tags
+                or any(str(tag).startswith("guideline") for tag in tags)  # pooled snap guides are never walls
                 or "room" in tags
                 or "furniture" in tags
                 or "flooring" in tags
@@ -2096,6 +2751,7 @@ class LayoutSerializer:
                 or "compass" in tags  # compass is serialized separately
                 or "window_object" in tags  # semantic windows are serialized separately
                 or "window_symbol" in tags  # inferred legacy window visuals are regenerated
+                or "opening_symbol" in tags  # vector openings are serialized separately; never room walls
                 or "furniture_resize_handle" in tags
                 or "furniture_selection_highlight" in tags
                 or "entire_layout_outline" in tags
@@ -2105,6 +2761,7 @@ class LayoutSerializer:
                 or "parity_structure" in tags  # canonical structures are stored separately
                 or "parity_capture" in tags  # unfinished one-shot tool preview
                 or "parity_finish_preview" in tags  # canonical finish visualization
+                or "parity_detected_room" in tags  # live detected-room overlays (recomputed on the fly)
             ):
                 continue
 

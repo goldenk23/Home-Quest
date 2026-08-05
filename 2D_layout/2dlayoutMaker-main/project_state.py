@@ -11,6 +11,7 @@ _EXCLUDED_DUPLICATE_COLLECTIONS = frozenset({"roads", "stairs", "annotations", "
 _ENTITY_REFERENCE_KEYS = frozenset({
     "start_vertex_id", "end_vertex_id", "boundary_vertex_ids", "opening_ids",
     "wall_id", "wall_ids", "room_id", "host_id", "deck_slab_id", "post_ids",
+    "beam_ids",
 })
 
 

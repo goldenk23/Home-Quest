@@ -51,11 +51,19 @@ class CanvasController:
         self.line_editor = LineEditManager(self.canvas, self.model, self.actions, self.tools)
 
         self.dragging_item = None
+        # Must exist before the first drag: on_release reads self.dragging_group
+        # directly (not via hasattr), so a click that never resolves to a draggable
+        # group (empty canvas, a protected label) would otherwise raise AttributeError
+        # on release and the app "crashes" silently.
+        self.dragging_group = None
         self.drag_start_pos = None
         self.drag_origin_pos = None
         self.initial_room_bbox = None  # Store initial room bbox for alignment
         self.initial_line_coords = None
         self.selected_group_tag = None
+        self._drag_anchor = None
+        self._guide_candidates = None  # (group, edge_xs, edge_ys) gathered once per drag
+        self._wall_component_seq = 0  # unique suffix for temporary wall-drag group tags
         self._last_motion_time = 0
         self._motion_throttle_ms = 10  # Reduced to 10 ms for smoother cursor tracking and less lag
         
@@ -196,6 +204,10 @@ class CanvasController:
         return True
 
     def on_click(self, event):
+        # Project structure capture owns this click; its additive canvas binding
+        # runs next and must not compete with normal selection/drawing behavior.
+        if getattr(self.tools, "_parity_capture_active", False):
+            return
         x, y = event.x, event.y
         print(f"Click at ({x}, {y})")
         if self.tools.canvas_frozen:
@@ -280,11 +292,35 @@ class CanvasController:
                         # Get current position before move
                         current_coords = self.canvas.coords(room_entity.rect_id)
                         if current_coords and len(current_coords) >= 4:
-                            # Calculate where room would be after move
-                            new_x0 = current_coords[0] + dx
-                            new_y0 = current_coords[1] + dy
-                            new_x1 = current_coords[2] + dx
-                            new_y1 = current_coords[3] + dy
+                            # Where the room WANTS to be, measured from the pointer rather
+                            # than from where the room currently sits. `on_drag` resets
+                            # `drag_start_pos` every event, so dx/dy are 1-3 px increments
+                            # with no memory of the drag start: snapping those directly
+                            # re-snapped a flush room straight back onto the same edge on
+                            # every event, so it stayed glued until the mouse jerked more
+                            # than the 12 px tolerance in a single event — the "sticks a
+                            # bit while snapping and dragging" report — and the room also
+                            # drifted away from the cursor by however much snapping had
+                            # adjusted it. Summing the increments into an offset from a
+                            # per-drag anchor lets many small moves add up, so the room
+                            # releases exactly when the pointer has travelled past the
+                            # tolerance and always ends up back under the cursor. Same
+                            # anchored approach `_snap_room_delta` uses for draw-tool
+                            # groups; a drag is only ever one kind, so they share the slot.
+                            anchor = getattr(self, "_drag_anchor", None)
+                            if anchor is None or anchor.get("group") != self.dragging_group:
+                                anchor = {
+                                    "group": self.dragging_group,
+                                    "bounds": tuple(current_coords[:4]),
+                                    "offset": [0.0, 0.0],
+                                }
+                                self._drag_anchor = anchor
+                            anchor["offset"][0] += dx
+                            anchor["offset"][1] += dy
+                            base = anchor["bounds"]
+                            off_x, off_y = anchor["offset"]
+                            new_x0, new_y0 = base[0] + off_x, base[1] + off_y
+                            new_x1, new_y1 = base[2] + off_x, base[3] + off_y
                             temp_bbox = (new_x0, new_y0, new_x1, new_y1)
                             
                             # Get all other rooms for alignment
@@ -293,11 +329,24 @@ class CanvasController:
                                 if tag != self.dragging_group
                             ]
                             
-                            # Calculate alignment snap
+                            # Calculate alignment snap. Tolerance 5 px was too tight for a
+                            # real drag: the alignment only registered in a 5 px window, so
+                            # the red dashed guides flickered in and out. 12 px makes both
+                            # the snap and its guides appear reliably.
                             snapped_x0, snapped_y0, snap_info = self.tools.guideline_helper.get_room_alignment_snap(
-                                temp_bbox, other_rooms, tolerance=5
+                                temp_bbox, other_rooms, tolerance=12
                             )
-                            
+
+                            # Rooms are solid: never let one penetrate another. Push the
+                            # dragged room back out along whichever axis it entered least,
+                            # so it comes to rest flush against the neighbour instead of
+                            # overlapping it.
+                            snapped_x0, snapped_y0 = self._prevent_room_overlap(
+                                snapped_x0, snapped_y0,
+                                new_x1 - new_x0, new_y1 - new_y0,
+                                other_rooms,
+                            )
+
                             # Calculate final offset (dx, dy adjusted for snap)
                             final_dx = snapped_x0 - current_coords[0]
                             final_dy = snapped_y0 - current_coords[1]
@@ -305,11 +354,15 @@ class CanvasController:
                             # Move room with alignment using tag-based move (much faster)
                             self.canvas.move(self.dragging_group, final_dx, final_dy)
                             
-                            # Draw alignment guides AFTER moving
+                            # Draw alignment guides AFTER moving, from the position the
+                            # room actually landed in (snap_info alone misses alignments
+                            # produced by the overlap guard, and knows nothing about
+                            # draw-tool neighbours).
                             updated_coords = self.canvas.coords(room_entity.rect_id)
                             if updated_coords and len(updated_coords) >= 4:
-                                self.tools.guideline_helper.draw_room_alignment_guides(
-                                    tuple(updated_coords), snap_info, other_rooms
+                                self._show_alignment_guides(
+                                    self.dragging_group, tuple(updated_coords[:4]),
+                                    snap_info, other_rooms,
                                 )
                             
                             self.drag_start_pos = (event.x, event.y)
@@ -319,8 +372,25 @@ class CanvasController:
                         traceback.print_exc()
                         # Fall through to normal drag if alignment fails
             
+            # Draw-tool geometry snaps flush to neighbouring geometry, so patching a house
+            # together feels the same as with the Room tool. Both draw-tool drag groups
+            # need this: a detected room (parity_room_drag:<id>) *and* a bare wall group
+            # (line_<uuid>), because a loop the detector never turned into a room can only
+            # be dragged one wall at a time — that is the common real case, and leaving it
+            # unsnapped is why the editor still felt like it had no snapping at all.
+            snapping_group = self.dragging_group.startswith(
+                ("parity_room_drag:", "line_", "wall_component_")
+            )
+            if snapping_group:
+                dx, dy = self._snap_room_delta(self.dragging_group, dx, dy)
+
             # Normal group dragging (polygons, entire layout, etc.) using tag-based move
             self.canvas.move(self.dragging_group, dx, dy)
+
+            # Same dashed feedback as the Room-tool path above: whichever tool made the
+            # geometry, a flush edge shows a guide.
+            if snapping_group:
+                self._show_alignment_guides(self.dragging_group)
 
             if self.dragging_group == getattr(self.tools, "_entire_layout_tag", None):
                 self.tools.shift_entire_layout_state(
@@ -515,13 +585,386 @@ class CanvasController:
         # Clear room alignment guidelines
         if hasattr(self.tools, 'guideline_helper'):
             self.tools.guideline_helper.clear_guides()
-        
+
+        # Detected-room drag: the synthetic parity_room_drag:<id> group tagged
+        # the polygon + label + the committed_line walls forming the boundary
+        # so the colored fill moved together with the walls. Now resync the
+        # line metadata for those walls and re-run planar-graph detection so
+        # the overlay (with its persisted name + fill style) redraws cleanly
+        # at the new wall positions.
+        drag_group = self.dragging_group
+        if drag_group and str(drag_group).startswith("parity_room_drag:"):
+            try:
+                seen_line_tags = set()
+                for item in self.canvas.find_withtag(drag_group):
+                    for t in self.canvas.gettags(item):
+                        t_str = str(t)
+                        if t_str.startswith("line_") and t_str not in seen_line_tags:
+                            seen_line_tags.add(t_str)
+                            self._sync_line_metadata(t_str)
+                trigger = getattr(self.tools, "_trigger_room_detection", None)
+                if callable(trigger):
+                    trigger()
+                else:
+                    serializer = getattr(self.tools.actions, "serializer", None)
+                    if serializer is not None and hasattr(serializer, "refresh_detected_room_overlay"):
+                        serializer.refresh_detected_room_overlay()
+            except Exception as exc:
+                print(f"[drag] detected room refresh failed: {exc}")
+
+        # Connected-wall-component drag (a bare loop moved as one shape): resync each wall's
+        # metadata, drop the temporary tag so it never accumulates, and re-run detection so
+        # a room is recognised at the new position. A fresh tag is built on the next press.
+        if drag_group and str(drag_group).startswith("wall_component_"):
+            try:
+                for item in list(self.canvas.find_withtag(drag_group)):
+                    for t in self.canvas.gettags(item):
+                        t_str = str(t)
+                        if t_str.startswith("line_"):
+                            self._sync_line_metadata(t_str)
+                self.canvas.dtag(drag_group, drag_group)
+                trigger = getattr(self.tools, "_trigger_room_detection", None)
+                if callable(trigger):
+                    trigger()
+            except Exception as exc:
+                print(f"[drag] wall component refresh failed: {exc}")
+
         self.dragging_item = None
         self.dragging_group = None
         self.drag_start_pos = None
         self.drag_origin_pos = None
         self.initial_room_bbox = None
         self.initial_line_coords = None
+        self._drag_anchor = None
+        self._guide_candidates = None
+
+    def _prevent_room_overlap(self, x0, y0, width, height, other_rooms, epsilon=0.5):
+        """Nudge a dragged room out of any neighbour it would penetrate.
+
+        Returns a corrected top-left. For each overlapping neighbour the room is pushed
+        along the axis of *least* penetration, so it settles flush against the wall it
+        came in through rather than jumping around it. Touching edges (zero overlap) are
+        allowed — that is exactly the flush result snapping aims for. A couple of passes
+        settle the common case of being wedged between two rooms.
+        """
+        for _pass in range(3):
+            moved = False
+            for _tag, other in other_rooms:
+                try:
+                    other_coords = self.canvas.coords(getattr(other, "rect_id", None))
+                except Exception:
+                    continue
+                if not other_coords or len(other_coords) < 4:
+                    continue
+                ox0, oy0, ox1, oy1 = other_coords[:4]
+                x1, y1 = x0 + width, y0 + height
+                overlap_x = min(x1, ox1) - max(x0, ox0)
+                overlap_y = min(y1, oy1) - max(y0, oy0)
+                if overlap_x <= epsilon or overlap_y <= epsilon:
+                    continue  # not penetrating (or merely touching)
+                # Four ways out; take the shortest.
+                candidates = (
+                    (abs(ox0 - x1), "x", ox0 - width),  # push left of neighbour
+                    (abs(ox1 - x0), "x", ox1),          # push right of neighbour
+                    (abs(oy0 - y1), "y", oy0 - height), # push above neighbour
+                    (abs(oy1 - y0), "y", oy1),          # push below neighbour
+                )
+                _dist, axis, value = min(candidates, key=lambda c: c[0])
+                if axis == "x":
+                    x0 = value
+                else:
+                    y0 = value
+                moved = True
+            if not moved:
+                break
+        return x0, y0
+
+    def _show_alignment_guides(self, group, bounds=None, snap_info=None, other_rooms=None,
+                               epsilon=1.5):
+        """Dashed alignment guides for whatever is being dragged, on every drag path.
+
+        Guides used to be drawn only on the Room-tool path, and only for alignments that
+        path's own `snap_info` knew about — so they disappeared for detected rooms, bare
+        wall loops, Room-tool rooms meeting draw-tool geometry, and any room pushed flush
+        by the overlap guard. Here the flush edges are read back from the canvas *after*
+        the move, against the same candidate set that drives snapping, so a guide appears
+        exactly when the geometry is aligned regardless of which tool made it. A tool's
+        `snap_info` is merged in rather than replaced, so the Room tool keeps its
+        centre-line and distance guides.
+        """
+        helper = getattr(self.tools, "guideline_helper", None)
+        if helper is None:
+            return
+        # Guides are cosmetic: a failure here must never disturb the drag itself (the
+        # Room-tool caller treats an exception as "snapping failed" and re-moves the room).
+        try:
+            if bounds is None:
+                bounds = self._dragged_group_bounds(group)
+            if bounds is None:
+                helper.clear_guides()
+                return
+
+            # Nothing but the dragged group moves mid-drag: gather neighbour edges once.
+            cached = getattr(self, "_guide_candidates", None)
+            if not cached or cached[0] != group:
+                self._drop_dead_guide_pool(helper)
+                cached = (group, *self._snap_candidates(group))
+                self._guide_candidates = cached
+            edge_xs, edge_ys = cached[1], cached[2]
+
+            info = dict(snap_info or {})
+            align_x = self._flush_edge(edge_xs, bounds[0], bounds[2], epsilon)
+            if align_x is not None:
+                info["has_left_align"] = True
+                info["align_x"] = align_x
+            align_y = self._flush_edge(edge_ys, bounds[1], bounds[3], epsilon)
+            if align_y is not None:
+                info["has_top_align"] = True
+                info["align_y"] = align_y
+
+            helper.draw_room_alignment_guides(bounds, info, other_rooms)
+        except Exception:
+            return
+        # Guide items are pooled, so they are created during the first drag of the session
+        # and any room drawn later stacks above them — an opaque room fill then hides the
+        # dashes. Raising on every draw keeps them visible for the whole session.
+        for tag in ("guideline_room", "guideline_room_center"):
+            try:
+                self.canvas.tag_raise(tag)
+            except Exception:
+                pass
+
+    def _drop_dead_guide_pool(self, helper):
+        """Forget pooled guide items that no longer exist on the canvas.
+
+        `GuidelineHelper` reuses its canvas items forever, but a full wipe
+        (`canvas.delete("all")` on New/Clear layout, `view.reset_grid_pool()`'s
+        counterpart) destroys them while the pool keeps the dead ids. Tk silently ignores
+        `coords`/`itemconfig` on a dead id, so the helper "reused" ghosts and no guide was
+        ever drawn again for the rest of the session — the main reason guides came and
+        went. Pruning here lets the helper recreate them, without touching the helper.
+        """
+        for name in ("line_pool", "arc_pool", "oval_pool", "text_pool"):
+            items = getattr(helper, name, None)
+            if not items:
+                continue
+            alive = [item for item in items if self.canvas.type(item) is not None]
+            if len(alive) != len(items):
+                setattr(helper, name, alive)
+
+    @staticmethod
+    def _flush_edge(candidates, low, high, epsilon):
+        """Nearest neighbour edge that either side of the dragged bounds sits on, else None."""
+        best = None
+        for value in candidates:
+            distance = min(abs(value - low), abs(value - high))
+            if distance <= epsilon and (best is None or distance < best[0]):
+                best = (distance, value)
+        return best[1] if best else None
+
+    def _room_bounds(self, item) -> tuple | None:
+        """Bounds of a canvas item from its own coordinates (never its text extents)."""
+        try:
+            coords = self.canvas.coords(item)
+        except Exception:
+            return None
+        if not coords or len(coords) < 4:
+            return None
+        xs = [float(v) for v in coords[0::2]]
+        ys = [float(v) for v in coords[1::2]]
+        return min(xs), min(ys), max(xs), max(ys)
+
+    def _snap_room_delta(self, group, dx, dy, tolerance=10.0, breakaway=15.0):
+        """Nudge a drag delta so the dragged room's edges land flush on nearby geometry.
+
+        `dx`/`dy` are per-event increments of a few pixels, because `on_drag` resets
+        `drag_start_pos` on every motion event. Snapping those increments directly cannot
+        hold an alignment: once the room is flush, the next increment moves it off the
+        edge and the room oscillates instead of sticking. So the increments are summed
+        into a pointer offset from a drag anchor, the resulting *absolute* desired
+        position is snapped, and the chosen edge is held until the pointer is more than
+        `breakaway` px past it (that hysteresis is what makes it feel magnetic).
+
+        Reads geometry only: room detection and the overlay pipeline are untouched.
+        Returns the original delta when nothing is close enough.
+        """
+        try:
+            bounds = self._dragged_group_bounds(group)
+            if bounds is None:
+                return dx, dy
+
+            anchor = getattr(self, "_drag_anchor", None)
+            if anchor is None or anchor["group"] != group:
+                # First motion of this drag: the room has not moved yet, so its current
+                # bounds are the anchor. Nothing else moves mid-drag, so the candidate
+                # edges are gathered once instead of on every event.
+                edge_xs, edge_ys = self._snap_candidates(group)
+                anchor = {
+                    "group": group, "bounds": bounds, "offset": [0.0, 0.0],
+                    "xs": edge_xs, "ys": edge_ys, "lock": [None, None],
+                }
+                self._drag_anchor = anchor
+
+            anchor["offset"][0] += dx
+            anchor["offset"][1] += dy
+            base, (off_x, off_y) = anchor["bounds"], anchor["offset"]
+            desired = (base[0] + off_x, base[1] + off_y, base[2] + off_x, base[3] + off_y)
+
+            # Either edge of the room may land on any candidate, so rooms can meet
+            # edge-to-edge or line up flush on the same side; x and y are independent.
+            shift_x, anchor["lock"][0] = self._snap_axis(
+                desired[0], desired[2], anchor["xs"], anchor["lock"][0], tolerance, breakaway,
+            )
+            shift_y, anchor["lock"][1] = self._snap_axis(
+                desired[1], desired[3], anchor["ys"], anchor["lock"][1], tolerance, breakaway,
+            )
+            # Move from where the room actually is to the snapped desired position.
+            return desired[0] + shift_x - bounds[0], desired[1] + shift_y - bounds[1]
+        except Exception:
+            return dx, dy
+
+    @staticmethod
+    def _snap_axis(low, high, candidates, lock, tolerance, breakaway):
+        """Shift that puts one axis flush, plus the edge to stay locked to.
+
+        `lock` is `(side, coordinate)`: which edge of the room is snapped, and to what.
+        Keeping it until the pointer-driven position drifts past `breakaway` stops the
+        room flickering in and out of alignment at the tolerance boundary.
+        """
+        if lock is not None:
+            mine = low if lock[0] == 0 else high
+            if abs(lock[1] - mine) <= breakaway:
+                return lock[1] - mine, lock
+        best = None
+        for side, mine in ((0, low), (1, high)):
+            for theirs in candidates:
+                shift = theirs - mine
+                if abs(shift) <= tolerance and (best is None or abs(shift) < abs(best[0])):
+                    best = (shift, (side, theirs))
+        return best if best is not None else (0.0, None)
+
+    def _dragged_group_bounds(self, group):
+        """Bounds of the room being dragged, from its overlay or its own walls."""
+        items = self.canvas.find_withtag(group)
+        if not items:
+            return None
+        overlay = next(
+            (
+                item for item in items
+                if self.canvas.type(item) == "polygon"
+                and "parity_detected_room" in self.canvas.gettags(item)
+            ),
+            None,
+        )
+        if overlay is not None:
+            return self._room_bounds(overlay)
+        # No overlay (an open shape, or one still being edited): fall back to the walls.
+        boxes = [
+            self._room_bounds(item) for item in items
+            if self.canvas.type(item) in ("line", "polygon", "rectangle")
+        ]
+        boxes = [box for box in boxes if box]
+        if not boxes:
+            return None
+        return (
+            min(box[0] for box in boxes), min(box[1] for box in boxes),
+            max(box[2] for box in boxes), max(box[3] for box in boxes),
+        )
+
+    def _snap_candidates(self, exclude_group):
+        """Edge coordinates worth snapping to: any wall or room not being dragged.
+
+        Detected rooms alone are not enough — a neighbour may be an open shape or a
+        single wall that never became a room, and the user still expects it to snap.
+        """
+        dragged = set(self.canvas.find_withtag(exclude_group))
+        xs, ys = set(), set()
+
+        def add(bounds):
+            if bounds:
+                xs.update((bounds[0], bounds[2]))
+                ys.update((bounds[1], bounds[3]))
+
+        for item in self.canvas.find_withtag("line"):
+            try:
+                if item in dragged or self.canvas.type(item) != "line":
+                    continue
+                if "grid" in self.canvas.gettags(item):
+                    continue
+            except Exception:
+                continue
+            add(self._room_bounds(item))
+        for item in self.canvas.find_withtag("parity_detected_room"):
+            try:
+                if item in dragged or self.canvas.type(item) != "polygon":
+                    continue
+            except Exception:
+                continue
+            add(self._room_bounds(item))
+        for tag, room in getattr(self.tools, "room_entities_by_group_tag", {}).items():
+            if tag == exclude_group or not hasattr(room, "rect_id"):
+                continue
+            add(self._room_bounds(room.rect_id))
+        return xs, ys
+
+    def _wall_component_drag_tag(self, seed_item):
+        """Tag the whole connected run of walls touching `seed_item` so a hand-drawn shape
+        drags as one piece instead of tearing apart wall by wall.
+
+        Connectivity is either endpoint coincidence (the outer loop's corners) or an
+        endpoint lying on another wall's span (a T-junction, so a divider travels with its
+        room). Two rooms that merely sit near each other are separate components, so one can
+        still be dragged toward the other to snap; two that already share a wall are one
+        shape and move together. Returns a temp group tag, or None to fall back to the
+        single wall (nothing else connected).
+        """
+        try:
+            walls = [
+                it for it in self.canvas.find_withtag("committed_line")
+                if self.canvas.type(it) == "line" and "grid" not in self.canvas.gettags(it)
+            ]
+            segs = {}
+            for it in walls:
+                c = self.canvas.coords(it)
+                if len(c) >= 4:
+                    segs[it] = ((c[0], c[1]), (c[2], c[3]))
+            if seed_item not in segs:
+                return None
+            tol = 6.0
+            dist = self.tools._point_to_segment_distance
+
+            def touches(a, b):
+                (a0, a1), (b0, b1) = a, b
+                return (
+                    dist(a0, b0, b1) <= tol or dist(a1, b0, b1) <= tol
+                    or dist(b0, a0, a1) <= tol or dist(b1, a0, a1) <= tol
+                )
+
+            seen = {seed_item}
+            stack = [seed_item]
+            while stack:
+                cur = stack.pop()
+                for it in walls:
+                    if it not in seen and it in segs and touches(segs[cur], segs[it]):
+                        seen.add(it)
+                        stack.append(it)
+            if len(seen) <= 1:
+                return None
+
+            tag = f"wall_component_{self._wall_component_seq}"
+            self._wall_component_seq += 1
+            for it in seen:
+                line_grp = next(
+                    (t for t in self.canvas.gettags(it) if str(t).startswith("line_")), None
+                )
+                # Tag the wall's whole line_<uuid> group (line + label + endpoint) so the
+                # measurement text and markers travel with the wall, not just the segment.
+                members = self.canvas.find_withtag(line_grp) if line_grp else (it,)
+                for member in members:
+                    self.canvas.addtag_withtag(tag, member)
+            return tag
+        except Exception:
+            return None
 
     def _sync_line_metadata(self, line_group_tag: str) -> None:
         if not line_group_tag or not line_group_tag.startswith("line_"):
@@ -631,7 +1074,12 @@ class CanvasController:
         return False
 
     def select_item(self, event):
-        items = self.canvas.find_overlapping(event.x - 5, event.y - 5, event.x + 5, event.y + 5)
+        items = tuple(
+            item for item in self.canvas.find_overlapping(
+                event.x - 5, event.y - 5, event.x + 5, event.y + 5
+            )
+            if "parity_floor_underlay" not in self.canvas.gettags(item)
+        )
         if not items:
             return
 
@@ -813,6 +1261,14 @@ class CanvasController:
             ),
             None,
         )
+        # Detected-room overlay (from "Lines → Room") exposes a synthetic
+        # parity_room_drag:<entity_id> tag on the polygon, label, and the
+        # underlying committed_line walls so dragging moves the entire room
+        # as a unit and the colored fill no longer detaches from the boundary.
+        parity_room_tag = next(
+            (t for t in tags if str(t).startswith("parity_room_drag:")),
+            None,
+        )
         zone_tag = next(
             (
                 t
@@ -846,8 +1302,21 @@ class CanvasController:
         else:
             line_group_for_drag = line_group_tag
 
-        # Use furniture's group tag if available, otherwise use the tag from canvas item
-        final_group_tag = furniture_group_tag or group_tag or compass_group_tag or vastu_group_tag or line_group_for_drag
+        # Use furniture's group tag if available, otherwise use the tag from canvas item.
+        # A detected-room drag group (parity_room_drag:<id>) takes precedence over the
+        # individual line_ tag on the wall: clicking a wall that belongs to a detected
+        # (line-loop) room must move the entire room (polygon + label + all boundary
+        # walls) together, otherwise the colored fill detaches from the boundary.
+        if parity_room_tag:
+            final_group_tag = parity_room_tag
+        else:
+            final_group_tag = (
+                furniture_group_tag
+                or group_tag
+                or compass_group_tag
+                or vastu_group_tag
+                or line_group_for_drag
+            )
 
         # If user is in whole-move mode and starts dragging Vastu, snap any moved slices back first
         if (not slices_only) and final_group_tag == "vastu_group":
@@ -856,6 +1325,26 @@ class CanvasController:
             except Exception:
                 pass
         
+        # A DETECTED room drags by its own parity_room_drag group (just that room's boundary
+        # walls + its overlay), so two separate rooms — even overlapping or snapped flush —
+        # detach and keep their own identity/colour. Only a BARE wall (a line loop the
+        # detector never turned into a room) needs connected-component grouping, or it tears
+        # apart one wall at a time. Grouping detected rooms by physical touch was wrong: it
+        # fused any two rooms whose walls cross/coincide, so they could not be pulled apart
+        # and re-detection dropped their name/colour.
+        if final_group_tag and final_group_tag == line_group_for_drag and not parity_room_tag:
+            seed = top_item if (
+                self.canvas.type(top_item) == "line" and "committed_line" in tags
+            ) else next(
+                (i for i in self.canvas.find_withtag(final_group_tag)
+                 if self.canvas.type(i) == "line" and "committed_line" in self.canvas.gettags(i)),
+                None,
+            )
+            if seed is not None:
+                component_tag = self._wall_component_drag_tag(seed)
+                if component_tag:
+                    final_group_tag = component_tag
+
         if final_group_tag:
             self.dragging_item = None
             self.dragging_group = final_group_tag
@@ -929,6 +1418,10 @@ class CanvasController:
                 pass
 
         self.drag_start_pos = (event.x, event.y)
+        # A new press starts a new drag, so the room-snap anchor must be rebuilt from
+        # this press rather than inherited from the previous drag of the same room.
+        self._drag_anchor = None
+        self._guide_candidates = None
 
         # ✅ Furniture selection only happens on right-click, not left-click
         # Left-click on furniture only allows dragging, selection is handled by right-click context menu

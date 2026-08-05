@@ -8,6 +8,7 @@ from action import ActionManager
 from layout_schema import empty_geometry, migrate_v1_to_v2, new_project, validate_document, validate_v2
 from layout_serializer import LayoutSerializer, atomic_write_document
 from local_autosave import LocalAutosave
+from parity_toolbar import ParityToolbar
 from project_state import FloorManager, ProjectState
 
 
@@ -74,6 +75,50 @@ class SchemaTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r"deck_slabs\[0\]\.polygon"):
             validate_v2(deck)
 
+    def test_stair_geometry_and_cross_floor_ownership(self):
+        document = new_project()
+        ground = document["floors"][0]
+        upper = {
+            "id": "floor-upper", "name": "Upper", "elevation_cm": 300,
+            "geometry": empty_geometry(),
+        }
+        document["floors"].append(upper)
+        stair = {
+            "id": "stair-1", "lower_floor_id": ground["id"],
+            "upper_floor_id": upper["id"],
+            "path_points": [[100, 100], [250, 100], [250, 250]],
+            "width_cm": 110,
+        }
+        ground["geometry"]["stairs"].append(stair)
+        validate_v2(document)
+        self.assertIn("stairs", empty_geometry())
+
+        invalid_cases = (
+            ("width_cm", 50, r"stairs\[0\]\.width_cm"),
+            ("path_points", [[0, 0]], r"stairs\[0\]\.path_points"),
+            ("lower_floor_id", upper["id"], r"stairs\[0\]\.lower_floor_id"),
+            ("upper_floor_id", "missing", r"stairs\[0\]\.upper_floor_id"),
+        )
+        for field, value, expected in invalid_cases:
+            candidate = copy.deepcopy(document)
+            candidate["floors"][0]["geometry"]["stairs"][0][field] = value
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, expected):
+                validate_v2(candidate)
+
+    def test_stair_capture_uses_the_same_one_centimeter_minimum(self):
+        class FakeSerializer:
+            @staticmethod
+            def _structure_scale():
+                return 2.0
+
+        toolbar = ParityToolbar.__new__(ParityToolbar)
+        toolbar.serializer = FakeSerializer()
+        toolbar._capture_points = []
+        self.assertTrue(toolbar._append_stair_point([0, 0]))
+        self.assertFalse(toolbar._append_stair_point([1.99, 0]))
+        self.assertTrue(toolbar._append_stair_point([2, 0]))
+        self.assertEqual([[0.0, 0.0], [2.0, 0.0]], toolbar._capture_points)
+
     def test_intra_and_cross_floor_references_resolve(self):
         document = project_with_geometry(
             vertices=[entity("v1"), entity("v2")],
@@ -119,7 +164,6 @@ class ProjectStateTests(unittest.TestCase):
                 thickness_cm=15, height_cm=280, material_id="default-wall", opening_ids=[],
             )],
             roads=[entity("road-1")],
-            stairs=[entity("stair-1")],
             annotations=[entity("legacy-annotation-1")],
             text=[entity("text-1", content="Do not duplicate")],
             canvas={
@@ -128,6 +172,16 @@ class ProjectStateTests(unittest.TestCase):
                 "text": [entity("canvas-text-1", content="Do not duplicate")],
             },
         )
+        ground_id = document["floors"][0]["id"]
+        document["floors"].append({
+            "id": "floor-upper", "name": "Upper", "elevation_cm": 600,
+            "geometry": empty_geometry(),
+        })
+        document["floors"][0]["geometry"]["stairs"] = [{
+            "id": "stair-1", "lower_floor_id": ground_id,
+            "upper_floor_id": "floor-upper",
+            "path_points": [[0, 0], [100, 0]], "width_cm": 110,
+        }]
         state = ProjectState(document)
         duplicate = state.floor_manager.duplicate(elevation_cm=300)
         self.assertFalse({"roads", "stairs", "annotations", "text"} & duplicate["geometry"].keys())
@@ -262,6 +316,53 @@ class SerializerParityTests(unittest.TestCase):
         document["active_floor_id"] = "floor-ground"
         document["floors"][0]["geometry"] = first
         validate_v2(document)
+
+    def test_serialize_layout_snapshots_latest_active_floor_without_changing_parked_floors(self):
+        serializer = LayoutSerializer.__new__(LayoutSerializer)
+
+        def canvas(x0, y0, label):
+            return {
+                "version": "1.0",
+                "metadata": {
+                    "unit": "cm", "unit_scale": 1, "grid_spacing": 1,
+                    "zoom_level": 1, "wall_height_cm": 280,
+                },
+                "rooms": [{
+                    "id": label.lower(), "name": label,
+                    "x0": x0, "y0": y0, "x1": x0 + 100, "y1": y0 + 100,
+                }],
+                "furniture": [], "windows": [], "shapes": [], "text": [],
+            }
+
+        ground_canvas = canvas(100, 100, "Ground")
+        upper_canvas = canvas(350, 40, "Upper")
+        moved_upper_canvas = canvas(425, 15, "Upper")
+        serializer.project_state = ProjectState()
+        ground_id = serializer.project_state.active_floor_id
+        serializer.project_state.replace_active_geometry(
+            serializer._derive_canvas_geometry(ground_id, ground_canvas, empty_geometry())
+        )
+        upper_geometry = serializer._derive_canvas_geometry(
+            "floor-upper", upper_canvas, empty_geometry()
+        )
+        upper = serializer.project_state.floor_manager.add("Upper", 300, upper_geometry)
+        serializer.project_state.floor_manager.activate(upper["id"])
+        live_snapshots = [upper_canvas, moved_upper_canvas]
+        serializer._serialize_canvas_v1 = lambda: copy.deepcopy(live_snapshots.pop(0))
+
+        first = serializer.serialize_layout()
+        second = serializer.serialize_layout()
+        first_upper = next(f for f in first["floors"] if f["id"] == upper["id"])
+        second_upper = next(f for f in second["floors"] if f["id"] == upper["id"])
+        second_ground = next(f for f in second["floors"] if f["id"] == ground_id)
+
+        self.assertEqual(350, first_upper["geometry"]["canvas"]["rooms"][0]["x0"])
+        self.assertEqual(425, second_upper["geometry"]["canvas"]["rooms"][0]["x0"])
+        self.assertEqual(15, second_upper["geometry"]["canvas"]["rooms"][0]["y0"])
+        self.assertEqual(ground_canvas, second_ground["geometry"]["canvas"])
+        first_min_x = min(v["position"][0] for v in first_upper["geometry"]["vertices"])
+        second_min_x = min(v["position"][0] for v in second_upper["geometry"]["vertices"])
+        self.assertEqual(75, second_min_x - first_min_x)
 
     def test_atomic_json_and_yaml_writer(self):
         document = new_project()
