@@ -389,12 +389,13 @@ interface StairMeshProps {
 
 export const StairMesh: React.FC<StairMeshProps> = React.memo(({ stair, floorElevationCm }) => (
   <group>
+    {/* The upper-floor slab serves as the final flight's terminal landing. */}
     {stair.flights.map((flight, idx) => (
       <FlightMesh
         key={flight.id}
         flight={flight}
         floorElevationCm={floorElevationCm}
-        hasTopLanding={idx < stair.flights.length - 1}
+        hasTopLanding
         hasBottomLanding={idx > 0}
       />
     ))}

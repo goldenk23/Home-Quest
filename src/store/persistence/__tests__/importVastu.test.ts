@@ -216,6 +216,51 @@ describe('wall_erased_regions → openings', () => {
   });
 });
 
+describe('wall_openings (Windows & Ventilation on drawn walls) → openings', () => {
+  it('projects a window opening onto the nearest wall and renders it in 3D', () => {
+    const { geometry, report } = convertVastuLayout({
+      ...nativeFixture,
+      rooms: [{ name: 'Room', x0: 0, y0: 0, x1: 350, y1: 350 }],
+      furniture: [],
+      text: [],
+      // A sliding window centred on the top wall (y≈0).
+      wall_openings: [{ id: 'o1', type: 'window', kind: 'window-sliding', x: 175, y: 0, width_cm: 120 }],
+    });
+    expect(report.openings).toBe(1);
+    const op = Object.values(geometry.openings)[0] as Opening;
+    expect(op.type).toBe('window');
+    expect(op.kind).toBe('window-sliding');
+    expect(op.width).toBe(120);
+    // The hosting wall lists the opening, so the 3D extruder punches the hole.
+    const wall = geometry.walls[op.wallId];
+    expect(wall.openingIds).toContain(op.id);
+  });
+
+  it('maps ventilation to a vent opening', () => {
+    const { geometry, report } = convertVastuLayout({
+      ...nativeFixture,
+      rooms: [{ name: 'Room', x0: 0, y0: 0, x1: 350, y1: 350 }],
+      furniture: [],
+      text: [],
+      wall_openings: [{ id: 'v1', type: 'vent', kind: 'vent-normal', x: 350, y: 175, width_cm: 60 }],
+    });
+    expect(report.openings).toBe(1);
+    expect((Object.values(geometry.openings)[0] as Opening).type).toBe('vent');
+  });
+
+  it('reports an opening far from any wall instead of misplacing it', () => {
+    const { report } = convertVastuLayout({
+      ...nativeFixture,
+      rooms: [{ name: 'Room', x0: 0, y0: 0, x1: 350, y1: 350 }],
+      furniture: [],
+      text: [],
+      wall_openings: [{ id: 'far', type: 'window', kind: 'window-standard', x: 5000, y: 5000, width_cm: 120 }],
+    });
+    expect(report.openings).toBe(0);
+    expect(report.residuals.some((r) => r.includes('opening'))).toBe(true);
+  });
+});
+
 describe('wall graph cleanup', () => {
   it('snaps overlapping adjacent rooms to one shared wall (no double walls)', () => {
     const { geometry, report } = convertVastuLayout({
@@ -403,7 +448,7 @@ describe('end-to-end: full-featured native layout', () => {
 
 const emptyV2Geometry = () => ({
   vertices: [], walls: [], rooms: [], openings: [], furniture: [], shapes: [], text: [],
-  pillars: [], beams: [], deck_slabs: [], railings: [],
+  pillars: [], beams: [], deck_slabs: [], railings: [], stairs: [],
 });
 
 const nativeV2Fixture = () => ({
@@ -496,6 +541,65 @@ describe('native v2 projects', () => {
       .toEqual(project!.geometryByFloor['floor-upper'].vertices['u-v1'].position);
     expect(project!.geometryByFloor['floor-ground'].vertices['g-v2'].position)
       .toEqual(project!.geometryByFloor['floor-upper'].vertices['u-v2'].position);
+  });
+
+  it('materializes native multi-point stairs through the existing Home Quest builder and shared origin', () => {
+    const doc = nativeV2Fixture();
+    (doc.floors[0].geometry as unknown as Record<string, unknown>).stairs = [{
+      id: 'native-stair',
+      lower_floor_id: 'floor-ground',
+      upper_floor_id: 'floor-upper',
+      path_points: [[100, 100], [250, 100], [250, 250]],
+      width_cm: 110,
+    }];
+
+    const { project } = convertVastuLayout(doc);
+    const ground = project!.geometryByFloor['floor-ground'];
+    const stair = ground.stairs['native-stair'];
+    expect(stair).toEqual(expect.objectContaining({
+      id: 'native-stair', lowerFloorId: 'floor-ground', upperFloorId: 'floor-upper', widthCm: 110,
+    }));
+    expect(stair.flights).toHaveLength(2);
+    expect(stair.landings).toHaveLength(1);
+    expect(stair.pathPoints[0]).toEqual(ground.vertices['g-v1'].position);
+    expect(stair.flights[0].startPoint).toEqual(stair.pathPoints[0]);
+    expect(stair.landings[0].center).toEqual(stair.pathPoints[1]);
+    expect(stair.stairwellVoid.length).toBeGreaterThanOrEqual(4);
+    for (const point of [
+      ...stair.pathPoints,
+      ...stair.flights.flatMap((flight) => [flight.startPoint, flight.endPoint]),
+      ...stair.landings.map((landing) => landing.center),
+      ...stair.stairwellVoid,
+    ]) {
+      expect(Number.isFinite(point.x) && Number.isFinite(point.y)).toBe(true);
+    }
+
+    importVastuLayout(doc);
+    const hydrated = useAppStore.getState().floorData['floor-ground'].stairs['native-stair'];
+    expect(hydrated).toEqual(expect.objectContaining({
+      id: 'native-stair', lowerFloorId: 'floor-ground', upperFloorId: 'floor-upper',
+      widthCm: 110, pathPoints: stair.pathPoints, stairwellVoid: stair.stairwellVoid,
+    }));
+    expect(hydrated.flights).toEqual(
+      stair.flights.map((flight, index) => ({ ...flight, id: hydrated.flights[index].id }))
+    );
+    expect(hydrated.landings).toEqual(
+      stair.landings.map((landing, index) => ({ ...landing, id: hydrated.landings[index].id }))
+    );
+  });
+
+  it('rejects malformed native stair floor references before mutating the store', () => {
+    const valid = nativeV2Fixture();
+    importVastuLayout(valid);
+    const before = useAppStore.getState();
+    const invalid = nativeV2Fixture();
+    (invalid.floors[0].geometry as unknown as Record<string, unknown>).stairs = [{
+      id: 'bad-stair', lower_floor_id: 'floor-ground', upper_floor_id: 'missing',
+      path_points: [[100, 100], [200, 100]], width_cm: 110,
+    }];
+    expect(() => importVastuLayout(invalid)).toThrow(/stairs\[0\]\.upper_floor_id/);
+    expect(useAppStore.getState().vertices).toBe(before.vertices);
+    expect(useAppStore.getState().floorData).toBe(before.floorData);
   });
 
   it('converts structures, sun, and category-fallback finishes', () => {
@@ -669,6 +773,74 @@ describe('native v2 canvas-backed floors', () => {
     expect(upper.vertices[alignment.targetEntityId]).toBeDefined();
     expect(report.rooms).toBe(2);
     expect(report.walls).toBe(10);
+  });
+
+  it('preserves different floor bounds and applies repeated upper-floor movement in project coordinates', () => {
+    const doc = fixture();
+    const roomCanvas = (label: string, x0: number, y0: number) => ({
+      ...canvas(label),
+      rooms: [{ id: `${label}-source`, name: label, x0, y0, x1: x0 + 100, y1: y0 + 100 }],
+      furniture: [],
+      text: [],
+    });
+    doc.floors[0].geometry = { ...emptyV2Geometry(), canvas: roomCanvas('Ground', 100, 100) };
+    doc.floors[1].geometry = { ...emptyV2Geometry(), canvas: roomCanvas('Upper', 350, 40) };
+    doc.cross_floor_references = [];
+
+    const first = convertVastuLayout(doc).project!;
+    const ground = first.geometryByFloor['floor-ground'];
+    const upper = first.geometryByFloor['floor-upper'];
+    const groundRoom = Object.values(ground.rooms)[0];
+    const upperRoom = Object.values(upper.rooms)[0];
+    const groundCorner = ground.vertices[groundRoom.boundaryVertexIds[0]].position;
+    const upperCorner = upper.vertices[upperRoom.boundaryVertexIds[0]].position;
+    expect({ x: upperCorner.x - groundCorner.x, y: upperCorner.y - groundCorner.y })
+      .toEqual({ x: 250, y: 60 });
+
+    importVastuLayout(doc);
+    const initialState = useAppStore.getState();
+    const parkedGround = initialState.floorData['floor-ground'];
+    const parkedRoom = Object.values(parkedGround.rooms)[0];
+    const activeRoom = Object.values(initialState.rooms)[0];
+    const parkedCorner = parkedGround.vertices[parkedRoom.boundaryVertexIds[0]].position;
+    const activeCorner = initialState.vertices[activeRoom.boundaryVertexIds[0]].position;
+    expect({ x: activeCorner.x - parkedCorner.x, y: activeCorner.y - parkedCorner.y })
+      .toEqual({ x: 250, y: 60 });
+
+    Object.assign(doc.floors[1].geometry.canvas.rooms[0], {
+      x0: 425, y0: 15, x1: 525, y1: 115,
+    });
+    const moved = convertVastuLayout(doc).project!.geometryByFloor['floor-upper'];
+    const movedRoom = Object.values(moved.rooms)[0];
+    const movedCorner = moved.vertices[movedRoom.boundaryVertexIds[0]].position;
+    expect({ x: movedCorner.x - upperCorner.x, y: movedCorner.y - upperCorner.y })
+      .toEqual({ x: 75, y: 25 });
+
+    importVastuLayout(doc);
+    const refreshedState = useAppStore.getState();
+    const refreshedRoom = Object.values(refreshedState.rooms)[0];
+    const refreshedCorner = refreshedState.vertices[refreshedRoom.boundaryVertexIds[0]].position;
+    expect(refreshedCorner).toEqual(movedCorner);
+  });
+
+  it('renders wall_openings embedded in a floor canvas as 3D openings (the Python editor path)', () => {
+    // The Tk editor emits v2 whose floor geometry embeds the v1 canvas; a placed
+    // window/ventilation lives in canvas.wall_openings and must survive to a real Opening.
+    const doc = fixture();
+    const upperCanvas = doc.floors[1].geometry.canvas as Record<string, unknown>;
+    upperCanvas.wall_openings = [
+      { id: 'win1', type: 'window', kind: 'window-sliding', x: 150, y: 100, width_cm: 120 },
+      { id: 'vent1', type: 'vent', kind: 'vent-normal', x: 200, y: 150, width_cm: 60 },
+    ];
+    const { project } = convertVastuLayout(doc);
+    const upper = project!.geometryByFloor['floor-upper'];
+    const types = Object.values(upper.openings).map((o) => o.type).sort();
+    // one pre-existing door (singlehand) + the new window + vent
+    expect(types).toEqual(['door', 'vent', 'window']);
+    // each new opening is hosted by a wall that lists it, so the extruder cuts it.
+    for (const op of Object.values(upper.openings)) {
+      expect(upper.walls[op.wallId].openingIds).toContain(op.id);
+    }
   });
 
   it('rejects a malformed nested v1 canvas with its floor path', () => {
