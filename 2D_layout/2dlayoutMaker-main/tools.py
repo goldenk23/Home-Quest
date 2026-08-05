@@ -21,8 +21,27 @@ except Exception:
 
 from PIL import Image, ImageDraw, ImageFont, ImageTk, ImageGrab
 from Furniture import Furniture, find_image_path
+
+# Wall openings drawn as architectural symbols directly on a hand-drawn wall line.
+# `width_ft` is the default span along the wall; `symbol` selects the drawing style.
+# Colour distinguishes ventilation (amber) from glazing (blue) at a glance.
+# `kind`/`otype` map each to the web opening catalog (src/domains/shared/openings/
+# openingCatalog.ts) so a placed opening serializes into native JSON and renders in 3D.
+WALL_OPENING_KINDS = {
+    "Sliding Window":  {"width_ft": 4.0, "symbol": "sliding",  "color": "#1687D9", "kind": "window-sliding", "otype": "window"},
+    "Casement Window": {"width_ft": 3.0, "symbol": "casement", "color": "#1687D9", "kind": "window-standard", "otype": "window"},
+    "Fixed Window":    {"width_ft": 3.0, "symbol": "fixed",    "color": "#1687D9", "kind": "window-large",    "otype": "window"},
+    "Bay Window":      {"width_ft": 6.0, "symbol": "bay",      "color": "#1687D9", "kind": "window-large",    "otype": "window"},
+    "Ventilation":     {"width_ft": 2.0, "symbol": "vent",     "color": "#F59E0B", "kind": "vent-normal",     "otype": "vent"},
+}
+# Many methods call show_message() bare (no local import); without this module-level
+# import those are latent NameErrors that crash on first use (e.g. the "Create Room"
+# success message). Local `from Helper.showMessage import show_message` in other
+# methods still work and simply rebind the same name.
+from Helper.showMessage import show_message
 from drawing_helpers import get_distance_label
 from geometry import calculate_polygon_area, calculate_polygon_perimeter
+from layout_schema import empty_geometry
 from polygon_label_placer import PolygonLabelPlacer
 
 
@@ -250,6 +269,7 @@ class CanvasTools:
         self.temp_origin = None
         self.unit_scale = model.unit_scale
         self.freeform_points = []
+        self.freeform_line_tags = []
         self.image_furniture_items = []
         self.selected_furniture_obj = None
         self.layout_move_mode = False
@@ -267,6 +287,9 @@ class CanvasTools:
         self.window_mode = False
         self.windows = []
         self.selected_window = None
+        # Vector openings (windows / ventilation) drawn directly on hand-drawn wall lines,
+        # as opposed to `windows` which cut Walls-Only RoomEntity walls.
+        self.wall_openings = []
         self.paste_ready = False
         self.group_id_counter = 1
         self.coord_label = None
@@ -406,6 +429,32 @@ class CanvasTools:
         try:
             if hasattr(self, "guideline_helper") and hasattr(self.guideline_helper, "on_zoom_changed"):
                 self.guideline_helper.on_zoom_changed(sf)
+        except Exception:
+            pass
+
+    def _trigger_room_detection(self) -> None:
+        """
+        Trigger planar-graph room detection (like React useRoomDetection).
+
+        Calls the serializer's ``refresh_detected_room_overlay`` so that every
+        time a wall/line is drawn or a closed loop is completed, the planar-graph
+        face-extraction algorithm re-runs and updates the detected room overlays.
+        Debounced to avoid performance issues on rapid drawing.
+        """
+        try:
+            serializer = getattr(self.actions, "serializer", None)
+            if serializer is None or not hasattr(serializer, "refresh_detected_room_overlay"):
+                return
+            # Debounce: cancel any pending refresh and schedule a new one.
+            if hasattr(self, "_room_detection_after_id") and self._room_detection_after_id:
+                try:
+                    self.root.after_cancel(self._room_detection_after_id)
+                except Exception:
+                    pass
+                self._room_detection_after_id = None
+            self._room_detection_after_id = self.root.after(
+                150, serializer.refresh_detected_room_overlay
+            )
         except Exception:
             pass
 
@@ -1178,40 +1227,114 @@ class CanvasTools:
                 calculated_distance = real_length
 
                 # Create line directly without input field - use calculated distance
-                self._create_line_from_distance(x0, y0, x1, y1, calculated_distance)
+                committed_end = self._create_line_from_distance(x0, y0, x1, y1, calculated_distance)
 
-                # Freeform closed-shape support
+                # Track the wall's tag so the loop can be deleted when it becomes a room.
+                if getattr(self, "_last_committed_line_tag", None):
+                    self.freeform_line_tags.append(self._last_committed_line_tag)
+
+                # Freeform closed-shape support. Use the committed (snapped) endpoint so
+                # the closing polygon shares its corners with the wall endpoints.
                 self.freeform_points.append((x0, y0))
-                self.freeform_points.append((x1, y1))
+                self.freeform_points.append(tuple(committed_end) if committed_end else (x1, y1))
 
                 if (
                     len(self.freeform_points) >= 3 and
-                    math.dist(self.freeform_points[0], self.freeform_points[-1]) < 10
+                    math.dist(self.freeform_points[0], self.freeform_points[-1]) < 20
                 ):
                     # Build closed polygon
                     polygon_points = [self.freeform_points[0]]
                     for pt in self.freeform_points[1:]:
                         if math.dist(pt, polygon_points[-1]) > 1:
                             polygon_points.append(pt)
+                    # A Tk polygon closes itself. Drop a final corner that merely lands
+                    # near the start, otherwise that near-duplicate vertex does not merge
+                    # with the wall graph and room detection reports a second room.
+                    if (
+                        len(polygon_points) > 3
+                        and math.dist(polygon_points[-1], polygon_points[0]) <= 10
+                    ):
+                        polygon_points.pop()
 
-                    flat = [coord for pt in polygon_points for coord in pt]
+                    # Convert the closed loop into a real RoomEntity so it snaps, drags,
+                    # and behaves identically to a Room-tool room. No separate code path.
+                    xs = [pt[0] for pt in polygon_points]
+                    ys = [pt[1] for pt in polygon_points]
+                    x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
+                    # Convert pixel bounds to real-world units for RoomEntity
+                    unit_scale = self.model.unit_scale.get(self.model.unit, 1.0)
+                    zoom = self.model.zoom_level
+                    grid = self.model.grid_spacing
+                    width_real = (x1 - x0) / grid / zoom * unit_scale
+                    height_real = (y1 - y0) / grid / zoom * unit_scale
 
-                    # Apply current line style (solid / bold / dashed) to closed shape outline
-                    style = getattr(self.model, "line_style", "solid")
-                    poly_width = 4 if style == "bold" else 2
-                    poly_dash = (4, 2) if style == "dashed" else None
+                    # Retire the loop BEFORE prompting. `askstring` runs a nested Tk event
+                    # loop, so the 150 ms detection debounce scheduled by the closing wall
+                    # fires while the dialog is open: with the walls still on the canvas the
+                    # planar-graph pass finds this very loop, draws an overlay label for it,
+                    # and the user sees a duplicate room name that vanishes on the next
+                    # refresh. Cancel the pending pass and delete the walls first, so there
+                    # is nothing left for a mid-dialog detection to name.
+                    if getattr(self, "_room_detection_after_id", None):
+                        try:
+                            self.root.after_cancel(self._room_detection_after_id)
+                        except Exception:
+                            pass
+                        self._room_detection_after_id = None
 
-                    polygon_id = self.canvas.create_polygon(
-                        flat,
-                        outline=self.model.line_color,
-                        fill=self.model.fill_color,
-                        width=poly_width,
-                        dash=poly_dash,
-                        tags=("closed_shape",),
+                    # Delete the drawn wall lines that formed this loop
+                    for line_tag in list(self.freeform_line_tags):
+                        for item in self.canvas.find_withtag(line_tag):
+                            self.canvas.delete(item)
+                        self.line_metadata.pop(line_tag, None)
+
+                    # Ask for a name
+                    from tkinter import simpledialog
+                    name = simpledialog.askstring(
+                        "Room Name", "Enter a name for this room:",
+                        initialvalue="Room", parent=self.root,
                     )
-                    self.actions.log({"type": "create", "items": [polygon_id]})
+                    if not name:
+                        name = "Room"
+
+                    # Create a real RoomEntity at the loop bounds
+                    from entities import RoomEntity
+                    group_id = getattr(self.model, "room_counter", 0)
+                    setattr(self.model, "room_counter", group_id + 1)
+                    room = RoomEntity(
+                        self.canvas, self.model, name,
+                        width_real, height_real, group_id,
+                        fill_mode="filled",
+                    )
+                    # Move the room to the loop's actual position
+                    self.canvas.move(room.group_tag, x0 - room.x0, y0 - room.y0)
+                    room.x0, room.y0 = x0, y0
+                    room.x1, room.y1 = x1, y1
+                    self.room_entities_by_group_tag[room.group_tag] = room
+
                     self.freeform_points.clear()
+                    self.freeform_line_tags.clear()
                     self.model.fill_color = ""
+                    self.first_point = None
+
+                    # Leave drawing mode now that the loop is a room. `on_click` checks
+                    # `drawing_enabled` BEFORE `select_item`, so if line mode stayed armed
+                    # every click would keep drawing and NO room (drawn or Room-tool) could
+                    # be selected, dragged, or snapped. Dropping the mode here is what lets
+                    # both tools coexist in one layout: draw a room, immediately drag/snap
+                    # it, switch tools freely.
+                    try:
+                        self._cancel_line_input()
+                    except Exception:
+                        pass
+                    self.drawing_line_mode = False
+                    self.model.set("drawing_enabled", False)
+                    try:
+                        self.canvas.config(cursor="arrow")
+                    except Exception:
+                        pass
+                    # Trigger planar-graph room detection (like React useRoomDetection)
+                    self._trigger_room_detection()
 
              # Line is already created by _create_line_from_distance, so just clean up preview
             if self.current_preview:
@@ -1460,6 +1583,7 @@ class CanvasTools:
             'width': width, 'dash': dash, 'color': self.model.line_color,
             'label': label, 'point': point
         }
+        self._last_committed_line_tag = line_tag
 
         self.actions.log({
             "type": "create",
@@ -1480,6 +1604,12 @@ class CanvasTools:
             except Exception:
                 pass
             self.temp_entry = None
+        # Trigger planar-graph room detection after each line segment is drawn
+        self._trigger_room_detection()
+        # Return the committed endpoint. The freeform closed-shape builder must use
+        # this snapped value, not the raw mouse point, or the closing polygon's
+        # corners miss the wall endpoints and room detection reports two rooms.
+        return final_x1, final_y1
 
     def finish_line_with_distance(self, event):
         try:
@@ -1692,18 +1822,31 @@ class CanvasTools:
                 width=2,
                 tags=(self._active_polygon_group_tag, "polygon_shape_preview"),
             )
-            # First vertex marker
+            # First vertex marker - LARGER and more visible with closing ring
+            # Outer closing target ring (visible when close)
+            self._polygon_first_point_ring = self.canvas.create_oval(
+                x - 15,
+                y - 15,
+                x + 15,
+                y + 15,
+                outline="#10B981",
+                width=2,
+                dash=(4, 4),
+                tags=(self._active_polygon_group_tag, "polygon_first_ring"),
+            )
+            # Inner point marker
             point = self.canvas.create_oval(
-                x - 2,
-                y - 2,
-                x + 2,
-                y + 2,
+                x - 4,
+                y - 4,
+                x + 4,
+                y + 4,
                 fill="green",
-                outline="",
-                tags=(self._active_polygon_group_tag, "polygon_vertex"),
+                outline="white",
+                width=2,
+                tags=(self._active_polygon_group_tag, "polygon_vertex", "polygon_first_point"),
             )
             self.canvas.tag_raise(point)
-            self.actions.log({"type": "create", "items": [point]})
+            self.actions.log({"type": "create", "items": [point, self._polygon_first_point_ring]})
             return
 
         # Check if clicked near first point → close polygon
@@ -1910,13 +2053,21 @@ class CanvasTools:
         return True
 
     def _close_to_first(self, event):
-        """Check if click is close to first vertex."""
+        """Check if click is close to first vertex.
+        
+        Larger radius (20px base + zoom adjustment) makes closing easier at any zoom level.
+        """
         if not self.polygon_points:
             return False
         x0, y0 = self.polygon_points[0]
         cx = self.canvas.canvasx(event.x)
         cy = self.canvas.canvasy(event.y)
-        return math.dist((cx, cy), (x0, y0)) < 10
+        
+        # Adaptive closing tolerance: larger at higher zoom for easier targeting
+        zoom = getattr(self.model, 'zoom_level', 1.0)
+        tolerance = 20.0 * zoom  # 20px base, scales with zoom
+        
+        return math.dist((cx, cy), (x0, y0)) < tolerance
 
     def update_polygon_preview(self, event):
         """Update live preview of polygon while mouse moves."""
@@ -1956,6 +2107,23 @@ class CanvasTools:
             cx, cy, self.polygon_points, x, y, snap_info
         )
         
+        # Highlight the first point when mouse is near (makes closing more obvious)
+        if len(self.polygon_points) >= 3 and hasattr(self, '_polygon_first_point_ring'):
+            x0, y0 = self.polygon_points[0]
+            zoom = getattr(self.model, 'zoom_level', 1.0)
+            closing_tolerance = 20.0 * zoom
+            distance_to_first = math.dist((cx, cy), (x0, y0))
+            
+            try:
+                if distance_to_first < closing_tolerance:
+                    # Mouse is near - highlight the ring in bright green with solid line
+                    self.canvas.itemconfig(self._polygon_first_point_ring, outline="#10B981", width=3, dash=())
+                else:
+                    # Mouse is far - restore subtle dashed ring
+                    self.canvas.itemconfig(self._polygon_first_point_ring, outline="#10B981", width=2, dash=(4, 4))
+            except Exception:
+                pass
+        
         group_tag = self._active_polygon_group_tag or "polygon_group_unknown"
         
         # Update polygon shape preview with current points + mouse position
@@ -1982,6 +2150,7 @@ class CanvasTools:
                 dist_to_first = math.dist((x, y), (first_x, first_y))
                 
                 if dist_to_first < 10:
+                    self._show_polygon_close_highlight(first_x, first_y)
                     # Show preview closing to first point
                     if self.polygon_preview_line:
                         try:
@@ -1998,7 +2167,8 @@ class CanvasTools:
                         tags=(group_tag, "polygon_preview_line")
                     )
                     return
-            
+
+            self._hide_polygon_close_highlight()
             # Normal preview: line from last point to current mouse position
             if self.polygon_preview_line:
                 try:
@@ -2054,10 +2224,187 @@ class CanvasTools:
                     )
             except Exception:
                 pass
+    def _validate_polygon_points(self, points):
+        """Return an error string when the polygon points form an invalid shape, else None."""
+        n = len(points)
+        if n < 3:
+            return "A polygon needs at least 3 points."
+
+        # Repeated points / zero-length edges
+        for i in range(n):
+            p1 = points[i]
+            p2 = points[(i + 1) % n]
+            if math.dist(p1, p2) < 0.01:
+                return "Two consecutive vertices are identical (zero-length edge)."
+        for i in range(n):
+            for j in range(i + 1, n):
+                if math.dist(points[i], points[j]) < 0.01:
+                    return "Two vertices overlap; repeated points are not allowed."
+
+        # Self-intersecting (crossed) edges
+        def _orient(p, q, r):
+            return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+
+        edges = [(points[i], points[(i + 1) % n]) for i in range(n)]
+        for i in range(n):
+            for j in range(i + 1, n):
+                if j == i or j == (i + 1) % n or i == (j + 1) % n:
+                    continue  # adjacent edges share a vertex
+                a, b = edges[i]
+                c, d = edges[j]
+                o1 = _orient(a, b, c)
+                o2 = _orient(a, b, d)
+                o3 = _orient(c, d, a)
+                o4 = _orient(c, d, b)
+                if (o1 * o2 < 0) and (o3 * o4 < 0):
+                    return "Polygon edges cross each other; self-intersecting shapes give wrong area/perimeter."
+        return None
+
+    def _show_polygon_close_highlight(self, x, y):
+        """Highlight the first vertex so the closing click target is obvious."""
+        highlight = getattr(self, "_polygon_close_highlight", None)
+        radius = 8
+        if highlight:
+            try:
+                self.canvas.coords(highlight, x - radius, y - radius, x + radius, y + radius)
+                self.canvas.tag_raise(highlight)
+                return
+            except Exception:
+                self._polygon_close_highlight = None
+        try:
+            self._polygon_close_highlight = self.canvas.create_oval(
+                x - radius, y - radius, x + radius, y + radius,
+                outline="#FF8800", width=3,
+                tags=("polygon_close_highlight",),
+            )
+            self.canvas.tag_raise(self._polygon_close_highlight)
+        except Exception:
+            self._polygon_close_highlight = None
+
+    def _hide_polygon_close_highlight(self):
+        highlight = getattr(self, "_polygon_close_highlight", None)
+        if highlight:
+            try:
+                self.canvas.delete(highlight)
+            except Exception:
+                pass
+        self._polygon_close_highlight = None
+
+    def cancel_polygon(self):
+        """Cancel the in-progress polygon, removing all placed points and previews."""
+        removed_any = False
+        while getattr(self, "polygon_points", []):
+            if not self.undo_last_polygon_point():
+                break
+            removed_any = True
+
+        for attr in ("polygon_preview_line", "current_line_label", "current_preview"):
+            item = getattr(self, attr, None)
+            if item:
+                try:
+                    self.canvas.delete(item)
+                except Exception:
+                    pass
+                setattr(self, attr, None)
+        self._hide_polygon_close_highlight()
+        self._active_polygon_group_tag = None
+        try:
+            self.guideline_helper.clear_guides()
+        except Exception:
+            pass
+        try:
+            self.model.set("polygon_mode", False)
+        except Exception:
+            try:
+                setattr(self.model, "polygon_mode", False)
+            except Exception:
+                pass
+        try:
+            self.view.canvas.config(cursor="arrow")
+        except Exception:
+            pass
+        if removed_any:
+            print("🟢 Polygon drawing cancelled.")
+
+    def _show_polygon_finish_controls(self):
+        """Show Finish and Cancel buttons for polygon drawing."""
+        try:
+            if hasattr(self, '_polygon_control_frame') and self._polygon_control_frame:
+                return  # Already showing
+            
+            from Helper.ctk_global import ctk
+            from Helper.color_scheme import COLORS
+            
+            # Create overlay frame at bottom of canvas
+            self._polygon_control_frame = ctk.CTkFrame(
+                self.canvas,
+                fg_color=COLORS.get("surface", "#F9FAFB"),
+                border_width=2,
+                border_color=COLORS.get("primary", "#4F46E5")
+            )
+            
+            ctk.CTkLabel(
+                self._polygon_control_frame,
+                text="Drawing Polygon...",
+                font=("Segoe UI", 11, "bold"),
+                text_color=COLORS.get("text_primary", "#0F172A")
+            ).pack(side="left", padx=(10, 5))
+            
+            ctk.CTkButton(
+                self._polygon_control_frame,
+                text="✓ Finish",
+                command=self.finish_polygon,
+                fg_color=COLORS.get("primary", "#4F46E5"),
+                hover_color=COLORS.get("primary_hover", "#4338CA"),
+                width=80,
+                height=32
+            ).pack(side="left", padx=5)
+            
+            ctk.CTkButton(
+                self._polygon_control_frame,
+                text="✕ Cancel",
+                command=self.cancel_polygon,
+                fg_color=COLORS.get("error", "#EF4444"),
+                hover_color="#DC2626",
+                width=80,
+                height=32
+            ).pack(side="left", padx=5)
+            
+            # Position at bottom center of canvas
+            self.canvas.update_idletasks()
+            canvas_width = self.canvas.winfo_width()
+            frame_width = 300
+            x = (canvas_width - frame_width) // 2
+            y = self.canvas.winfo_height() - 60
+            
+            self._polygon_control_frame.place(x=max(10, x), y=max(10, y), width=frame_width)
+        except Exception as e:
+            print(f"[Polygon Controls] Could not show finish controls: {e}")
+    
+    def _hide_polygon_finish_controls(self):
+        """Hide polygon finish/cancel controls."""
+        try:
+            if hasattr(self, '_polygon_control_frame') and self._polygon_control_frame:
+                self._polygon_control_frame.destroy()
+                self._polygon_control_frame = None
+        except Exception:
+            pass
+
     def finish_polygon(self):
         """Finalize polygon: lock shape, compute area/perimeter, add label."""
-        if len(self.polygon_points) < 3:
-            return  # Not a valid polygon
+        validation_error = self._validate_polygon_points(self.polygon_points)
+        if validation_error:
+            try:
+                messagebox.showwarning(
+                    "Invalid Polygon",
+                    f"{validation_error}\n\n"
+                    "Right-click to remove the last point, fix the shape, "
+                    "then click Finish again (or Cancel to start over)."
+                )
+            except Exception:
+                print(f"⚠️ Invalid polygon: {validation_error}")
+            return
+        self._hide_polygon_close_highlight()
 
         group_tag = self._active_polygon_group_tag or self._new_polygon_group_tag()
         self._active_polygon_group_tag = group_tag
@@ -2161,6 +2508,8 @@ class CanvasTools:
             self.view.canvas.config(cursor="arrow")
         except Exception:
             pass
+        # Trigger planar-graph room detection after polygon is finalized
+        self._trigger_room_detection()
 
     def toggle_polygon_transparency(self):
         """Toggle transparency of all polygons and their vertex markers."""
@@ -3736,6 +4085,13 @@ class CanvasTools:
         except Exception:
             pass
 
+        # Clear the active floor's canonical geometry before deleting its canvas.
+        # Otherwise structures survive invisibly and reappear on the next project edit.
+        serializer = getattr(self.actions, "serializer", None)
+        if serializer is not None:
+            serializer.project_state.replace_active_geometry(empty_geometry())
+            serializer._detected_room_overrides.clear()
+
         # Clear transient drawing state
         self.polygon_points = []
         self.current_preview = None
@@ -3748,6 +4104,7 @@ class CanvasTools:
         self.current_line_label = None
         self._active_polygon_group_tag = None
         self.freeform_points = []
+        self.freeform_line_tags = []
         self.first_point = None
 
         self.measure_points = []
@@ -3873,6 +4230,7 @@ class CanvasTools:
         self.selected_item = None
         self.selected_image_item = None
         self.freeform_points = []
+        self.freeform_line_tags = []
         self.first_point = None
         
         # CRITICAL: Clean up temp_entry when resetting modes
@@ -7324,6 +7682,198 @@ class CanvasTools:
         return True
 
     def create_room_from_closed_lines(self):
+        """
+        Name and style detected rooms created from closed line loops.
+
+        Uses the planar-graph room detection algorithm (same as React
+        useRoomDetection) to find all enclosed rooms, then prompts the
+        user to name and style each one with color options.
+        """
+        # Call refresh_detected_room_overlay DIRECTLY (synchronous)
+        serializer = getattr(self.actions, "serializer", None)
+        if serializer is None or not hasattr(serializer, "refresh_detected_room_overlay"):
+            show_message("error", "Create Room", "Serializer not available for room detection.")
+            return False
+
+        # Run detection synchronously
+        try:
+            serializer.refresh_detected_room_overlay()
+        except Exception as e:
+            print(f"[Create Room] Detection failed: {e}")
+            show_message("error", "Create Room", f"Room detection failed: {e}")
+            return False
+
+        # Collect all detected room polygons and labels, matched by entity ID
+        room_data = {}  # entity_id -> {"polygon": id, "label": id, "label_text": str}
+
+        for item in self.canvas.find_withtag("parity_detected_room"):
+            try:
+                tags = self.canvas.gettags(item)
+                item_type = self.canvas.type(item)
+                # Extract entity ID from tags
+                entity_id = None
+                for t in tags:
+                    t_str = str(t)
+                    if t_str.startswith("entity:"):
+                        entity_id = t_str.split(":", 1)[1]
+                        break
+                    elif t_str.startswith("detected_room_label:"):
+                        entity_id = t_str.split(":", 1)[1]
+                        break
+
+                if entity_id is None:
+                    continue
+
+                if entity_id not in room_data:
+                    room_data[entity_id] = {"polygon": None, "label": None, "label_text": ""}
+
+                if item_type == "polygon":
+                    room_data[entity_id]["polygon"] = item
+                elif item_type == "text":
+                    room_data[entity_id]["label"] = item
+                    try:
+                        room_data[entity_id]["label_text"] = self.canvas.itemcget(item, "text")
+                    except Exception:
+                        pass
+            except Exception:
+                continue
+
+        # Filter to only rooms that have both polygon and label
+        valid_rooms = {eid: data for eid, data in room_data.items()
+                       if data["polygon"] is not None and data["label"] is not None}
+
+        print(f"[Create Room] Detected {len(valid_rooms)} room(s)")
+
+        if not valid_rooms:
+            show_message(
+                "info",
+                "Create Room",
+                "No enclosed rooms detected.\n\n"
+                "Draw closed loops with the Line tool first, then click "
+                "'Lines -> Room' to name them."
+            )
+            return False
+
+        # Prompt user to name and style each detected room
+        named_count = 0
+        for entity_id, data in valid_rooms.items():
+            current_text = data["label_text"]
+            polygon_item = data["polygon"]
+            label_item = data["label"]
+
+            # Step 1: Ask for room name
+            name = simpledialog.askstring(
+                "Name Room",
+                f"Enter a name for this room:\n(current: {current_text})",
+                parent=self.root,
+                initialvalue=current_text,
+            )
+            if name is None:
+                continue
+            name = name.strip()
+            if not name:
+                continue
+
+            # Step 2: Ask for room style (filled/transparent/walls_only)
+            fill_mode = "filled"
+            fill_color = None
+            try:
+                import importlib.util
+                dlg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Helper", "room_style_dialog.py")
+                if os.path.isfile(dlg_path):
+                    spec = importlib.util.spec_from_file_location("_mini_autocad_room_style_dialog", dlg_path)
+                    if spec and spec.loader:
+                        module = importlib.util.module_from_spec(spec)
+                        try:
+                            import sys as _sys
+                            _sys.modules[spec.name] = module
+                        except Exception:
+                            pass
+                        spec.loader.exec_module(module)
+                        RoomStyleDialog = getattr(module, "RoomStyleDialog", None)
+                        if RoomStyleDialog:
+                            dlg = RoomStyleDialog(self.root)
+                            res = dlg.show()
+                            if res is not None:
+                                fill_mode = getattr(res, "fill_mode", "filled") or "filled"
+                                fill_color = getattr(res, "fill_color", None)
+                else:
+                    choice = simpledialog.askstring(
+                        "Room Style",
+                        f"Select style for '{name}':\n"
+                        "1 = Filled (default color)\n"
+                        "2 = Transparent (no fill)\n"
+                        "3 = Walls only (0.2 ft)\n\n"
+                        "Enter 1, 2, or 3:",
+                        parent=self.root,
+                    )
+                    if choice == "2":
+                        fill_mode = "transparent"
+                    elif choice == "3":
+                        fill_mode = "walls_only"
+            except Exception as e:
+                print(f"[Create Room] Style dialog error: {e}")
+
+            # Step 3: Apply the name and style to the detected room overlay
+            # Update label text
+            self.canvas.itemconfig(label_item, text=name)
+
+            # Apply fill color to the polygon based on style
+            if fill_mode == "filled":
+                actual_fill = fill_color or "#d0f0c0"
+                self.canvas.itemconfig(polygon_item, fill=actual_fill, outline="black", width=2)
+            elif fill_mode == "transparent":
+                self.canvas.itemconfig(polygon_item, fill="", outline="black", width=2)
+            elif fill_mode == "walls_only":
+                self.canvas.itemconfig(polygon_item, fill="", outline="black", width=4)
+
+            # Raise label above polygon
+            try:
+                self.canvas.tag_raise(label_item)
+            except Exception:
+                pass
+
+            # Persist the name + style so the next overlay refresh (auto-fired
+            # on canvas mutations such as clicking/dragging) keeps the
+            # appearance instead of wiping it. The override is keyed by the
+            # stable detected-room id found in the polygon's `entity:<id>` tag,
+            # matching the id used by serializer.refresh_detected_room_overlay.
+            override = {"label": name, "fill_mode": fill_mode}
+            if fill_color:
+                override["fill_color"] = fill_color
+            overrides = getattr(serializer, "_detected_room_overrides", None)
+            if overrides is None:
+                # Fallback: create the store even if the serializer didn't
+                # initialize it (older LayoutSerializer instance).
+                overrides = {}
+                setattr(serializer, "_detected_room_overrides", overrides)
+            entity_id = None
+            for t in self.canvas.gettags(polygon_item):
+                t_str = str(t)
+                if t_str.startswith("entity:"):
+                    entity_id = t_str.split(":", 1)[1]
+                    break
+            if entity_id:
+                overrides[entity_id] = override
+
+            named_count += 1
+
+        if named_count > 0:
+            # Re-run the overlay once so any refresh happened mid-loop doesn't
+            # discard the high-numbered entries (and applies the overrides now
+            # that they are stored).
+            try:
+                serializer.refresh_detected_room_overlay()
+            except Exception as refresh_err:
+                print(f"[Create Room] overlay refresh after save failed: {refresh_err}")
+            show_message(
+                "info",
+                "Create Room",
+                f"Named and styled {named_count} room(s) successfully."
+            )
+        return True
+
+    def _legacy_create_room_from_closed_lines(self):
         """Convert the newest clean four-line axis-aligned loop into a real room."""
         import itertools
         lines = list(self.canvas.find_withtag("committed_line"))[-12:]
@@ -7390,10 +7940,24 @@ class CanvasTools:
         return False
 
     def enable_window_mode(self):
+        # Ask the type FIRST (the popup the user expects on the button), then let them click
+        # any wall to drop that opening. Stay in the mode so several can be placed in a row;
+        # switching tools / right-click exits.
         self.reset_modes()
+        kind = self._choose_opening_kind()
+        if not kind:
+            return  # cancelled — do not enter placement mode
+        self._pending_opening_kind = kind
         self.window_mode = True
         self.model.set("window_mode", True)
         self.canvas.config(cursor="crosshair")
+        try:
+            show_message(
+                "info", "Windows & Ventilation",
+                f"Now click any wall to place a {kind}. Right-click or pick another tool to stop.",
+            )
+        except Exception:
+            pass
 
     def _window_room_side(self, x, y):
         best = None
@@ -7412,37 +7976,202 @@ class CanvasTools:
         return best if best and best[0] <= 18 else None
 
     def place_window(self, event):
+        # Type was already chosen when the tool was enabled. Just drop it on the nearest wall.
         x, y = self._event_to_canvas_coords(event)
-        match = self._window_room_side(x, y)
-        if not match:
-            show_message("error", "Window", "Click on a wall of a Walls Only room.")
-            return False
-        _, room, side = match
-        width = simpledialog.askfloat("Window", f"Window width ({self.model.unit}):", initialvalue=4.0, minvalue=0.1, parent=self.root)
-        if width is None:
-            return False
-        window_type = simpledialog.askstring("Window", "Type (sliding/casement/fixed):", initialvalue="sliding", parent=self.root) or "sliding"
+        kind = getattr(self, "_pending_opening_kind", None) or "Sliding Window"
+        near = self._nearest_wall_for_opening(x, y)
+        if not near:
+            show_message(
+                "info", "Windows & Ventilation",
+                "No wall there — click closer to a wall line (or a room's edge) to place it.",
+            )
+            return False  # stay in mode so the next click can try again
+        seg, inherit_tags = near
+        self._place_wall_opening_seg(seg, inherit_tags, x, y, kind)
+        return True  # remain in window mode for further placements
+
+    # ---- Vector openings (windows / ventilation) on hand-drawn wall lines -------------
+
+    @staticmethod
+    def _project_point_on_segment(px, py, x0, y0, x1, y1):
+        dx, dy = x1 - x0, y1 - y0
+        length_sq = dx * dx + dy * dy
+        if length_sq == 0:
+            return x0, y0
+        t = max(0.0, min(1.0, ((px - x0) * dx + (py - y0) * dy) / length_sq))
+        return x0 + t * dx, y0 + t * dy
+
+    def _wall_segments_for_opening(self):
+        """Every wall an opening can sit on, as (segment, tags_to_inherit).
+
+        Covers both hand-drawn walls (`committed_line`) and Walls-Only room rect edges, so
+        "click any wall" works regardless of how the room was made. The inherited tags let
+        the opening travel with the wall/room when it is dragged.
+        """
+        segments = []
+        for item in self.canvas.find_withtag("committed_line"):
+            try:
+                if self.canvas.type(item) != "line" or "grid" in self.canvas.gettags(item):
+                    continue
+                c = self.canvas.coords(item)
+            except Exception:
+                continue
+            if len(c) >= 4:
+                tags = tuple(
+                    t for t in self.canvas.gettags(item)
+                    if str(t).startswith("line_") or str(t).startswith("parity_room_drag:")
+                )
+                segments.append(((c[0], c[1], c[2], c[3]), tags))
+        for room in getattr(self, "room_entities_by_group_tag", {}).values():
+            try:
+                c = self.canvas.coords(getattr(room, "rect_id", None))
+            except Exception:
+                continue
+            if len(c) < 4:
+                continue
+            x0, y0, x1, y1 = map(float, c[:4])
+            gtag = getattr(room, "group_tag", None)
+            room_tags = (gtag,) if gtag else ()
+            for edge in ((x0, y0, x1, y0), (x1, y0, x1, y1), (x1, y1, x0, y1), (x0, y1, x0, y0)):
+                segments.append((edge, room_tags))
+        return segments
+
+    def _nearest_wall_for_opening(self, x, y, tol=28.0):
+        """Nearest placeable wall segment to (x, y): returns (segment, tags) or None.
+
+        Tolerance is deliberately generous so the user can click near a wall, not exactly on
+        the 1-px line.
+        """
+        best = None
+        for seg, tags in self._wall_segments_for_opening():
+            d = self._point_to_segment_distance((x, y), (seg[0], seg[1]), (seg[2], seg[3]))
+            if d <= tol and (best is None or d < best[0]):
+                best = (d, seg, tags)
+        return (best[1], best[2]) if best else None
+
+    def _choose_opening_kind(self):
+        """Modal listing the supported opening types; returns the chosen key or None."""
+        top = tk.Toplevel(self.root)
+        top.title("Windows & Ventilation")
+        top.transient(self.root)
+        top.resizable(False, False)
+        tk.Label(top, text="Select what to insert, then click a wall:",
+                 font=("Segoe UI", 10, "bold")).pack(padx=16, pady=(14, 8))
+        choice = {"kind": None}
+
+        def pick(name):
+            choice["kind"] = name
+            top.destroy()
+
+        for name in WALL_OPENING_KINDS:
+            tk.Button(top, text=name, width=24, command=lambda n=name: pick(n)).pack(padx=16, pady=3)
+        tk.Button(top, text="Cancel", width=24, command=top.destroy).pack(padx=16, pady=(6, 14))
+        try:
+            top.update_idletasks()
+            top.lift()
+            top.focus_force()
+            top.grab_set()
+            top.wait_window()
+        except Exception:
+            pass
+        return choice["kind"]
+
+    def _place_wall_opening_seg(self, seg, inherit_tags, px, py, kind):
+        """Draw + register an opening centred on `seg`, inheriting `inherit_tags`."""
+        spec = WALL_OPENING_KINDS.get(kind) or WALL_OPENING_KINDS["Sliding Window"]
         unit_scale = self.model.unit_scale.get(self.model.unit, 1.0)
-        width_px = width / unit_scale * self.model.grid_spacing * self.model.zoom_level
-        coords = self.canvas.coords(room.rect_id)
-        axis_min, axis_max, center = (coords[0], coords[2], x) if side in ("top", "bottom") else (coords[1], coords[3], y)
-        start, end = max(axis_min, center - width_px / 2), min(axis_max, center + width_px / 2)
-        self._record_manual_wall_erase(room, side, start, end)
-        window = {
-            "id": f"window_{len(self.windows) + 1}_{int(x)}_{int(y)}",
-            "room_group_tag": room.group_tag,
-            "wall_side": side,
-            "start": start / self.model.zoom_level,
-            "end": end / self.model.zoom_level,
-            "window_type": window_type.strip() or "sliding",
-        }
-        self.windows.append(window)
-        self._refresh_window_room(room)
-        self.select_window(window)
-        self.window_mode = False
-        self.model.set("window_mode", False)
-        self.canvas.config(cursor="arrow")
-        return True
+        width_px = spec["width_ft"] / unit_scale * self.model.grid_spacing * self.model.zoom_level
+        x0, y0, x1, y1 = seg
+        cx, cy = self._project_point_on_segment(px, py, x0, y0, x1, y1)
+        ux, uy = x1 - x0, y1 - y0
+        length = math.hypot(ux, uy) or 1.0
+        ux, uy = ux / length, uy / length          # along the wall
+        nx, ny = -uy, ux                            # across the wall
+
+        opening_id = f"opening_{len(self.wall_openings) + 1}_{int(cx)}_{int(cy)}"
+        inherit = tuple(t for t in (inherit_tags or ()) if t)
+        tags = ("wall_opening", "opening_symbol", opening_id) + inherit
+        item_ids = self._draw_opening_symbol(
+            spec["symbol"], cx, cy, ux, uy, nx, ny, width_px, spec["color"], tags
+        )
+        self.wall_openings.append({
+            "id": opening_id, "kind": kind, "wall_tags": list(inherit),
+            "item_ids": item_ids,
+            # For native-JSON export → 3D: catalog kind id, base type, wall-projected
+            # centre (canvas px) and physical width in cm.
+            "kind_id": spec.get("kind", "window-standard"),
+            "otype": spec.get("otype", "window"),
+            "cx": cx, "cy": cy,
+            "width_cm": spec["width_ft"] * 30.48,
+        })
+        try:
+            self.actions.log({"type": "create", "items": list(item_ids)})
+        except Exception:
+            pass
+        return opening_id
+
+    def _place_wall_opening(self, wall_item, seg, px, py, kind):
+        """Back-compat wrapper: place on `seg`, inheriting the wall item's group tags."""
+        inherit = tuple(
+            t for t in self.canvas.gettags(wall_item)
+            if str(t).startswith("line_") or str(t).startswith("parity_room_drag:")
+        )
+        return self._place_wall_opening_seg(seg, inherit, px, py, kind)
+
+    def _draw_opening_symbol(self, symbol, cx, cy, ux, uy, nx, ny, width_px, color, tags):
+        """Draw an architectural symbol for the opening, aligned to the wall.
+
+        Coordinates are built in a wall-local frame: `a` runs along the wall, `b` across it.
+        depth is fixed in pixels so symbols read clearly at any zoom.
+        """
+        hw = max(6.0, width_px / 2.0)
+        depth = 5.0
+
+        def pt(a, b):
+            return (cx + a * ux + b * nx, cy + a * uy + b * ny)
+
+        def line(a0, b0, a1, b1, **kw):
+            x_start, y_start = pt(a0, b0)
+            x_end, y_end = pt(a1, b1)
+            opts = {"fill": color, "width": 2, "tags": tags}
+            opts.update(kw)
+            return self.canvas.create_line(x_start, y_start, x_end, y_end, **opts)
+
+        ids = []
+        # Frame common to every opening: a rectangle spanning the width, straddling the wall.
+        ids += [
+            line(-hw, -depth, hw, -depth),
+            line(-hw, depth, hw, depth),
+            line(-hw, -depth, -hw, depth),
+            line(hw, -depth, hw, depth),
+        ]
+        if symbol == "sliding":
+            # Two overlapping panes: a centre mullion plus an offset inner pane line.
+            ids.append(line(0, -depth, 0, depth))
+            ids.append(line(-hw, 0, hw * 0.1, 0))
+            ids.append(line(-hw * 0.1, 0, hw, 0, dash=(3, 2)))
+        elif symbol == "casement":
+            # Single pane with a hinge diagonal (opening indication).
+            ids.append(line(0, -depth, 0, depth))
+            ids.append(line(-hw, depth, 0, -depth))
+            ids.append(line(hw, depth, 0, -depth))
+        elif symbol == "fixed":
+            # Fixed light: an X across the glazing.
+            ids.append(line(-hw, -depth, hw, depth))
+            ids.append(line(-hw, depth, hw, -depth))
+        elif symbol == "bay":
+            # Projected bay: an outer parallel run pushed out from the wall + angled returns.
+            out = depth * 2.4
+            ids.append(line(-hw * 0.55, -out, hw * 0.55, -out))
+            ids.append(line(-hw, -depth, -hw * 0.55, -out))
+            ids.append(line(hw, -depth, hw * 0.55, -out))
+            ids.append(line(0, -out, 0, depth))
+        else:  # "vent" — louvered ventilator: several short slats across the width.
+            slats = 4
+            for i in range(slats):
+                a = -hw + (i + 0.5) * (2 * hw / slats)
+                ids.append(line(a, -depth, a, depth))
+        return ids
 
     def _draw_window_object(self, window):
         room = self.room_entities_by_group_tag.get(window.get("room_group_tag"))
@@ -9144,7 +9873,17 @@ class CanvasTools:
             pass
 
     def finish_vastu_polygon(self):
+        """Complete and validate the Vastu polygon, showing clear errors if invalid."""
+        from Helper.showMessage import show_message
+        
         if len(self.vastu_polygon_points) < 3:
+            show_message("error", "Vastu Polygon", "At least 3 points are required to create a Vastu polygon.")
+            return
+
+        # Validate the polygon geometry
+        error_msg = self._validate_polygon_points(self.vastu_polygon_points)
+        if error_msg:
+            show_message("error", "Invalid Vastu Polygon", error_msg)
             return
 
         # Remove only temporary strokes from the current drawing session.
@@ -9175,12 +9914,16 @@ class CanvasTools:
         )
 
         # Robust: pick a center point inside polygon (prevents missing/partial zones)
-        gen = VastuPolygonGenerator(self.vastu_polygon_points)
-        center = gen.get_center_inside()
-        if center is None:
+        try:
+            gen = VastuPolygonGenerator(self.vastu_polygon_points)
+            center = gen.get_center_inside()
+            if center is None:
+                cx, cy = self.calculate_polygon_centroid(self.vastu_polygon_points)
+            else:
+                cx, cy = center
+        except Exception as e:
+            show_message("error", "Vastu Center Calculation", f"Could not find polygon center: {e}")
             cx, cy = self.calculate_polygon_centroid(self.vastu_polygon_points)
-        else:
-            cx, cy = center
 
         self.vastu_north_deg = self._ask_vastu_north_deg(default_deg=self.vastu_north_deg)
         self._draw_vastu_north_marker(cx, cy, self.vastu_north_deg)
@@ -9853,11 +10596,41 @@ class CanvasTools:
         widgets = self.room_widgets
         name = widgets["name"].get().strip()
         try:
-            length = float(widgets["length"].get())
-            breadth = float(widgets["breadth"].get())
+            from drawing_helpers import parse_length_input
+            _unit = getattr(self.model, "unit", "ft")
+            length = parse_length_input(widgets["length"].get(), _unit)
+            breadth = parse_length_input(widgets["breadth"].get(), _unit)
         except ValueError:
-            messagebox.showerror("Validation Error", "Please enter valid numbers for length and breadth.")
+            messagebox.showerror(
+                "Validation Error",
+                "Please enter valid numbers for length and breadth.\n"
+                "Feet and inches are also accepted, e.g. 5' 2\" or 5 ft 2 in."
+            )
             return
+        if length <= 0 or breadth <= 0:
+            messagebox.showerror("Validation Error", "Length and breadth must be greater than 0.")
+            return
+
+        # Validate balcony inputs before touching the room geometry.
+        side = widgets["balcony_side"].get()
+        depth_str = widgets["balcony_depth"].get().strip()
+        depth = None
+        if side == "None" and depth_str:
+            messagebox.showerror(
+                "Validation Error",
+                "Balcony depth entered but Curved Balcony is set to None. Please choose a side."
+            )
+            return
+        if side != "None" and depth_str:
+            try:
+                from drawing_helpers import parse_length_input as _pli
+                depth = _pli(depth_str, getattr(self.model, "unit", "ft"))
+            except ValueError:
+                messagebox.showerror("Validation Error", "Balcony depth must be a valid number (e.g. 3 or 3' 6\").")
+                return
+            if depth <= 0:
+                messagebox.showerror("Validation Error", "Balcony depth must be greater than 0.")
+                return
             
         # Update room entity data
         room.name = name
@@ -9888,16 +10661,9 @@ class CanvasTools:
         # Redraw
         room.create()
         
-        # Update balcony
-        side = widgets["balcony_side"].get()
-        depth_str = widgets["balcony_depth"].get().strip()
-        if side != "None" and depth_str:
-            try:
-                depth = float(depth_str)
-                if depth > 0:
-                    self._draw_balcony_for_room(room, side, depth)
-            except ValueError:
-                pass
+        # Update balcony (already validated above)
+        if side != "None" and depth:
+            self._draw_balcony_for_room(room, side, depth)
         
         # Log for undo
         self.actions.log({

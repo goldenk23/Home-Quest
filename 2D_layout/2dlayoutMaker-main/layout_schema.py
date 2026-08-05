@@ -9,7 +9,7 @@ from typing import Any, Iterable
 VERSION = "2.0"
 GEOMETRY_COLLECTIONS = (
     "vertices", "walls", "rooms", "openings", "furniture", "shapes", "text",
-    "pillars", "beams", "deck_slabs", "railings",
+    "pillars", "beams", "deck_slabs", "railings", "stairs",
 )
 DEFAULT_SUN_SETTINGS = {
     "time_hours": 12.0,
@@ -19,6 +19,7 @@ DEFAULT_SUN_SETTINGS = {
 _REFERENCE_KEYS = {
     "start_vertex_id", "end_vertex_id", "boundary_vertex_ids", "opening_ids",
     "wall_id", "wall_ids", "room_id", "host_id", "deck_slab_id", "post_ids",
+    "beam_ids",
 }
 
 
@@ -226,6 +227,21 @@ def _validate_structures(geometry: dict[str, Any], path: str) -> None:
         if "elevation_cm" in item:
             _number(item["elevation_cm"], f"{base}.elevation_cm")
         _validate_polygon(item.get("polygon"), f"{base}.polygon")
+    for index, stair in enumerate(geometry.get("stairs", [])):
+        base = f"{path}.stairs[{index}]"
+        item = _mapping(stair, base)
+        width = _number(item.get("width_cm"), f"{base}.width_cm", positive=True)
+        if not 60 <= width <= 500:
+            _fail(f"{base}.width_cm", "must be in [60, 500]")
+        _text(item.get("lower_floor_id"), f"{base}.lower_floor_id")
+        _text(item.get("upper_floor_id"), f"{base}.upper_floor_id")
+        points = _array(item.get("path_points"), f"{base}.path_points")
+        if len(points) < 2:
+            _fail(f"{base}.path_points", "must contain at least two points")
+        parsed = [_point(point, f"{base}.path_points[{i}]") for i, point in enumerate(points)]
+        for point_index, (start, end) in enumerate(zip(parsed, parsed[1:])):
+            if math.hypot(end[0] - start[0], end[1] - start[1]) <= 1e-9:
+                _fail(f"{base}.path_points[{point_index + 1}]", "must differ from the previous point")
 
 
 def _iter_references(entity: dict[str, Any], base: str) -> Iterable[tuple[str, str]]:
@@ -253,8 +269,10 @@ def validate_v2(document: dict[str, Any]) -> dict[str, Any]:
     floor_ids: set[str] = set()
     floor_names: set[str] = set()
     elevations: set[float] = set()
+    floor_elevations: dict[str, float] = {}
     entity_owner: dict[str, str] = {}
     entities: list[tuple[dict[str, Any], str, str]] = []
+    stair_entities: list[tuple[dict[str, Any], str, str]] = []
     ground_count = 0
     for floor_index, raw_floor in enumerate(floors):
         base = f"floors[{floor_index}]"
@@ -273,6 +291,7 @@ def validate_v2(document: dict[str, Any]) -> dict[str, Any]:
         if elevation in elevations:
             _fail(f"{base}.elevation_cm", "must be unique")
         elevations.add(elevation)
+        floor_elevations[floor_id] = elevation
         ground_count += elevation == 0
         geometry = _mapping(floor.get("geometry"), f"{base}.geometry")
         if "canvas" in geometry:
@@ -291,6 +310,8 @@ def validate_v2(document: dict[str, Any]) -> dict[str, Any]:
                     _fail(f"{entity_path}.id", "must be globally unique")
                 entity_owner[entity_id] = floor_id
                 entities.append((entity, entity_path, floor_id))
+                if collection == "stairs":
+                    stair_entities.append((entity, entity_path, floor_id))
                 if collection == "vertices":
                     _point(entity.get("position", {"x": entity.get("x"), "y": entity.get("y")}), f"{entity_path}.position")
                 elif collection == "walls":
@@ -308,6 +329,16 @@ def validate_v2(document: dict[str, Any]) -> dict[str, Any]:
     active_floor_id = _text(root.get("active_floor_id"), "active_floor_id")
     if active_floor_id not in floor_ids:
         _fail("active_floor_id", "must reference an existing floor")
+
+    for stair, path, owner in stair_entities:
+        lower_floor_id = _text(stair.get("lower_floor_id"), f"{path}.lower_floor_id")
+        upper_floor_id = _text(stair.get("upper_floor_id"), f"{path}.upper_floor_id")
+        if lower_floor_id != owner:
+            _fail(f"{path}.lower_floor_id", "must equal the floor containing the staircase")
+        if upper_floor_id not in floor_ids:
+            _fail(f"{path}.upper_floor_id", "must reference an existing floor")
+        if floor_elevations[upper_floor_id] <= floor_elevations[owner]:
+            _fail(f"{path}.upper_floor_id", "must reference a floor above the staircase")
 
     for entity, path, owner in entities:
         for reference, reference_path in _iter_references(entity, path):
