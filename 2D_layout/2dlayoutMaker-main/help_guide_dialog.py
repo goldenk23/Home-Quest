@@ -171,8 +171,71 @@ HINDI_FEATURE_GUIDES = [
     ),
 ]
 
-# Pair every new English guide with its Hindi version; search works in either language.
-NEW_FEATURE_GUIDES = [
+# Separate English and Hindi guides (not paired)
+ENGLISH_FEATURE_GUIDES = NEW_FEATURE_GUIDES
+HINDI_FEATURE_GUIDES_ONLY = HINDI_FEATURE_GUIDES
+
+# Shortcuts content
+ENGLISH_SHORTCUTS = [
+    ("🖱️ Left Click", "Start drawing / Place points & furniture"),
+    ("🖱️ Right Click / ESC", "Finish drawing / Cancel active tool"),
+    ("⌨️ 'R' Key", "Rotate selected furniture clockwise 15°"),
+    ("⌨️ Shift + 'R'", "Rotate selected furniture anti-clockwise 15°"),
+    ("⌨️ '0' Key", "Reset furniture to its initial orientation"),
+    ("⌨️ 'F' Key", "Flip selected furniture horizontally"),
+    ("⌨️ 'V' Key", "Flip selected furniture vertically"),
+    ("⌨️ 'Delete' Key", "Delete selected furniture item"),
+    ("⌨️ Ctrl + Z", "Undo last drawing action"),
+    ("⌨️ Ctrl + Y", "Redo undone drawing action"),
+    ("⌨️ Ctrl + S", "Save canvas layout immediately")
+]
+
+HINDI_SHORTCUTS = [
+    ("🖱️ Left Click", "रेखा बनाना / फर्नीचर स्थापित करना शुरू करें"),
+    ("🖱️ Right Click / ESC", "रेखा पूर्ण करें / टूल रद्द करें"),
+    ("⌨️ 'R' Key", "चुना हुआ फर्नीचर clockwise घुमाएं 15°"),
+    ("⌨️ Shift + 'R'", "चुना हुआ फर्नीचर anti-clockwise घुमाएं 15°"),
+    ("⌨️ '0' Key", "फर्नीचर को शुरुआती दिशा में लाएं"),
+    ("⌨️ 'F' Key", "फर्नीचर को क्षैतिज रूप से पलटें"),
+    ("⌨️ 'V' Key", "फर्नीचर को लंबवत रूप से पलटें"),
+    ("⌨️ 'Delete' Key", "चुना हुआ फर्नीचर हटाएं"),
+    ("⌨️ Ctrl + Z", "पिछला बदलाव वापस लें"),
+    ("⌨️ Ctrl + Y", "वापस लिया बदलाव फिर से लागू करें"),
+    ("⌨️ Ctrl + S", "कैनवास लेआउट तुरंत सेव करें")
+]
+
+# Tools content
+ENGLISH_TOOLS = [
+    ("✏️ Draw Tab", "Draw lines/walls, create custom closed polygons, fill regions with colors, add text labels, or apply flooring styles (wood, tile, marble)."),
+    ("🏠 Room Tab", "Instantly add pre-defined room sizes (rectangular, L-shaped, balcony) and place doors, windows, or a directional compass."),
+    ("🪑 Furniture Tab", "Choose from common household categories (Beds, Sofas, Kitchen, TV, etc.) and place them seamlessly inside your rooms."),
+    ("📍 Coordinates Tab", "Input numerical (x,y) measurements to draw shapes with millimeter/pixel precision."),
+    ("⬜ Layout Tab", "Automatically design random layout boundaries with pre-defined configurations.")
+]
+
+HINDI_TOOLS = [
+    ("✏️ Draw Tab", "Lines/walls बनाएं, बंद polygons बनाएं, रंग भरें, text labels जोड़ें, या flooring styles (wood, tile, marble) लगाएं।"),
+    ("🏠 Room Tab", "पहले से तय आकार के rooms (rectangular, L-shaped, balcony) जोड़ें और doors, windows या compass लगाएं।"),
+    ("🪑 Furniture Tab", "घरेलू categories (Beds, Sofas, Kitchen, TV, आदि) से चुनें और अपने rooms में रखें।"),
+    ("📍 Coordinates Tab", "Numerical (x,y) measurements से millimeter/pixel precision में shapes बनाएं।"),
+    ("⬜ Layout Tab", "पहले से तय configurations से automatically random layout boundaries बनाएं।")
+]
+
+# Vastu content
+ENGLISH_VASTU = [
+    ("🧭 Vastu Polygon", "Select Vastu Tab, click 'Create Vastu Polygon', and click vertices around your layout boundary to generate the Vastu Wheel."),
+    ("🗺️ Zone Splits", "You can split your layout into 8, 16, or 32 zones. Set the 32 zones mode to Vedic or Moderne Vastu as needed."),
+    ("📐 Measuring Directions", "Ensure the North Direction (usually upwards) aligns with your Vastu compass to correctly locate Entrance (Dehleez), Kitchen, Bed, and Toilet locations.")
+]
+
+HINDI_VASTU = [
+    ("🧭 Vastu Polygon", "Vastu Tab चुनें, 'Create Vastu Polygon' पर क्लिक करें, और अपने layout boundary के vertices पर क्लिक करके Vastu Wheel बनाएं।"),
+    ("🗺️ Zone Splits", "अपने layout को 8, 16, या 32 zones में विभाजित करें। 32 zones mode को Vedic या Moderne Vastu में set करें।"),
+    ("📐 Measuring Directions", "North Direction (आमतौर पर ऊपर की ओर) को अपने Vastu compass से align करें ताकि Entrance (देहलीज), Kitchen, Bed और Toilet की सही जगह पता चले।")
+]
+
+# Keep paired version for backward compatibility during transition
+PAIRED_FEATURE_GUIDES = [
     (
         f"{english[0]} / {hindi[0]}",
         f"{english[1]}\n\nहिंदी: {hindi[1]}",
@@ -206,10 +269,10 @@ class HelpGuideDialogTTKB(tk.Toplevel):
         self.minsize(680, 560)
         self.resizable(True, True)
         
-        # Window properties
+        # Window properties - Non-modal so users can work alongside the guide
         self.transient(parent)
         set_window_icon(self)
-        self.grab_set()  # Make modal
+        # self.grab_set()  # Removed: allow working in editor while guide is open
         self.focus_set()
         
         # Center the window
@@ -253,7 +316,10 @@ class HelpGuideDialogTTKB(tk.Toplevel):
         main_frame = ttkb.Frame(self, bootstyle="light")
         main_frame.pack(fill="both", expand=True, padx=12, pady=12)
         
-        # Title and full-screen control
+        # Global language selection state
+        current_language = tk.StringVar(value="english")  # Default to English
+        
+        # Title, language toggle, and full-screen control
         title_row = ttkb.Frame(main_frame, bootstyle="light")
         title_row.pack(fill="x", pady=(10, 15))
         title_label = ttkb.Label(
@@ -263,15 +329,32 @@ class HelpGuideDialogTTKB(tk.Toplevel):
             bootstyle="primary"
         )
         title_label.pack(side="left", expand=True)
+        
+        # Full-screen button (pack first on right side)
         expand_btn = ttkb.Button(title_row, text="⛶ Full Screen", bootstyle="primary-outline")
         expand_btn.configure(command=lambda: _toggle_full_screen(self, expand_btn))
         expand_btn.pack(side="right", padx=(8, 0))
+        
+        # Global language toggle buttons (pack second on right side, appears left of full-screen)
+        lang_frame = ttkb.Frame(title_row, bootstyle="light")
+        lang_frame.pack(side="right", padx=(8, 8))
+        
+        def switch_to_english():
+            current_language.set("english")
+            refresh_all_tabs()
+            
+        def switch_to_hindi():
+            current_language.set("hindi")
+            refresh_all_tabs()
+        
+        ttkb.Button(lang_frame, text="English", bootstyle="primary", width=10, command=switch_to_english).pack(side="left", padx=2)
+        ttkb.Button(lang_frame, text="हिंदी", bootstyle="info", width=10, command=switch_to_hindi).pack(side="left", padx=2)
         
         # Visible bilingual navigation keeps all original help sections available.
         guide_nav = ttkb.Frame(main_frame, bootstyle="light")
         guide_nav.pack(fill="x", padx=5, pady=(0, 5))
         nav_items = (
-            ("✨ New Features / नई सुविधाएँ", 0, "primary"),
+            ("🛠️ Editing Tools / संपादन टूल्स", 0, "primary"),
             ("⌨ Shortcuts / शॉर्टकट", 1, "secondary"),
             ("🧰 Tools / टूल्स", 2, "info"),
             ("🧭 Vastu / वास्तु", 3, "warning"),
@@ -293,16 +376,18 @@ class HelpGuideDialogTTKB(tk.Toplevel):
         tools_tab = ttkb.Frame(notebook)
         vastu_tab = ttkb.Frame(notebook)
 
-        notebook.add(feature_tab, text="✨ New Features")
+        notebook.add(feature_tab, text="🛠️ Editing Tools")
         notebook.add(controls_tab, text="Controls & Shortcuts")
         notebook.add(tools_tab, text="Tools Overview")
         notebook.add(vastu_tab, text="Vastu Guide")
         notebook.select(feature_tab)
 
         # Interactive, searchable feature guide. Card headings expand/collapse on click.
+        
         feature_controls = ttkb.Frame(feature_tab)
         feature_controls.pack(fill="x", padx=8, pady=(8, 4))
-        ttkb.Label(feature_controls, text="Search guide / सहायता खोजें:", font=("Segoe UI", 10, "bold")).pack(side="left", padx=(0, 6))
+        
+        ttkb.Label(feature_controls, text="Search / खोजें:", font=("Segoe UI", 10, "bold")).pack(side="left", padx=(0, 6))
         feature_search_var = tk.StringVar()
         feature_search = ttkb.Entry(feature_controls, textvariable=feature_search_var)
         feature_search.pack(side="left", fill="x", expand=True)
@@ -328,10 +413,19 @@ class HelpGuideDialogTTKB(tk.Toplevel):
             for child in feature_card_host.winfo_children():
                 child.destroy()
             feature_bodies.clear()
+            
+            # Select guide set based on current language
+            lang = current_language.get()
+            if lang == "hindi":
+                guides = HINDI_FEATURE_GUIDES_ONLY
+            else:
+                guides = ENGLISH_FEATURE_GUIDES
+            
             query = feature_search_var.get().strip().lower()
-            matches = [guide for guide in NEW_FEATURE_GUIDES if not query or query in " ".join(guide).lower()]
+            matches = [guide for guide in guides if not query or query in " ".join(guide).lower()]
             if not matches:
-                ttkb.Label(feature_card_host, text="No matching topic / कोई विषय नहीं मिला। window, line, furniture, zoom, save या load खोजें।", bootstyle="warning").pack(pady=30)
+                no_match_text = "कोई विषय नहीं मिला। window, line, furniture, zoom, save या load खोजें।" if lang == "hindi" else "No matching topic found. Try: window, line, furniture, zoom, save, load"
+                ttkb.Label(feature_card_host, text=no_match_text, bootstyle="warning").pack(pady=30)
                 return
             for index, (title, summary, steps, tip) in enumerate(matches):
                 card = ttkb.Frame(feature_card_host, bootstyle="light", padding=6)
@@ -349,7 +443,8 @@ class HelpGuideDialogTTKB(tk.Toplevel):
                 ttkb.Button(card, text=title, command=toggle, bootstyle="primary-outline", width=58).pack(fill="x")
                 ttkb.Label(body, text=summary, font=("Segoe UI", 10, "bold"), justify="left", wraplength=610).pack(fill="x", pady=(8, 5))
                 ttkb.Label(body, text=steps, justify="left", wraplength=610, bootstyle="secondary").pack(fill="x")
-                ttkb.Label(body, text=f"💡 Tip: {tip}", justify="left", wraplength=610, bootstyle="info").pack(fill="x", pady=(7, 0))
+                tip_prefix = "💡 सुझाव: " if lang == "hindi" else "💡 Tip: "
+                ttkb.Label(body, text=f"{tip_prefix}{tip}", justify="left", wraplength=610, bootstyle="info").pack(fill="x", pady=(7, 0))
                 if state["open"]:
                     body.pack(fill="x", padx=10, pady=(0, 8))
                 feature_bodies.append((body, state))
@@ -358,109 +453,122 @@ class HelpGuideDialogTTKB(tk.Toplevel):
         render_feature_cards()
         feature_search.focus_set()
 
-        # Populate Controls Tab
-        controls_scroll = ScrolledFrame(controls_tab, autohide=True, bootstyle="light")
-        controls_scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        # Store tab content containers for refresh
+        shortcuts_container = ttkb.Frame(controls_tab)
+        tools_container = ttkb.Frame(tools_tab)
+        vastu_container = ttkb.Frame(vastu_tab)
         
-        shortcuts_list = [
-            ("🖱️ Left Click", "Start drawing / Place points & furniture\n(रेखा बनाना / फर्नीचर स्थापित करना शुरू करें)"),
-            ("🖱️ Right Click / ESC", "Finish drawing / Cancel active tool\n(रेखा पूर्ण करें / टूल रद्द करें)"),
-            ("⌨️ 'R' Key", "Rotate selected furniture clockwise 15°\n(चुना हुआ फर्नीचर clockwise घुमाएं)"),
-            ("⌨️ Shift + 'R'", "Rotate selected furniture anti-clockwise 15°\n(चुना हुआ फर्नीचर anti-clockwise घुमाएं)"),
-            ("⌨️ '0' Key", "Reset furniture to its initial orientation\n(फर्नीचर को शुरुआती दिशा में लाएं)"),
-            ("⌨️ 'F' Key", "Flip selected furniture horizontally\n(फर्नीचर को क्षैतिज रूप से पलटें)"),
-            ("⌨️ 'V' Key", "Flip selected furniture vertically\n(फर्नीचर को लंबवत रूप से पलटें)"),
-            ("⌨️ 'Delete' Key", "Delete selected furniture item\n(चुना हुआ फर्नीचर हटाएं)"),
-            ("⌨️ Ctrl + Z", "Undo last drawing action\n(पिछला बदलाव वापस लें)"),
-            ("⌨️ Ctrl + Y", "Redo undone drawing action\n(वापस लिया बदलाव फिर से लागू करें)"),
-            ("⌨️ Ctrl + S", "Save canvas layout immediately\n(कैनवास लेआउट तुरंत सेव करें)")
-        ]
-        
-        for shortcut, desc in shortcuts_list:
-            row_frame = ttkb.Frame(controls_scroll)
-            row_frame.pack(fill="x", pady=6, padx=5)
+        def render_shortcuts_tab():
+            for child in shortcuts_container.winfo_children():
+                child.destroy()
+            shortcuts_container.pack_forget()
+            shortcuts_container.pack(fill="both", expand=True, padx=5, pady=5)
             
-            lbl_key = ttkb.Label(
-                row_frame,
-                text=shortcut,
-                style="Keycap.TLabel",
-                width=24
-            )
-            lbl_key.pack(side="left", padx=(0, 10))
+            lang = current_language.get()
+            shortcuts = HINDI_SHORTCUTS if lang == "hindi" else ENGLISH_SHORTCUTS
             
-            lbl_desc = ttkb.Label(
-                row_frame,
-                text=desc,
-                font=("Segoe UI", 10),
-                bootstyle="secondary",
-                justify="left",
-                anchor="w"
-            )
-            lbl_desc.pack(side="left", fill="x", expand=True)
-
-        # Populate Tools Tab
-        tools_scroll = ScrolledFrame(tools_tab, autohide=True, bootstyle="light")
-        tools_scroll.pack(fill="both", expand=True, padx=5, pady=5)
-        
-        tools_desc = [
-            ("✏️ Draw Tab", "Draw lines/walls, create custom closed polygons, fill regions with colors, add text labels, or apply flooring styles (wood, tile, marble)."),
-            ("🏠 Room Tab", "Instantly add pre-defined room sizes (rectangular, L-shaped, balcony) and place doors, windows, or a directional compass."),
-            ("🪑 Furniture Tab", "Choose from common household categories (Beds, Sofas, Kitchen, TV, etc.) and place them seamlessly inside your rooms."),
-            ("📍 Coordinates Tab", "Input numerical (x,y) measurements to draw shapes with millimeter/pixel precision."),
-            ("⬜ Layout Tab", "Automatically design random layout boundaries with pre-defined configurations.")
-        ]
-        
-        for name, desc in tools_desc:
-            lbl_title = ttkb.Label(
-                tools_scroll,
-                text=name,
-                font=("Segoe UI", 12, "bold"),
-                bootstyle="primary",
-                anchor="w"
-            )
-            lbl_title.pack(fill="x", padx=10, pady=(8, 2))
+            scroll = ScrolledFrame(shortcuts_container, autohide=True, bootstyle="light")
+            scroll.pack(fill="both", expand=True)
             
-            lbl_body = ttkb.Label(
-                tools_scroll,
-                text=desc,
-                font=("Segoe UI", 10),
-                bootstyle="secondary",
-                justify="left",
-                anchor="w",
-                wraplength=500
-            )
-            lbl_body.pack(fill="x", padx=10, pady=(0, 8))
-
-        # Populate Vastu Tab
-        vastu_scroll = ScrolledFrame(vastu_tab, autohide=True, bootstyle="light")
-        vastu_scroll.pack(fill="both", expand=True, padx=5, pady=5)
+            for shortcut, desc in shortcuts:
+                row_frame = ttkb.Frame(scroll)
+                row_frame.pack(fill="x", pady=6, padx=5)
+                
+                lbl_key = ttkb.Label(
+                    row_frame,
+                    text=shortcut,
+                    style="Keycap.TLabel",
+                    width=24
+                )
+                lbl_key.pack(side="left", padx=(0, 10))
+                
+                lbl_desc = ttkb.Label(
+                    row_frame,
+                    text=desc,
+                    font=("Segoe UI", 10),
+                    bootstyle="secondary",
+                    justify="left",
+                    anchor="w"
+                )
+                lbl_desc.pack(side="left", fill="x", expand=True)
         
-        vastu_tips = [
-            ("🧭 Vastu Polygon", "Select Vastu Tab, click 'Create Vastu Polygon', and click vertices around your layout boundary to generate the Vastu Wheel."),
-            ("🗺️ Zone Splits", "You can split your layout into 8, 16, or 32 zones. Set the 32 zones mode to Vedic or Moderne Vastu as needed."),
-            ("📐 Measuring Directions", "Ensure the North Direction (usually upwards) aligns with your Vastu compass to correctly locate Entrance (Dehleez), Kitchen, Bed, and Toilet locations.")
-        ]
-        
-        for title, desc in vastu_tips:
-            lbl_title = ttkb.Label(
-                vastu_scroll,
-                text=title,
-                font=("Segoe UI", 12, "bold"),
-                bootstyle="warning",
-                anchor="w"
-            )
-            lbl_title.pack(fill="x", padx=10, pady=(8, 2))
+        def render_tools_tab():
+            for child in tools_container.winfo_children():
+                child.destroy()
+            tools_container.pack_forget()
+            tools_container.pack(fill="both", expand=True, padx=5, pady=5)
             
-            lbl_body = ttkb.Label(
-                vastu_scroll,
-                text=desc,
-                font=("Segoe UI", 10),
-                bootstyle="secondary",
-                justify="left",
-                anchor="w",
-                wraplength=500
-            )
-            lbl_body.pack(fill="x", padx=10, pady=(0, 8))
+            lang = current_language.get()
+            tools = HINDI_TOOLS if lang == "hindi" else ENGLISH_TOOLS
+            
+            scroll = ScrolledFrame(tools_container, autohide=True, bootstyle="light")
+            scroll.pack(fill="both", expand=True)
+            
+            for name, desc in tools:
+                lbl_title = ttkb.Label(
+                    scroll,
+                    text=name,
+                    font=("Segoe UI", 12, "bold"),
+                    bootstyle="primary",
+                    anchor="w"
+                )
+                lbl_title.pack(fill="x", padx=10, pady=(8, 2))
+                
+                lbl_body = ttkb.Label(
+                    scroll,
+                    text=desc,
+                    font=("Segoe UI", 10),
+                    bootstyle="secondary",
+                    justify="left",
+                    anchor="w",
+                    wraplength=500
+                )
+                lbl_body.pack(fill="x", padx=10, pady=(0, 8))
+        
+        def render_vastu_tab():
+            for child in vastu_container.winfo_children():
+                child.destroy()
+            vastu_container.pack_forget()
+            vastu_container.pack(fill="both", expand=True, padx=5, pady=5)
+            
+            lang = current_language.get()
+            vastu_tips = HINDI_VASTU if lang == "hindi" else ENGLISH_VASTU
+            
+            scroll = ScrolledFrame(vastu_container, autohide=True, bootstyle="light")
+            scroll.pack(fill="both", expand=True)
+            
+            for title, desc in vastu_tips:
+                lbl_title = ttkb.Label(
+                    scroll,
+                    text=title,
+                    font=("Segoe UI", 12, "bold"),
+                    bootstyle="warning",
+                    anchor="w"
+                )
+                lbl_title.pack(fill="x", padx=10, pady=(8, 2))
+                
+                lbl_body = ttkb.Label(
+                    scroll,
+                    text=desc,
+                    font=("Segoe UI", 10),
+                    bootstyle="secondary",
+                    justify="left",
+                    anchor="w",
+                    wraplength=500
+                )
+                lbl_body.pack(fill="x", padx=10, pady=(0, 8))
+        
+        def refresh_all_tabs():
+            """Refresh all tab content when language changes"""
+            render_feature_cards()
+            render_shortcuts_tab()
+            render_tools_tab()
+            render_vastu_tab()
+        
+        # Initial render
+        render_shortcuts_tab()
+        render_tools_tab()
+        render_vastu_tab()
             
         # Close button
         close_btn = ttkb.Button(
@@ -490,16 +598,19 @@ class HelpGuideDialogCTK(ctk.CTkToplevel):
         self.minsize(680, 560)
         self.resizable(True, True)
         
-        # Bring to front
+        # Bring to front - Non-modal so users can work alongside the guide
         self.lift()
         self.focus_force()
-        self.grab_set()  # Make modal
+        # self.grab_set()  # Removed: allow working in editor while guide is open
         
         # Main layout
         main_frame = ctk.CTkFrame(self, fg_color=COLORS.get("surface", "#F9FAFB"))
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Title and full-screen control
+        # Global language selection state
+        current_language = tk.StringVar(value="english")  # Default to English
+        
+        # Title, language toggle, and full-screen control
         title_row = ctk.CTkFrame(main_frame, fg_color="transparent")
         title_row.pack(fill="x", pady=(10, 15))
         ctk.CTkLabel(
@@ -508,9 +619,26 @@ class HelpGuideDialogCTK(ctk.CTkToplevel):
             font=("Segoe UI", 16, "bold"),
             text_color=COLORS.get("primary", "#4F46E5")
         ).pack(side="left", expand=True)
+        
+        # Full-screen button (pack first on right side)
         expand_btn = ctk.CTkButton(title_row, text="⛶ Full Screen", width=110, height=30)
         expand_btn.configure(command=lambda: _toggle_full_screen(self, expand_btn))
         expand_btn.pack(side="right", padx=(8, 0))
+        
+        # Global language toggle buttons (pack second on right side, appears left of full-screen)
+        lang_frame = ctk.CTkFrame(title_row, fg_color="transparent")
+        lang_frame.pack(side="right", padx=(8, 8))
+        
+        def switch_to_english():
+            current_language.set("english")
+            refresh_all_tabs()
+            
+        def switch_to_hindi():
+            current_language.set("hindi")
+            refresh_all_tabs()
+        
+        ctk.CTkButton(lang_frame, text="English", width=80, height=28, command=switch_to_english).pack(side="left", padx=2)
+        ctk.CTkButton(lang_frame, text="हिंदी", width=80, height=28, fg_color=COLORS.get("info", "#3B82F6"), command=switch_to_hindi).pack(side="left", padx=2)
         
         # Tabview
         tabview = ctk.CTkTabview(
@@ -521,14 +649,15 @@ class HelpGuideDialogCTK(ctk.CTkToplevel):
         tabview.pack(fill="both", expand=True, padx=5, pady=5)
         
         controls_tab = tabview.add("Controls & Shortcuts")
-        feature_tab = tabview.add("New Features")
+        feature_tab = tabview.add("🛠️ Editing Tools")
         tools_tab = tabview.add("Tools Overview")
         vastu_tab = tabview.add("Vastu Guide")
-        tabview.set("New Features")
+        tabview.set("🛠️ Editing Tools")
 
         feature_controls = ctk.CTkFrame(feature_tab, fg_color="transparent")
         feature_controls.pack(fill="x", pady=(4, 6))
-        ctk.CTkLabel(feature_controls, text="Search guide / सहायता खोजें:", font=("Segoe UI", 10, "bold")).pack(side="left", padx=(4, 6))
+        
+        ctk.CTkLabel(feature_controls, text="Search / खोजें:", font=("Segoe UI", 10, "bold")).pack(side="left", padx=(4, 6))
         feature_search_var = tk.StringVar()
         feature_search = ctk.CTkEntry(feature_controls, textvariable=feature_search_var, placeholder_text="window, line, furniture, zoom...")
         feature_search.pack(side="left", fill="x", expand=True)
@@ -552,10 +681,19 @@ class HelpGuideDialogCTK(ctk.CTkToplevel):
             for child in feature_scroll.winfo_children():
                 child.destroy()
             feature_bodies.clear()
+            
+            # Select guide set based on current language
+            lang = current_language.get()
+            if lang == "hindi":
+                guides = HINDI_FEATURE_GUIDES_ONLY
+            else:
+                guides = ENGLISH_FEATURE_GUIDES
+            
             query = feature_search_var.get().strip().lower()
-            matches = [guide for guide in NEW_FEATURE_GUIDES if not query or query in " ".join(guide).lower()]
+            matches = [guide for guide in guides if not query or query in " ".join(guide).lower()]
             if not matches:
-                ctk.CTkLabel(feature_scroll, text="No matching topic / कोई विषय नहीं मिला। window, line, furniture, zoom, save या load खोजें।", text_color=COLORS.get("warning", "#F59E0B")).pack(pady=30)
+                no_match_text = "कोई विषय नहीं मिला। window, line, furniture, zoom, save या load खोजें।" if lang == "hindi" else "No matching topic found. Try: window, line, furniture, zoom, save, load"
+                ctk.CTkLabel(feature_scroll, text=no_match_text, text_color=COLORS.get("warning", "#F59E0B")).pack(pady=30)
                 return
             for index, (title, summary, steps, tip) in enumerate(matches):
                 card = ctk.CTkFrame(feature_scroll, fg_color=COLORS.get("surface", "#F9FAFB"), border_width=1, border_color=COLORS.get("border", "#E5E7EB"))
@@ -573,7 +711,8 @@ class HelpGuideDialogCTK(ctk.CTkToplevel):
                 ctk.CTkButton(card, text=title, command=toggle, anchor="w", height=34, fg_color=COLORS.get("primary", "#4F46E5")).pack(fill="x", padx=5, pady=5)
                 ctk.CTkLabel(body, text=summary, font=("Segoe UI", 10, "bold"), justify="left", anchor="w", wraplength=570).pack(fill="x", pady=(5, 4))
                 ctk.CTkLabel(body, text=steps, justify="left", anchor="w", wraplength=570, text_color=COLORS.get("text_secondary", "#6B7280")).pack(fill="x")
-                ctk.CTkLabel(body, text=f"💡 Tip: {tip}", justify="left", anchor="w", wraplength=570, text_color=COLORS.get("info", "#3B82F6")).pack(fill="x", pady=(6, 0))
+                tip_prefix = "💡 सुझाव: " if lang == "hindi" else "💡 Tip: "
+                ctk.CTkLabel(body, text=f"{tip_prefix}{tip}", justify="left", anchor="w", wraplength=570, text_color=COLORS.get("info", "#3B82F6")).pack(fill="x", pady=(6, 0))
                 if state["open"]:
                     body.pack(fill="x", padx=8, pady=(0, 6))
                 feature_bodies.append((body, state))

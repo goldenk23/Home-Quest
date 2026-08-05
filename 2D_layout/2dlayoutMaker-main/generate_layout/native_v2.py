@@ -22,7 +22,7 @@ _DEFAULT_FLOOR_NAMES = ("Ground Floor", "First Floor", "Second Floor", "Third Fl
 # Mirrors layout_schema.GEOMETRY_COLLECTIONS so a stacked floor matches a natively-migrated one.
 _GEOMETRY_COLLECTIONS = (
     "vertices", "walls", "rooms", "openings", "furniture", "shapes", "text",
-    "pillars", "beams", "deck_slabs", "railings",
+    "pillars", "beams", "deck_slabs", "railings", "stairs",
 )
 
 

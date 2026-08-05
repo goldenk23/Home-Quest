@@ -189,14 +189,7 @@ class DrawToolbarTab:
         if hasattr(self.tools, "create_tooltip"):
             self.tools.create_tooltip(line_btn, "Draw connected, snapping line segments. Press Escape or right-click to stop.")
 
-        window_btn = ctk.CTkButton(
-            draw_body, text="🪟 Window", command=self.tools.enable_window_mode,
-            fg_color=COLORS["info"], hover_color="#2563EB", height=34,
-            corner_radius=6, text_color=COLORS["text_white"],
-        )
-        window_btn.pack(pady=4, padx=10, fill="x")
-        if hasattr(self.tools, "create_tooltip"):
-            self.tools.create_tooltip(window_btn, "Place a typed, editable window opening on a Walls Only room.")
+        # Windows & Ventilation moved to the Furniture panel (see toolbar.py).
 
         line_actions = ctk.CTkFrame(draw_body, fg_color="transparent")
         line_actions.pack(pady=(0, 4), padx=10, fill="x")
@@ -277,6 +270,39 @@ class DrawToolbarTab:
         if hasattr(self.tools, "create_tooltip"):
             self.tools.create_tooltip(poly_btn, "Draw customized rooms or boundaries with multiple points.")
 
+        # Explicit finish/cancel actions for polygon drawing (enabled only in polygon mode)
+        poly_actions = ctk.CTkFrame(draw_body, fg_color="transparent")
+        poly_actions.pack(pady=(0, 4), padx=10, fill="x")
+        poly_actions.columnconfigure(0, weight=1)
+        poly_actions.columnconfigure(1, weight=1)
+        finish_poly_btn = ctk.CTkButton(
+            poly_actions,
+            text="✔ Finish",
+            command=self.tools.finish_polygon,
+            fg_color=COLORS["secondary"],
+            hover_color=COLORS["secondary_hover"],
+            height=30,
+            corner_radius=6,
+            text_color=COLORS["text_white"],
+            state="disabled",
+        )
+        finish_poly_btn.grid(row=0, column=0, padx=(0, 2), sticky="ew")
+        cancel_poly_btn = ctk.CTkButton(
+            poly_actions,
+            text="✖ Cancel",
+            command=self.tools.cancel_polygon,
+            fg_color=COLORS["error"],
+            hover_color="#DC2626",
+            height=30,
+            corner_radius=6,
+            text_color=COLORS["text_white"],
+            state="disabled",
+        )
+        cancel_poly_btn.grid(row=0, column=1, padx=(2, 0), sticky="ew")
+        if hasattr(self.tools, "create_tooltip"):
+            self.tools.create_tooltip(finish_poly_btn, "Finish and close the polygon (or click the highlighted first point).")
+            self.tools.create_tooltip(cancel_poly_btn, "Discard the in-progress polygon and all its points.")
+
         # Toggle: draw measurement (dimension) lines on polygon completion
         poly_dims_toggle = PolygonMeasurementsToggleController(draw_body, self.model)
         poly_dims_toggle.pack(pady=(0, 6), padx=24, fill="x")
@@ -332,6 +358,11 @@ class DrawToolbarTab:
                 _update_btn(poly_btn, "polygon_mode", COLORS["accent"])
                 _update_btn(fill_btn, "fill_mode_enabled", COLORS["secondary"])
                 _update_btn(text_btn, "text_insertion_mode", COLORS["info"])
+
+                poly_state = "normal" if bool(self.model.get("polygon_mode")) else "disabled"
+                for action_btn in (finish_poly_btn, cancel_poly_btn):
+                    if action_btn.cget("state") != poly_state:
+                        action_btn.configure(state=poly_state)
                 
                 draw_body.after(1000, _sync_tool_highlight)
             except Exception:

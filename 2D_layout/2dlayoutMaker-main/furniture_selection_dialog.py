@@ -96,9 +96,9 @@ class FurnitureSelectionDialog:
         # Debug: print items received
         print(f"[DEBUG] FurnitureSelectionDialog init - category: '{category}', items: {items}")
         if "tv" in [i.lower() for i in items]:
-            print(f"[DEBUG] ✓ 'tv' FOUND in items list")
+            print("[DEBUG] 'tv' FOUND in items list")
         else:
-            print(f"[DEBUG] ✗ 'tv' NOT found in items list")
+            print("[DEBUG] 'tv' NOT found in items list")
 
         # Create dialog window (standard Tk Toplevel so it works with ttkbootstrap)
         self.dialog = tk.Toplevel(parent)

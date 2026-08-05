@@ -133,14 +133,14 @@ class CoordinateToolbarTab:
         grid_line.columnconfigure(0, weight=1)
         grid_line.columnconfigure(1, weight=1)
         
-        x1_entry = ctk.CTkEntry(grid_line, placeholder_text="x1 (Start X)", border_color=COLORS["border"], fg_color="white", text_color=COLORS["text_primary"], height=28)
+        x1_entry = ctk.CTkEntry(grid_line, placeholder_text="x1 (Start X)", border_color=COLORS["border"], fg_color="white", text_color="#0F172A", height=28)
         x1_entry.grid(row=0, column=0, padx=2, pady=2, sticky="ew")
-        y1_entry = ctk.CTkEntry(grid_line, placeholder_text="y1 (Start Y)", border_color=COLORS["border"], fg_color="white", text_color=COLORS["text_primary"], height=28)
+        y1_entry = ctk.CTkEntry(grid_line, placeholder_text="y1 (Start Y)", border_color=COLORS["border"], fg_color="white", text_color="#0F172A", height=28)
         y1_entry.grid(row=0, column=1, padx=2, pady=2, sticky="ew")
         
-        x2_entry = ctk.CTkEntry(grid_line, placeholder_text="x2 (End X)", border_color=COLORS["border"], fg_color="white", text_color=COLORS["text_primary"], height=28)
+        x2_entry = ctk.CTkEntry(grid_line, placeholder_text="x2 (End X)", border_color=COLORS["border"], fg_color="white", text_color="#0F172A", height=28)
         x2_entry.grid(row=1, column=0, padx=2, pady=2, sticky="ew")
-        y2_entry = ctk.CTkEntry(grid_line, placeholder_text="y2 (End Y)", border_color=COLORS["border"], fg_color="white", text_color=COLORS["text_primary"], height=28)
+        y2_entry = ctk.CTkEntry(grid_line, placeholder_text="y2 (End Y)", border_color=COLORS["border"], fg_color="white", text_color="#0F172A", height=28)
         y2_entry.grid(row=1, column=1, padx=2, pady=2, sticky="ew")
 
         self._apply_coord_input_validation(x1_entry)
@@ -193,14 +193,14 @@ class CoordinateToolbarTab:
         grid_rect.columnconfigure(0, weight=1)
         grid_rect.columnconfigure(1, weight=1)
         
-        rx1_entry = ctk.CTkEntry(grid_rect, placeholder_text="x1 (Corner 1 X)", border_color=COLORS["border"], fg_color="white", text_color=COLORS["text_primary"], height=28)
+        rx1_entry = ctk.CTkEntry(grid_rect, placeholder_text="x1 (Corner 1 X)", border_color=COLORS["border"], fg_color="white", text_color="#0F172A", height=28)
         rx1_entry.grid(row=0, column=0, padx=2, pady=2, sticky="ew")
-        ry1_entry = ctk.CTkEntry(grid_rect, placeholder_text="y1 (Corner 1 Y)", border_color=COLORS["border"], fg_color="white", text_color=COLORS["text_primary"], height=28)
+        ry1_entry = ctk.CTkEntry(grid_rect, placeholder_text="y1 (Corner 1 Y)", border_color=COLORS["border"], fg_color="white", text_color="#0F172A", height=28)
         ry1_entry.grid(row=0, column=1, padx=2, pady=2, sticky="ew")
         
-        rx2_entry = ctk.CTkEntry(grid_rect, placeholder_text="x2 (Corner 2 X)", border_color=COLORS["border"], fg_color="white", text_color=COLORS["text_primary"], height=28)
+        rx2_entry = ctk.CTkEntry(grid_rect, placeholder_text="x2 (Corner 2 X)", border_color=COLORS["border"], fg_color="white", text_color="#0F172A", height=28)
         rx2_entry.grid(row=1, column=0, padx=2, pady=2, sticky="ew")
-        ry2_entry = ctk.CTkEntry(grid_rect, placeholder_text="y2 (Corner 2 Y)", border_color=COLORS["border"], fg_color="white", text_color=COLORS["text_primary"], height=28)
+        ry2_entry = ctk.CTkEntry(grid_rect, placeholder_text="y2 (Corner 2 Y)", border_color=COLORS["border"], fg_color="white", text_color="#0F172A", height=28)
         ry2_entry.grid(row=1, column=1, padx=2, pady=2, sticky="ew")
 
         self._apply_coord_input_validation(rx1_entry)
@@ -253,12 +253,12 @@ class CoordinateToolbarTab:
         grid_circle.columnconfigure(0, weight=1)
         grid_circle.columnconfigure(1, weight=1)
         
-        cx_entry = ctk.CTkEntry(grid_circle, placeholder_text="cx (Center X)", border_color=COLORS["border"], fg_color="white", text_color=COLORS["text_primary"], height=28)
+        cx_entry = ctk.CTkEntry(grid_circle, placeholder_text="cx (Center X)", border_color=COLORS["border"], fg_color="white", text_color="#0F172A", height=28)
         cx_entry.grid(row=0, column=0, padx=2, pady=2, sticky="ew")
-        cy_entry = ctk.CTkEntry(grid_circle, placeholder_text="cy (Center Y)", border_color=COLORS["border"], fg_color="white", text_color=COLORS["text_primary"], height=28)
+        cy_entry = ctk.CTkEntry(grid_circle, placeholder_text="cy (Center Y)", border_color=COLORS["border"], fg_color="white", text_color="#0F172A", height=28)
         cy_entry.grid(row=0, column=1, padx=2, pady=2, sticky="ew")
         
-        r_entry = ctk.CTkEntry(circle_frame, placeholder_text="r (Radius)", border_color=COLORS["border"], fg_color="white", text_color=COLORS["text_primary"], height=28)
+        r_entry = ctk.CTkEntry(circle_frame, placeholder_text="r (Radius)", border_color=COLORS["border"], fg_color="white", text_color="#0F172A", height=28)
         r_entry.pack(fill="x", padx=10, pady=2)
 
         self._apply_coord_input_validation(cx_entry)

@@ -236,6 +236,30 @@ class VastuToolbarTab:
     def __init__(self, root, tools) -> None:
         self.root = root
         self.tools = tools
+        self._status_label = None
+
+    def _set_status(self, message: str, error: bool = False) -> None:
+        """Show a short status/error in the tab so failures are never silent."""
+        try:
+            print(message)
+        except Exception:
+            pass
+        label = self._status_label
+        if label is None:
+            return
+        try:
+            if not label.winfo_exists():
+                self._status_label = None
+                return
+            label.configure(
+                text=message,
+                text_color="#FCA5A5" if error else COLORS.get("text_secondary", "#C5D1E1"),
+            )
+        except Exception:
+            pass
+
+    def _report_error(self, context: str, exc: Exception) -> None:
+        self._set_status(f"⚠ {context}: {exc}", error=True)
 
     def build(self, vaastu_body) -> None:
         # 1. Info Help Card
@@ -284,6 +308,18 @@ class VastuToolbarTab:
             anchor="w",
             justify="left",
         ).pack(fill="x", padx=8, pady=(0, 10))
+
+        # Status line: setup/refresh errors are shown here instead of failing silently.
+        self._status_label = ctk.CTkLabel(
+            vaastu_body,
+            text="",
+            font=("Segoe UI", 10),
+            text_color=COLORS["text_secondary"],
+            wraplength=190,
+            anchor="w",
+            justify="left",
+        )
+        self._status_label.pack(fill="x", padx=10, pady=(0, 6))
         
         # Vastu tools section
         vastu_frame = ctk.CTkFrame(
@@ -344,8 +380,8 @@ class VastuToolbarTab:
                 self.tools.create_tooltip(mv_slices_rb, "Drag vertices to move individual vastu slices.")
 
             _apply_vastu_move_mode()
-        except Exception:
-            pass
+        except Exception as e:
+            self._report_error("Move-mode setup failed; restart the app if Vastu move mode does not work", e)
 
         try:
             reset_slices_btn = ctk.CTkButton(
@@ -361,8 +397,8 @@ class VastuToolbarTab:
             reset_slices_btn.pack(fill="x", padx=10, pady=(0, 8))
             if hasattr(self.tools, "create_tooltip"):
                 self.tools.create_tooltip(reset_slices_btn, "Reset vastu boundary modifications back to standard shapes.")
-        except Exception:
-            pass
+        except Exception as e:
+            self._report_error("Reset Slices setup failed", e)
 
         try:
             from vastu_polygon.constants import ZONE_COUNT_CHOICES, DEFAULT_ZONE_COUNT

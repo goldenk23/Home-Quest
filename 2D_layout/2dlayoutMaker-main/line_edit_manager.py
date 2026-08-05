@@ -81,6 +81,20 @@ class LineEditManager:
 
     def _end_drag(self, _event) -> None:
         self.dragging_handle = None
+        # Re-run planar-graph room detection so the detected-room overlay
+        # (name + fill color from "Lines → Room") follows the moved wall
+        # endpoint. Without this the polygon/label stays at the old position
+        # and the room color and boundary appear separated after a move.
+        try:
+            trigger = getattr(self.tools, "_trigger_room_detection", None)
+            if callable(trigger):
+                trigger()
+            else:
+                serializer = getattr(self.tools.actions, "serializer", None)
+                if serializer is not None and hasattr(serializer, "refresh_detected_room_overlay"):
+                    serializer.refresh_detected_room_overlay()
+        except Exception:
+            pass
 
     def _update_handle_position(self, kind: str, x: float, y: float) -> None:
         handle_id = self.handle_ids.get(kind)
