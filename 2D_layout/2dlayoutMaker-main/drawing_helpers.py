@@ -1,6 +1,62 @@
 # drawing_helpers.py
 import math
+import re
 from config import UNIT_SCALE, GRID_SPACING
+
+
+_FEET_IN_RE = re.compile(
+    r"^\s*([0-9]*\.?[0-9]+)\s*(?:'|ft|feet|foot)\s*(?:([0-9]*\.?[0-9]+)\s*(?:\"|''|in|inch|inches)?)?\s*$"
+)
+_INCH_RE = re.compile(r'^\s*([0-9]*\.?[0-9]+)\s*(?:"|\'\'|in|inch|inches)\s*$')
+
+
+def parse_length_input(text, unit="ft"):
+    """Parse a length entry into the given unit.
+
+    Accepts plain decimals ("5.17") and feet+inches formats such as
+    "5 ft 2 in", "5' 2\"", "5'2". Bare "N in" / 'N"' values are treated as inches.
+    Raises ValueError when the text cannot be understood.
+    """
+    s = str(text or "").strip().lower()
+    if not s:
+        raise ValueError("empty length")
+    try:
+        return float(s)
+    except ValueError:
+        pass
+
+    m = _FEET_IN_RE.match(s)
+    if m:
+        total_ft = float(m.group(1)) + (float(m.group(2)) / 12.0 if m.group(2) else 0.0)
+        if unit == "in":
+            return total_ft * 12.0
+        if unit == "m":
+            return total_ft * 0.3048
+        return total_ft  # default ft
+
+    m = _INCH_RE.match(s)
+    if m:
+        inches = float(m.group(1))
+        if unit == "in":
+            return inches
+        if unit == "m":
+            return inches * 0.0254
+        return inches / 12.0  # default ft
+
+    raise ValueError(f"cannot parse length: {text!r}")
+
+
+def format_length_normalized(value, unit="ft"):
+    """Normalized display for a parsed length (feet+inches when unit is ft)."""
+    if unit == "ft":
+        feet = int(value)
+        inches = round((value - feet) * 12.0, 2)
+        if inches >= 12.0:
+            feet += 1
+            inches = 0.0
+        return f"{feet}' {inches}\""
+    return f"{value:.2f} {unit}"
+
 
 def get_distance_label(x0, y0, x1, y1, unit, zoom_level=1.0):
     dx = x1 - x0

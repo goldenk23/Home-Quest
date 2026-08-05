@@ -40,6 +40,40 @@ try:
 except Exception:
     pass
 
+import datetime
+import faulthandler
+
+# app.pyw runs without a console, so tracebacks printed to stderr are discarded and
+# every crash looks silent. Mirror them to a file next to the app so a reproduction can
+# actually be diagnosed. faulthandler additionally catches hard faults (segfault, stack
+# overflow) that never reach a Python except hook.
+_CRASH_LOG_PATH = os.path.join(_THIS_DIR, "crash.log")
+
+
+def _append_crash_log(header: str, exc, val, tb) -> None:
+    try:
+        import traceback as _tb
+        with open(_CRASH_LOG_PATH, "a", encoding="utf-8") as fh:
+            fh.write(f"\n===== {header} @ {datetime.datetime.now().isoformat()} =====\n")
+            _tb.print_exception(exc, val, tb, file=fh)
+    except Exception:
+        pass
+
+
+try:
+    _faulthandler_fh = open(_CRASH_LOG_PATH, "a", encoding="utf-8")
+    faulthandler.enable(file=_faulthandler_fh)
+except Exception:
+    _faulthandler_fh = None
+
+
+def _log_uncaught(exc, val, tb):
+    _append_crash_log("UNCAUGHT", exc, val, tb)
+    sys.__excepthook__(exc, val, tb)
+
+
+sys.excepthook = _log_uncaught
+
 from action import ActionManager
 from app_paths import AppPathManager
 from controller import CanvasController
@@ -163,15 +197,12 @@ class MiniAutoCADApp:
         )
         self.canvas_toolbar_host.pack(side="top", fill="x")
 
-        # Rounded segmented workspace switch; commands still use the original flow.
+        # Rounded segmented workspace switch; use dark background matching navbar
         self.workspace_tabs = ctk.CTkFrame(
             self.canvas_toolbar_host,
-            bg_color=COLORS["surface_raised"],
-            fg_color=COLORS["surface_dark"],
-            border_color=COLORS["border_strong"],
-            border_width=1,
-            corner_radius=8,
-            width=174,
+            fg_color="#081321",
+            corner_radius=0,
+            width=264,
             height=42,
         )
         self.workspace_tabs.pack(side="right", fill="y", padx=(3, 7), pady=5)
@@ -199,7 +230,14 @@ class MiniAutoCADApp:
             command=self._show_viewer,
             **tab_options,
         )
-        self.viewer_tab_button.pack(side="left", padx=(2, 4), pady=4)
+        self.viewer_tab_button.pack(side="left", padx=(2, 2), pady=4)
+        self.split_tab_button = ctk.CTkButton(
+            self.workspace_tabs,
+            text="⚏  Split",
+            command=self._show_split,
+            **tab_options,
+        )
+        self.split_tab_button.pack(side="left", padx=(2, 4), pady=4)
 
         # Preserve the original canvas parent, coordinates, tags, and event dispatch.
         self.workspace_content = tk.Frame(
@@ -215,6 +253,7 @@ class MiniAutoCADApp:
         )
         self._workspace_mode = "plan"
         self._viewer_after_id = None
+        self._detect_after_id = None
         self._set_workspace_tab_style("plan")
 
         # Step 1: Core app objects
@@ -272,18 +311,17 @@ class MiniAutoCADApp:
         self.workspace_content.configure(bg=COLORS.get("canvas_chrome", "#101E32"))
         self.canvas_container.configure(bg=COLORS.get("surface_raised", "#0D1A2D"))
         self.viewer_container.configure(bg=COLORS.get("canvas_bg", "#091426"))
-        self.canvas_toolbar_host.configure(bg=COLORS.get("surface_raised", "#0D1A2D"))
-        self.workspace_tabs.configure(
-            bg_color=COLORS.get("surface_raised", "#111C2F"),
-            fg_color=COLORS.get("surface_dark", "#0B1220"),
-            border_color=COLORS.get("surface_dark", "#0B1220"),
-            border_width=2,
-            corner_radius=12,
-        )
+        # Ensure canvas_toolbar_host matches workspace_header to prevent white boxes
+        self.canvas_toolbar_host.configure(bg=COLORS.get("workspace_header", "#081321"))
+        # workspace_tabs colors already set at creation to match workspace_header
         self.plan_tab_button.configure(corner_radius=9)
         self.viewer_tab_button.configure(corner_radius=9)
+        self.split_tab_button.configure(corner_radius=9)
         self.view.container.configure(bg=COLORS.get("canvas_bg", "#0B162B"))
         self.view.canvas.configure(bg=COLORS.get("canvas_bg", "#0B162B"))
+        # ttkbootstrap theme rebuild reconfigures plain tk.Canvas backgrounds
+        # to white; force the toolbar scroll canvas back to the navbar color.
+        self.top_toolbar._scroll_canvas.configure(bg=COLORS.get("workspace_header", "#081321"))
         self.root.after_idle(self._set_workspace_tab_style, self._workspace_mode)
 
         # Grid needs real canvas dimensions; draw after Tk has computed geometry.
@@ -398,13 +436,20 @@ class MiniAutoCADApp:
             text="⬡  3D View",
             **(selected if mode == "viewer" else idle),
         )
+        self.split_tab_button.configure(
+            text="⚏  Split",
+            **(selected if mode == "split" else idle),
+        )
 
     def _show_plan(self) -> None:
         if self._workspace_mode == "plan":
             return
         self.viewer_runtime.deactivate()
         self.viewer_container.grid_remove()
-        self.canvas_container.grid()
+        # Reset grid to single column (remove uniform constraint)
+        self.workspace_content.grid_columnconfigure(0, weight=1, uniform="")
+        self.workspace_content.grid_columnconfigure(1, weight=0, uniform="")
+        self.canvas_container.grid(row=0, column=0, sticky="nsew", padx=1, pady=1)
         self._workspace_mode = "plan"
         self._schedule_viewer_refresh()
         self._set_workspace_tab_style("plan")
@@ -412,18 +457,65 @@ class MiniAutoCADApp:
 
     def _show_viewer(self) -> None:
         self.canvas_container.grid_remove()
+        # Reset grid to single column (remove uniform constraint)
+        self.workspace_content.grid_columnconfigure(0, weight=1, uniform="")
+        self.workspace_content.grid_columnconfigure(1, weight=0, uniform="")
         self.viewer_container.grid(row=0, column=0, sticky="nsew", padx=1, pady=1)
         self._workspace_mode = "viewer"
         self._set_workspace_tab_style("viewer")
         self.viewer_runtime.start()
         self._refresh_3d()
 
+    def _show_split(self) -> None:
+        """Show 2D canvas and 3D viewer side-by-side in split-screen mode."""
+        # Configure grid for true 50/50 split with uniform sizing
+        self.workspace_content.grid_columnconfigure(0, weight=1, minsize=0, uniform="split")
+        self.workspace_content.grid_columnconfigure(1, weight=1, minsize=0, uniform="split")
+        
+        # Show both containers
+        self.canvas_container.grid(row=0, column=0, sticky="nsew", padx=(1, 0), pady=1)
+        self.viewer_container.grid(row=0, column=1, sticky="nsew", padx=(1, 1), pady=1)
+        
+        self._workspace_mode = "split"
+        self._set_workspace_tab_style("split")
+        
+        # Start viewer if not already running
+        self.viewer_runtime.start()
+        self._refresh_3d()
+        
+        # Force geometry update, then redraw grid
+        self.workspace_content.update_idletasks()
+        self.root.after_idle(self.view.schedule_grid_redraw)
+
     def _on_project_mutation(self) -> None:
         if hasattr(self, "parity_toolbar"):
             self.parity_toolbar.refresh()
         if hasattr(self, "autosaver"):
             self.autosaver.schedule()
+        self._schedule_detected_room_refresh()
         self._schedule_viewer_refresh()
+
+    def _schedule_detected_room_refresh(self) -> None:
+        """Debounced re-detection of rooms from the live canvas, so enclosures
+        drawn with the Line/Polygon tool appear as real rooms as the user draws."""
+        if self._detect_after_id is not None:
+            try:
+                self.root.after_cancel(self._detect_after_id)
+            except Exception:
+                pass
+            self._detect_after_id = None
+        if not self._app_alive:
+            return
+        self._detect_after_id = self.root.after(150, self._run_detected_room_refresh)
+
+    def _run_detected_room_refresh(self) -> None:
+        self._detect_after_id = None
+        if not self._app_alive:
+            return
+        try:
+            self.serializer.refresh_detected_room_overlay()
+        except Exception as exc:
+            print(f"[app] detected room refresh failed: {exc}")
 
     def _schedule_viewer_refresh(self) -> None:
         if self._viewer_after_id is not None:
@@ -432,13 +524,14 @@ class MiniAutoCADApp:
             except Exception:
                 pass
             self._viewer_after_id = None
-        if self._workspace_mode != "viewer" or not self._app_alive:
+        # Refresh for both viewer and split modes
+        if self._workspace_mode not in ("viewer", "split") or not self._app_alive:
             return
         self._viewer_after_id = self.root.after(250, self._run_debounced_viewer_refresh)
 
     def _run_debounced_viewer_refresh(self) -> None:
         self._viewer_after_id = None
-        if self._workspace_mode == "viewer" and self._app_alive:
+        if self._workspace_mode in ("viewer", "split") and self._app_alive:
             self._send_viewer_layout()
 
     def _send_viewer_layout(self) -> None:
@@ -465,6 +558,7 @@ class MiniAutoCADApp:
             self.controller,
             self.view,
             self.actions,
+            top_toolbar=getattr(self, "top_toolbar", None),
             on_local_save=lambda: self.autosaver.save_now(),
             on_local_load_last=self._load_local_last,
             on_local_load_file=self._load_local_from_file,
@@ -480,6 +574,12 @@ class MiniAutoCADApp:
                 except Exception:
                     pass
                 self._viewer_after_id = None
+            if getattr(self, "_detect_after_id", None) is not None:
+                try:
+                    self.root.after_cancel(self._detect_after_id)
+                except Exception:
+                    pass
+                self._detect_after_id = None
             if hasattr(self, "viewer_runtime"):
                 self.viewer_runtime.close()
 
@@ -543,6 +643,7 @@ class MiniAutoCADApp:
             traceback.print_exception(exc, val, tb)
         except Exception:
             pass
+        _append_crash_log("TK CALLBACK", exc, val, tb)
 
     def _bgerror(self, msg) -> None:
         if not self._is_app_alive():

@@ -234,8 +234,8 @@ class GenerateLayoutTab:
             placeholder_text="0.0",
             height=34,
             border_color=COLORS.get("border_dark", "#374151"),
-            fg_color=COLORS.get("surface", "#F9FAFB"),
-            text_color=COLORS.get("text_primary", "#111827"),
+            fg_color="white",
+            text_color="#0F172A",
             corner_radius=6
         )
         self._length_entry.pack(fill="x")
@@ -250,8 +250,8 @@ class GenerateLayoutTab:
             placeholder_text="0.0",
             height=34,
             border_color=COLORS.get("border_dark", "#374151"),
-            fg_color=COLORS.get("surface", "#F9FAFB"),
-            text_color=COLORS.get("text_primary", "#111827"),
+            fg_color="white",
+            text_color="#0F172A",
             corner_radius=6
         )
         self._breadth_entry.pack(fill="x")
@@ -270,8 +270,8 @@ class GenerateLayoutTab:
             placeholder_text="0.0",
             height=34,
             border_color=COLORS.get("border_dark", "#374151"),
-            fg_color=COLORS.get("surface", "#F9FAFB"),
-            text_color=COLORS.get("text_primary", "#111827"),
+            fg_color="white",
+            text_color="#0F172A",
             corner_radius=6
         )
         self._north_entry.pack(fill="x")
@@ -285,8 +285,8 @@ class GenerateLayoutTab:
             placeholder_text="0.0",
             height=34,
             border_color=COLORS.get("border_dark", "#374151"),
-            fg_color=COLORS.get("surface", "#F9FAFB"),
-            text_color=COLORS.get("text_primary", "#111827"),
+            fg_color="white",
+            text_color="#0F172A",
             corner_radius=6
         )
         self._south_entry.pack(fill="x")
@@ -300,8 +300,8 @@ class GenerateLayoutTab:
             placeholder_text="0.0",
             height=34,
             border_color=COLORS.get("border_dark", "#374151"),
-            fg_color=COLORS.get("surface", "#F9FAFB"),
-            text_color=COLORS.get("text_primary", "#111827"),
+            fg_color="white",
+            text_color="#0F172A",
             corner_radius=6
         )
         self._east_entry.pack(fill="x")
@@ -315,8 +315,8 @@ class GenerateLayoutTab:
             placeholder_text="0.0",
             height=34,
             border_color=COLORS.get("border_dark", "#374151"),
-            fg_color=COLORS.get("surface", "#F9FAFB"),
-            text_color=COLORS.get("text_primary", "#111827"),
+            fg_color="white",
+            text_color="#0F172A",
             corner_radius=6
         )
         self._west_entry.pack(fill="x")

@@ -1,6 +1,7 @@
 # toolbar.py
 import os
 import sys
+import time
 import importlib.util
 import tkinter as tk
 from tkinter import Menu, Menubutton, ttk, messagebox
@@ -149,6 +150,72 @@ def create_furniture_tab(furniture_body, root, tools):
         if hasattr(tools, "create_tooltip"):
             tools.create_tooltip(category_button, f"Open selection dialog for {category} items.")
 
+    # Windows & Ventilation live here with the other insertable items. Unlike image
+    # furniture these attach to a wall, so the button enters wall-click placement mode:
+    # click the button, then click a wall, then pick the type.
+    openings_button = ctk.CTkButton(
+        furniture_body,
+        text="🪟 Windows & Ventilation",
+        font=("Segoe UI", 13, "bold"),
+        height=48, width=250, corner_radius=8,
+        command=tools.enable_window_mode,
+        fg_color=COLORS["info"], hover_color="#2563EB",
+        text_color=COLORS["text_white"],
+    )
+    openings_button.pack(pady=6, padx=10, fill="x")
+    if hasattr(tools, "create_tooltip"):
+        tools.create_tooltip(
+            openings_button,
+            "Click, then click a wall to place a window (sliding/casement/fixed/bay) or "
+            "ventilation. Works on drawn walls and Walls Only rooms.",
+        )
+
+    # Staircases use the same multi-point path semantics as Home Quest rather than an
+    # image-furniture asset: 2 points = straight, each extra point adds a landing/flight.
+    stair_row = ctk.CTkFrame(furniture_body, fg_color="transparent")
+    stair_row.pack(pady=6, padx=10, fill="x")
+    stair_row.columnconfigure(1, weight=1)
+    ctk.CTkLabel(
+        stair_row, text="Stair width (cm)", font=("Segoe UI", 11, "bold"),
+        text_color=COLORS["text_primary"],
+    ).grid(row=0, column=0, padx=(0, 6), sticky="w")
+    stair_width_var = tk.StringVar(value="110")
+    ctk.CTkEntry(stair_row, width=70, textvariable=stair_width_var).grid(
+        row=0, column=1, sticky="ew"
+    )
+    def start_stair_capture():
+        messagebox.showinfo(
+            "How to Create Stairs",
+            "Create at least two floors.\n\n"
+            "1. Open Furniture and enter the stair width (default: 110 cm).\n"
+            "2. Click Staircase, then click the path points:\n"
+            "   • 2 points: straight stair\n"
+            "   • 3 points: L-shaped stair with one landing\n"
+            "   • 4 points: U-shaped stair with two landings\n"
+            "   • Additional points add flights and landings\n"
+            "3. Double-click or press Enter to finish.\n"
+            "4. Press Esc to cancel.\n\n"
+            "The first point is the bottom. The final point connects to the nearest floor above.",
+            parent=root,
+        )
+        tools.begin_stair_capture(stair_width_var.get())
+
+    stair_button = ctk.CTkButton(
+        furniture_body,
+        text="Staircase",
+        font=("Segoe UI", 13, "bold"),
+        height=48, width=250, corner_radius=8,
+        command=start_stair_capture,
+        fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"],
+        text_color=COLORS["text_white"],
+    )
+    stair_button.pack(pady=6, padx=10, fill="x")
+    if hasattr(tools, "create_tooltip"):
+        tools.create_tooltip(
+            stair_button,
+            "Requires an upper floor. Click 2+ path points; double-click or Enter to finish, Esc to cancel.",
+        )
+
     # Visible edit/duplicate controls make the locked-item workflow discoverable.
     edit_btn = ctk.CTkButton(
         furniture_body, text="✥ Move / Edit Selected", command=tools.edit_selected_item,
@@ -295,6 +362,7 @@ def create_furniture_tab(furniture_body, root, tools):
 
 def setup_toolbar(root, model, tools, controller, view, actions,
                   fb=None,
+                  top_toolbar=None,
                   on_local_save=None,
                   on_local_load_last=None,
                   on_local_load_file=None,
@@ -339,8 +407,44 @@ def setup_toolbar(root, model, tools, controller, view, actions,
         nonlocal last_expanded_width
         if width is not None and remember:
             last_expanded_width = max(min_sidebar_width, int(width))
-        if not is_collapsed:
-            main_frame.configure(width=_clamp_sidebar_width(last_expanded_width))
+        if is_collapsed:
+            return
+        # The authoritative live target lives in drag_state["target_width"].
+        # During a continuous drag every B1-Motion event overwrites it directly
+        # with the freshly clamped value, so the throttled ~60fps flush always
+        # applies the *latest* cursor-implied intent and never a stale snapshot
+        # captured at schedule time. That is what removes the "dead zone" past a
+        # clamp boundary: the instant the cursor reverses, the next motion writes
+        # a smaller clamped target and the next flush applies it - no need to
+        # re-cross the overshoot. Outside a drag (window resize, collapse button)
+        # target_width is None and we fall back to the persisted width.
+        if width is not None:
+            drag_state["target_width"] = max(min_sidebar_width, int(width))
+        elif drag_state.get("target_width") is None:
+            drag_state["target_width"] = last_expanded_width
+        # Coalesce rapid width changes (e.g. 60-125Hz B1-Motion events) into a
+        # single ~60fps widget reconfigure so the heavy sidebar tab re-layout
+        # only runs once per frame instead of once per motion event.
+        if drag_state["apply_after_id"] is None:
+            try:
+                drag_state["apply_after_id"] = main_frame.after(16, _flush_sidebar_width)
+            except Exception:
+                _flush_sidebar_width()
+
+    def _flush_sidebar_width():
+        if drag_state["apply_after_id"] is not None:
+            try:
+                main_frame.after_cancel(drag_state["apply_after_id"])
+            except Exception:
+                pass
+            drag_state["apply_after_id"] = None
+        w = drag_state.get("target_width")
+        if w is None or is_collapsed:
+            return
+        try:
+            main_frame.configure(width=_clamp_sidebar_width(w))
+        except Exception:
+            pass
 
     def _set_sidebar_collapsed(collapsed, width=None):
         nonlocal is_collapsed
@@ -350,6 +454,10 @@ def setup_toolbar(root, model, tools, controller, view, actions,
             if not is_collapsed:
                 main_frame.pack_forget()
                 is_collapsed = True
+                # A collapsed sidebar has no live target; clearing it stops the
+                # throttle from re-applying an obsolete width if motion events
+                # keep arriving during the collapse animation.
+                drag_state["target_width"] = None
             collapse_btn.configure(text="›")
             return
 
@@ -397,38 +505,325 @@ def setup_toolbar(root, model, tools, controller, view, actions,
         font=("Segoe UI", 16, "bold"),
     )
     drag_marker.place(relx=0.5, rely=0.5, anchor="center")
-    drag_state = {"start_x": 0, "start_width": sidebar_width}
+    drag_state = {"target_width": None, "apply_after_id": None, "content_hidden": False, "toolbar_hidden": False, "drag_active": False, "press_x": 0, "press_width": 0, "poll_after_id": None, "start_time": 0, "safety_after_id": None}
+
+    # Detect button-1 release from a background poll loop (used during the drag)
+    # so we can stop the drag even if <ButtonRelease-1> is swallowed by another
+    # widget's binding. On Windows uses GetAsyncKeyState; on platforms where
+    # ctypes/windll is unavailable, the function assumes the button is still
+    # pressed so the poll keeps going and the drag ends via the
+    # <ButtonRelease-1>/<FocusOut> binding instead.
+    def _is_button1_down():
+        try:
+            import ctypes as _ct
+            _u32 = _ct.windll.user32
+            return bool(_u32.GetAsyncKeyState(0x01) & 0x8000)
+        except Exception:
+            return True
 
     def _start_sidebar_drag(event):
-        drag_state["start_x"] = event.x_root
-        drag_state["start_width"] = 0 if is_collapsed else main_frame.winfo_width()
+        # Anchor the entire drag to the exact press point and the sidebar's width
+        # at press time. These anchors are NEVER mutated for the life of the drag,
+        # so the target width is always recomputed from the live hardware pointer
+        # position vs this fixed origin: target = press_width + (pointer_x - press_x).
+        # The motion is read by a polling loop (root.after(8, _poll_pointer)) that
+        # calls root.winfo_pointerx() directly. This does NOT depend on <B1-Motion>
+        # events being delivered through the widget/grab/binding chain at all - it
+        # reads the hardware pointer position. That is what makes this approach
+        # immune to whatever was silently swallowing Motion events mid-drag (a
+        # CustomTkinter internal canvas binding, a grab hand-off, a CTkFrame
+        # redraw blocking the event loop, etc) - the sidebar tracks the cursor
+        # in lock-step regardless, and reversing past a clamp boundary resumes
+        # immediately with zero dead zone.
+        drag_state["press_x"] = event.x_root
+        drag_state["press_width"] = 0 if is_collapsed else main_frame.winfo_width()
+        drag_state["target_width"] = drag_state["press_width"]
+        drag_state["drag_active"] = True
+        # Do NOT hide content during drag. Hiding content (panel_shell.pack_forget)
+        # was the ROOT CAUSE of the "stuck" sidebar — if the drag finished
+        # abnormally (crash, lost event, grab release), content stayed hidden
+        # forever and the sidebar appeared frozen. The 16ms throttle handles
+        # performance adequately without needing to hide content.
+        drag_state["content_hidden"] = False
+        drag_state["toolbar_hidden"] = False
         # Keep motion on the splitter after the pointer crosses a populated canvas.
         try:
             drag_handle.grab_set()
         except tk.TclError:
             pass
+        # Bind Release/FocusOut so the drag ends the moment the button is let go
+        # (backup to the GetAsyncKeyState poll, and the primary signal on platforms
+        # where ctypes/windll is unavailable). Both go through the idempotent
+        # _finish_sidebar_drag.
+        try:
+            root.bind_all("<ButtonRelease-1>", _finish_sidebar_drag, add="+")
+        except Exception:
+            pass
+        # Escape cancels any in-flight drag as a final safety net (e.g. if both
+        # the Win32 button-up poll AND <ButtonRelease-1> somehow missed the
+        # release) so the sidebar can never get stuck resizing. Bound only for
+        # the duration of the drag so it does not interfere with Escape used by
+        # dialogs / active CAD tools elsewhere in the app. (FocusOut is already
+        # bound persistently below, so it does not need re-binding here.)
+        try:
+            root.bind_all("<Escape>", _finish_sidebar_drag, add="+")
+        except Exception:
+            pass
+        # Start the hardware-pointer poll. This runs every 8ms (~125Hz, well above
+        # the 16ms throttle flush) and reads winfo_pointerx() directly. It does
+        # not consume or depend on Motion events.
+        if drag_state["poll_after_id"] is None:
+            try:
+                drag_state["poll_after_id"] = root.after(8, _poll_pointer)
+            except Exception:
+                _poll_pointer()
+        # Safety net: no drag should ever run longer than a few seconds. If the
+        # poll loop dies or the release signal is lost, this force-finishes the
+        # drag and restores the sidebar content so it can never get stuck.
+        drag_state["start_time"] = time.time()
+        _schedule_safety_net()
+
+    def _schedule_safety_net():
+        # Independent of the poll loop. Re-arms itself while a drag is active so
+        # it always has a recent "last chance" to finish the drag if everything
+        # else fails.
+        if drag_state.get("safety_after_id") is not None:
+            return
+        try:
+            drag_state["safety_after_id"] = root.after(500, _safety_check)
+        except Exception:
+            drag_state["safety_after_id"] = None
+
+    def _safety_check():
+        drag_state["safety_after_id"] = None
+        if not drag_state.get("drag_active"):
+            return
+        # Force-finish if the button is up, or if the drag has run absurdly long
+        # (e.g. the poll loop crashed and never cleared drag_active).
+        elapsed = time.time() - drag_state.get("start_time", 0)
+        if (not _is_button1_down()) or elapsed > 30:
+            _finish_sidebar_drag(None)
+            return
+        _schedule_safety_net()
+
+    def _poll_pointer():
+        if not drag_state.get("drag_active"):
+            drag_state["poll_after_id"] = None
+            return
+        # Wrap the ENTIRE poll body in try/except so a transient error (e.g. a
+        # widget being destroyed mid-drag, winfo failing) cannot kill the loop
+        # while drag_active stays True — that would freeze the sidebar forever.
+        try:
+            # Read the live hardware pointer x - this is the whole point of the
+            # poll; it bypasses whatever was breaking Motion event delivery.
+            try:
+                px = root.winfo_pointerx()
+            except Exception:
+                px = drag_state["press_x"]
+            if px is not None and px >= 0:
+                dx = px - drag_state["press_x"]
+                target_width = drag_state["press_width"] + dx
+                clamped = _clamp_sidebar_width(target_width)
+                drag_state["target_width"] = clamped
+                # Do NOT auto-collapse during drag — just clamp to min_sidebar_width.
+                if is_collapsed and clamped > min_sidebar_width:
+                    _set_sidebar_collapsed(False, clamped)
+            # If the left mouse button is no longer held (per the Win32 async
+            # state), end the drag. This catches release that happens while
+            # motion events were being swallowed.
+            if not _is_button1_down():
+                _finish_sidebar_drag(None)
+                return
+            # Otherwise schedule the next poll. The 16ms throttle coalesces the
+            # rapid polls into ~60fps actual main_frame.configure() calls.
+            try:
+                drag_state["poll_after_id"] = root.after(8, _poll_pointer)
+            except Exception:
+                drag_state["poll_after_id"] = None
+                _finish_sidebar_drag(None)
+        except Exception:
+            # Any unexpected error: finish the drag cleanly so the sidebar is
+            # restored and never left in a frozen (content-hidden) state.
+            drag_state["poll_after_id"] = None
+            _finish_sidebar_drag(None)
 
     def _drag_sidebar(event):
-        target_width = drag_state["start_width"] + event.x_root - drag_state["start_x"]
-        # An expanded pane cannot become narrower than min_sidebar_width, so collapse
-        # at that same boundary instead of leaving a visually dead drag zone.
-        collapse_limit = collapse_threshold if is_collapsed else min_sidebar_width
-        if target_width <= collapse_limit:
-            _set_sidebar_collapsed(True)
-        else:
-            _set_sidebar_collapsed(False, target_width)
+        # Kept as a secondary input: if a <B1-Motion> event IS delivered (cursor
+        # over the splitter handle, e.g.), use it to update the target
+        # immediately. Idempotent with the poll - both write the same target_width
+        # from the same fixed anchors, so they cannot fight each other.
+        if not drag_state.get("drag_active"):
+            return
+        try:
+            if event is None or getattr(event, "x_root", None) is None:
+                return
+            dx = event.x_root - drag_state["press_x"]
+            target_width = drag_state["press_width"] + dx
+            clamped = _clamp_sidebar_width(target_width)
+            drag_state["target_width"] = clamped
+            # Do NOT auto-collapse during drag — just clamp to min_sidebar_width.
+            if is_collapsed and clamped > min_sidebar_width:
+                _set_sidebar_collapsed(False, clamped)
+        except Exception:
+            _finish_sidebar_drag(None)
+
+    def _restore_drag_content():
+        # Bulletproof content restoration. Called from _finish_sidebar_drag and
+        # also from the safety net. Always re-packs panel_shell / top_toolbar if
+        # they were hidden, so the sidebar can never be left frozen with its
+        # content withdrawn.
+        if drag_state.get("content_hidden"):
+            try:
+                panel_shell.pack(side="left", fill="both", expand=True, padx=(8, 6), pady=8)
+            except Exception:
+                pass
+            drag_state["content_hidden"] = False
+        if drag_state.get("toolbar_hidden") and top_toolbar is not None:
+            try:
+                top_toolbar.frame.pack(side="left", fill="both", expand=True)
+            except Exception:
+                pass
+            drag_state["toolbar_hidden"] = False
 
     def _finish_sidebar_drag(_event):
+        nonlocal last_expanded_width
+        # Idempotent: a press may produce several end-signals (the Win32
+        # button-up poll, <ButtonRelease-1>, <FocusOut>, the Escape binding, or
+        # the legacy per-widget binding). Only the first one does the actual
+        # teardown so we never double-restore content or cancel the poll while a
+        # new drag could be starting.
+        was_active = drag_state.get("drag_active")
+        drag_state["drag_active"] = False
+        # Stop the hardware-pointer poll loop.
+        if drag_state.get("poll_after_id") is not None:
+            try:
+                root.after_cancel(drag_state["poll_after_id"])
+            except Exception:
+                pass
+            drag_state["poll_after_id"] = None
+        # Cancel the independent safety net timer.
+        if drag_state.get("safety_after_id") is not None:
+            try:
+                root.after_cancel(drag_state["safety_after_id"])
+            except Exception:
+                pass
+            drag_state["safety_after_id"] = None
+        try:
+            root.unbind_all("<ButtonRelease-1>")
+        except Exception:
+            pass
+        # NOTE: do NOT unbind_all("<B1-Motion>") — that strips B1-Motion handlers
+        # from every widget in the entire app (canvas furniture drag, etc.),
+        # which breaks unrelated interactions. The drag only bound
+        # <ButtonRelease-1>, <Escape> globally; B1-Motion is bound per-widget on
+        # the splitter/drag_handle/drag_marker only.
+        try:
+            root.unbind_all("<Escape>")
+        except Exception:
+            pass
         try:
             if drag_handle.grab_current() == drag_handle:
                 drag_handle.grab_release()
         except tk.TclError:
+            pass
+        # Commit the final clamped target to the persisted width so subsequent
+        # window-resize driven flushes reproduce exactly what the user settled
+        # on, then flush synchronously so the sidebar snaps to the precise
+        # release position instead of waiting for the next frame.
+        final = drag_state.get("target_width")
+        if final is not None:
+            last_expanded_width = max(min_sidebar_width, int(final))
+        _flush_sidebar_width()
+        # Drop the live target now that the drag is over; later non-drag callers
+        # (root <Configure> -> _update_sidebar_for_window) must fall back to
+        # last_expanded_width instead of re-applying a stale drag target.
+        drag_state["target_width"] = None
+        # ALWAYS restore content, even if was_active was already False (e.g. the
+        # safety net fired after a partial finish). This is the key fix for the
+        # "stuck" sidebar: content_hidden must never be left True.
+        _restore_drag_content()
+
+    def _reset_sidebar(_event=None):
+        """Reset the sidebar to its initial state. Bound to F5, Ctrl+R, and
+        double-click on the splitter. Use this if the sidebar ever gets stuck."""
+        nonlocal last_expanded_width, is_collapsed
+        # Cancel any in-flight drag.
+        _finish_sidebar_drag(None)
+        # Force-clear ALL drag state.
+        drag_state["drag_active"] = False
+        for _key in ("poll_after_id", "safety_after_id", "apply_after_id"):
+            if drag_state.get(_key) is not None:
+                try:
+                    root.after_cancel(drag_state[_key])
+                except Exception:
+                    pass
+                drag_state[_key] = None
+        drag_state["target_width"] = None
+        drag_state["press_x"] = 0
+        drag_state["press_width"] = 0
+        drag_state["start_time"] = 0
+        drag_state["content_hidden"] = False
+        drag_state["toolbar_hidden"] = False
+        # Un-collapse directly (don't depend on _set_sidebar_collapsed).
+        if is_collapsed:
+            try:
+                main_frame.pack(side="left", fill="y", before=splitter)
+            except Exception:
+                pass
+            is_collapsed = False
+            try:
+                collapse_btn.configure(text="‹")
+            except Exception:
+                pass
+            if controller and callable(getattr(controller, "set_sidebar_collapsed", None)):
+                try:
+                    controller.set_sidebar_collapsed(False)
+                except Exception:
+                    pass
+        # Unconditionally re-pack panel_shell and top_toolbar. This is the
+        # critical fix — force content back even if it was never properly hidden.
+        try:
+            panel_shell.pack(side="left", fill="both", expand=True, padx=(8, 6), pady=8)
+        except Exception:
+            pass
+        if top_toolbar is not None:
+            try:
+                top_toolbar.frame.pack(side="left", fill="both", expand=True)
+            except Exception:
+                pass
+        # Reset width to default and apply immediately.
+        last_expanded_width = sidebar_width
+        try:
+            main_frame.configure(width=sidebar_width)
+        except Exception:
             pass
 
     for drag_widget in (splitter, drag_handle, drag_marker):
         drag_widget.bind("<ButtonPress-1>", _start_sidebar_drag)
         drag_widget.bind("<B1-Motion>", _drag_sidebar)
         drag_widget.bind("<ButtonRelease-1>", _finish_sidebar_drag)
+        drag_widget.bind("<Double-Button-1>", _reset_sidebar)
+
+    # Always release the mouse grab when the app loses focus (e.g. a file
+    # picker or modal dialog opens mid-drag), so resizing cannot get stuck.
+    try:
+        root.bind("<FocusOut>", _finish_sidebar_drag, add="+")
+    except Exception:
+        pass
+
+    # F5 and Ctrl+R reset the sidebar to its initial state if it ever gets stuck.
+    try:
+        root.bind_all("<F5>", _reset_sidebar, add="+")
+    except Exception:
+        pass
+    try:
+        root.bind_all("<Control-r>", _reset_sidebar, add="+")
+    except Exception:
+        pass
+    try:
+        root.bind_all("<Control-R>", _reset_sidebar, add="+")
+    except Exception:
+        pass
 
     def _update_sidebar_for_window(_event=None):
         _apply_sidebar_width()
@@ -605,6 +1000,22 @@ def setup_toolbar(root, model, tools, controller, view, actions,
         )
         btn.pack(side="top", padx=4, pady=2)
         tab_buttons[tab_name] = btn
+
+    reset_sidebar_btn = ctk.CTkButton(
+        tab_selector_frame,
+        text="↻",
+        command=_reset_sidebar,
+        width=56,
+        height=40,
+        corner_radius=8,
+        font=("Segoe UI", 16, "bold"),
+        fg_color="transparent",
+        hover_color=COLORS.get("sidebar_hover", "#292F36"),
+        text_color=COLORS.get("sidebar_muted", "#8E98A4"),
+    )
+    reset_sidebar_btn.pack(side="bottom", padx=4, pady=(2, 6))
+    if hasattr(tools, "create_tooltip"):
+        tools.create_tooltip(reset_sidebar_btn, "Reset sidebar to initial state (also: F5 or Ctrl+R)")
 
     def _on_notebook_change(event=None):
         try:

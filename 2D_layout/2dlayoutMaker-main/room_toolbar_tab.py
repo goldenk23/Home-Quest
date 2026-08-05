@@ -211,7 +211,7 @@ def create_room_tab(room_body, model, tools, view, actions):
         placeholder_text="Room Name (e.g., Bedroom)",
         border_color=COLORS.get("border", "#cccccc"),
         fg_color="white",
-        text_color=COLORS.get("text_primary", "black")
+        text_color="#0F172A"
     )
     room_name_entry.pack(fill="x", padx=8, pady=2)
     room_name_entry.bind("<FocusIn>", _select_all_on_focus(room_name_entry))
@@ -221,7 +221,7 @@ def create_room_tab(room_body, model, tools, view, actions):
         placeholder_text=f"Length ({model.unit})",
         border_color=COLORS.get("border", "#cccccc"),
         fg_color="white",
-        text_color=COLORS.get("text_primary", "black")
+        text_color="#0F172A"
     )
     room_length_entry.pack(fill="x", padx=8, pady=2)
     room_length_entry.bind("<FocusIn>", _select_all_on_focus(room_length_entry))
@@ -231,7 +231,7 @@ def create_room_tab(room_body, model, tools, view, actions):
         placeholder_text=f"Breadth ({model.unit})",
         border_color=COLORS.get("border", "#cccccc"),
         fg_color="white",
-        text_color=COLORS.get("text_primary", "black")
+        text_color="#0F172A"
     )
     room_breadth_entry.pack(fill="x", padx=8, pady=2)
     room_breadth_entry.bind("<FocusIn>", _select_all_on_focus(room_breadth_entry))
@@ -266,7 +266,7 @@ def create_room_tab(room_body, model, tools, view, actions):
         placeholder_text=f"Balcony Depth ({model.unit})",
         border_color=COLORS.get("border", "#cccccc"),
         fg_color="white",
-        text_color=COLORS.get("text_primary", "black")
+        text_color="#0F172A"
     )
     balcony_depth_entry.pack(fill="x", padx=8, pady=(2, 6))
     balcony_depth_entry.bind("<FocusIn>", _select_all_on_focus(balcony_depth_entry))
@@ -282,11 +282,16 @@ def create_room_tab(room_body, model, tools, view, actions):
 
     def create_room_with_balcony():
         from Helper.showMessage import show_message
+        from drawing_helpers import parse_length_input, format_length_normalized
 
         name_raw = room_name_entry.get().strip()
         length_raw = room_length_entry.get().strip()
         breadth_raw = room_breadth_entry.get().strip()
+        side = balcony_side_combo.get()
+        balcony_depth_str = balcony_depth_entry.get().strip()
+        unit = getattr(model, "unit", "ft")
 
+        # --- Validate every input BEFORE creating anything ---
         if not name_raw:
             show_message("error", "Room Validation", "Room name is required.")
             return
@@ -295,24 +300,22 @@ def create_room_tab(room_body, model, tools, view, actions):
             return
 
         try:
-            length = float(length_raw)
-            breadth = float(breadth_raw)
+            length = parse_length_input(length_raw, unit)
+            breadth = parse_length_input(breadth_raw, unit)
         except ValueError:
-            show_message("error", "Room Validation", "Length and Breadth must be valid numbers.")
+            show_message(
+                "error",
+                "Room Validation",
+                "Length and Breadth must be valid numbers.\n"
+                "Feet and inches are also accepted, e.g. 5' 2\" or 5 ft 2 in."
+            )
             return
 
         if length <= 0 or breadth <= 0:
             show_message("error", "Room Validation", "Length and Breadth must be greater than 0.")
             return
 
-        room = tools.insert_room_template(name_raw, length, breadth)
-
-        if room is None:
-            return
-
-        side = balcony_side_combo.get()
-        balcony_depth_str = balcony_depth_entry.get().strip()
-
+        balcony_depth = None
         if side == "None" and balcony_depth_str:
             show_message(
                 "error",
@@ -320,42 +323,71 @@ def create_room_tab(room_body, model, tools, view, actions):
                 "Balcony depth entered but Curved Balcony is set to None. Please choose a side."
             )
             return
-
-        if side != "None" and balcony_depth_str:
+        if side != "None":
+            if not balcony_depth_str:
+                show_message(
+                    "error",
+                    "Balcony Validation",
+                    "Please enter a Balcony Depth or set Curved Balcony to None."
+                )
+                return
             try:
-                balcony_depth = float(balcony_depth_str)
-                if balcony_depth > 0:
-                    room_coords = tools.canvas.coords(room.rect_id)
-                    if len(room_coords) >= 4:
-                        rx1, ry1, rx2, ry2 = room_coords[0], room_coords[1], room_coords[2], room_coords[3]
-                    else:
-                        rx1, ry1, rx2, ry2 = room.x0, room.y0, room.x1, room.y1
-
-                    unit_factor = tools.model.unit_scale.get(tools.model.unit, 1.0)
-                    px_per_unit = tools.model.grid_spacing * tools.model.zoom_level / unit_factor
-                    
-                    radius = balcony_depth * px_per_unit
-                    group_tag = room.group_tag
-
-                    if side in ("Left", "Both"):
-                        balcony_left = tools.canvas.create_arc(
-                            rx1 - radius, ry1, rx1 + radius, ry2,
-                            start=90, extent=180, style="arc", width=2, outline="black",
-                            tags=("balcony", group_tag),
-                        )
-                        tools.canvas.tag_raise(balcony_left)
-
-                    if side in ("Right", "Both"):
-                        balcony_right = tools.canvas.create_arc(
-                            rx2 - radius, ry1, rx2 + radius, ry2,
-                            start=270, extent=180, style="arc", width=2, outline="black",
-                            tags=("balcony", group_tag),
-                        )
-                        tools.canvas.tag_raise(balcony_right)
-
-                    print(f"✅ Balcony created with depth {balcony_depth}{tools.model.unit} on {side} side")
+                balcony_depth = parse_length_input(balcony_depth_str, unit)
             except ValueError:
-                print("⚠️ Please enter a valid number for balcony depth.")
+                show_message(
+                    "error",
+                    "Balcony Validation",
+                    "Balcony depth must be a valid number (e.g. 3 or 3' 6\")."
+                )
+                return
+            if balcony_depth <= 0:
+                show_message("error", "Balcony Validation", "Balcony depth must be greater than 0.")
+                return
+
+        # --- All inputs valid: show normalized values, then create in one step ---
+        room_length_entry.delete(0, tk.END)
+        room_length_entry.insert(0, format_length_normalized(length, unit))
+        room_breadth_entry.delete(0, tk.END)
+        room_breadth_entry.insert(0, format_length_normalized(breadth, unit))
+
+        room = tools.insert_room_template(name_raw, length, breadth)
+
+        if room is None:
+            return
+
+        if side != "None" and balcony_depth:
+            if hasattr(tools, "_draw_balcony_for_room"):
+                tools._draw_balcony_for_room(room, side, balcony_depth)
+            else:
+                room_coords = tools.canvas.coords(room.rect_id)
+                if len(room_coords) >= 4:
+                    rx1, ry1, rx2, ry2 = room_coords[0], room_coords[1], room_coords[2], room_coords[3]
+                else:
+                    rx1, ry1, rx2, ry2 = room.x0, room.y0, room.x1, room.y1
+
+                unit_factor = tools.model.unit_scale.get(tools.model.unit, 1.0)
+                px_per_unit = tools.model.grid_spacing * tools.model.zoom_level / unit_factor
+
+                radius = balcony_depth * px_per_unit
+                group_tag = room.group_tag
+
+                if side in ("Left", "Both"):
+                    balcony_left = tools.canvas.create_arc(
+                        rx1 - radius, ry1, rx1 + radius, ry2,
+                        start=90, extent=180, style="arc", width=2, outline="black",
+                        tags=("balcony", group_tag),
+                    )
+                    tools.canvas.tag_raise(balcony_left)
+
+                if side in ("Right", "Both"):
+                    balcony_right = tools.canvas.create_arc(
+                        rx2 - radius, ry1, rx2 + radius, ry2,
+                        start=270, extent=180, style="arc", width=2, outline="black",
+                        tags=("balcony", group_tag),
+                    )
+                    tools.canvas.tag_raise(balcony_right)
+
+            print(f"✅ Balcony created with depth {balcony_depth}{tools.model.unit} on {side} side")
 
     create_room_btn = ctk.CTkButton(
         room_group,
@@ -458,7 +490,7 @@ def create_room_tab(room_body, model, tools, view, actions):
         placeholder_text="Angle (0-360°)",
         fg_color="white",
         border_color=COLORS.get("border", "#cccccc"),
-        text_color=COLORS.get("text_primary", "black"),
+        text_color="#0F172A",
         height=28
     )
     compass_angle_entry.pack(side="left", fill="x", expand=True)

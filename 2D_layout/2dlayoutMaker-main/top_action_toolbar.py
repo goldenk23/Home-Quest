@@ -55,7 +55,7 @@ class TopActionToolbar:
 
         self.frame = ctk.CTkFrame(
             parent,
-            fg_color=COLORS.get("surface_raised", "#20252B"),
+            fg_color=COLORS.get("workspace_header", "#081321"),
             border_color=COLORS.get("border", "#363C44"),
             border_width=0,
             corner_radius=0,
@@ -81,16 +81,19 @@ class TopActionToolbar:
         )
         self._scroll_slider.pack(side="bottom", fill="x", padx=(40, 8), pady=(0, 1))
         self._scroll_slider.set(0)
+        # Debounce handle for slider/overflow refresh so rapid canvas resizes (e.g.
+        # sidebar drag) don't force a synchronous full-window reflow each event.
+        self._scroll_slider_after_id = None
 
         self._scroll_row = ctk.CTkFrame(
             self.frame,
-            fg_color="transparent",
+            fg_color=COLORS.get("workspace_header", "#081321"),
             corner_radius=0,
         )
         self._scroll_row.pack(side="top", fill="both", expand=True)
 
         # Keep only the sidebar collapse control fixed; all actions use the freed space.
-        context_row = ctk.CTkFrame(self._scroll_row, fg_color="transparent")
+        context_row = ctk.CTkFrame(self._scroll_row, fg_color=COLORS.get("workspace_header", "#081321"))
         context_row.pack(side="left", fill="y", padx=(5, 5), pady=2)
         self._section_title_var = tk.StringVar(value="VastuCraft Pro")
         self._sidebar_toggle_btn = ctk.CTkButton(
@@ -112,7 +115,7 @@ class TopActionToolbar:
 
         self._scroll_canvas = tk.Canvas(
             self._scroll_row,
-            bg=COLORS.get("surface_raised", "#20252B"),
+            bg=COLORS.get("workspace_header", "#081321"),
             highlightthickness=0,
             bd=0,
             takefocus=0,
@@ -229,7 +232,7 @@ class TopActionToolbar:
             relief="flat",
             bd=1,
         )
-        self._tools_menu.add_command(label="  🪟  Place Window", command=self._tools.enable_window_mode)
+        self._tools_menu.add_command(label="  🪟  Place Window / Ventilation", command=self._tools.enable_window_mode)
         self._tools_menu.add_command(label="  🏠  Create Room from Closed Lines", command=self._tools.create_room_from_closed_lines)
         self._tools_menu.add_separator()
         self._tools_menu.add_command(label="  ✥  Move / Edit Selected", command=self._tools.edit_selected_item)
@@ -380,11 +383,11 @@ class TopActionToolbar:
             self._tools.create_tooltip(self._help_btn, "Open quick tutorials and control shortcuts / मदद और शॉर्टकट निर्देशिका")
 
         # Spacer
-        ctk.CTkFrame(inner, fg_color="transparent").pack(side="left", fill="x", expand=True)
+        ctk.CTkFrame(inner, fg_color=inner.cget("fg_color")).pack(side="left", fill="x", expand=True)
 
         # Explicit update to resolve initial rendering glitches on Windows.
         self.frame.update()
-        self.frame.after_idle(self._update_scroll_slider)
+        self.frame.after_idle(self._schedule_scroll_slider_update)
         self._sync_button_state()
 
     def _create_btn(self, parent, text, command, color, width=None, side="left", padx=(2, 2), text_color=None, border_width=1, border_color=None):
@@ -635,7 +638,7 @@ class TopActionToolbar:
             canvas_height = self._scroll_canvas.winfo_height()
             if canvas_height > 1:
                 self._scroll_canvas.itemconfig(self._canvas_window, height=canvas_height)
-            self._update_scroll_slider()
+            self._schedule_scroll_slider_update()
         except Exception:
             pass
 
@@ -645,7 +648,7 @@ class TopActionToolbar:
             canvas_height = event.height
             if canvas_height > 1:
                 self._scroll_canvas.itemconfig(self._canvas_window, height=canvas_height)
-            self._update_scroll_slider()
+            self._schedule_scroll_slider_update()
         except Exception:
             pass
 
@@ -657,7 +660,6 @@ class TopActionToolbar:
                 self._scroll_slider.set(left / max_left if max_left else 0.0)
         except (TypeError, ValueError):
             pass
-        self._update_scroll_slider()
 
     def _on_slider_change(self, value) -> None:
         try:
@@ -667,17 +669,38 @@ class TopActionToolbar:
         except (tk.TclError, TypeError, ValueError):
             pass
 
-    def _update_scroll_slider(self) -> None:
+    def _schedule_scroll_slider_update(self, delay_ms: int = 40) -> None:
+        """Coalesce rapid canvas-resize driven slider refreshes into one deferred pass
+        so a sidebar drag (60-125Hz Configure events) doesn't synchronously reflow the
+        whole window on every event (~270ms each)."""
+        try:
+            if self._scroll_slider_after_id is not None:
+                self.frame.after_cancel(self._scroll_slider_after_id)
+        except Exception:
+            pass
+        self._scroll_slider_after_id = self.frame.after(delay_ms, self._refresh_scroll_slider)
+
+    def _refresh_scroll_slider(self) -> None:
+        self._scroll_slider_after_id = None
         try:
             if not self._scroll_canvas.winfo_exists() or not self._inner_frame.winfo_exists():
                 return
-            self._scroll_canvas.update_idletasks()
+            # Sync only the inner frame subtree (cheap) instead of the whole canvas/window
+            # idle queue, which would recursively reflow every widget in the application.
+            try:
+                self._inner_frame.update_idletasks()
+            except Exception:
+                pass
             has_overflow = self._inner_frame.winfo_reqwidth() > self._scroll_canvas.winfo_width()
-            self._scroll_slider.configure(state="normal")
             if not has_overflow:
                 if self._scroll_canvas.xview()[0] > 0.001:
                     self._scroll_canvas.xview_moveto(0)
-                self._scroll_slider.set(0)
+                else:
+                    self._scroll_slider.set(0)
+            else:
+                left, right = self._scroll_canvas.xview()
+                max_left = max(0.0, 1.0 - (right - left))
+                self._scroll_slider.set(left / max_left if max_left else 0.0)
         except Exception:
             pass
 

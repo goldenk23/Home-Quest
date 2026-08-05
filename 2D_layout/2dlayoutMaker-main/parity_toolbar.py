@@ -9,6 +9,7 @@ import uuid
 from tkinter import colorchooser, messagebox, simpledialog, ttk
 
 from Helper.color_scheme import COLORS
+import structural_joints
 
 
 class ParityToolbar:
@@ -25,9 +26,17 @@ class ParityToolbar:
         self._floor_by_label = {}
         self._capture = None
         self._capture_points = []
+        self._capture_entity_ids = []
         self._capture_bindings = []
+        self._selected_structure = None
+        self._beam_capture_elevation = 0.0
+        self._deck_capture_elevation = 0.0
+        self._stair_width_cm = 110.0
         self._previous_cursor = ""
         self._paint_wall_id = None
+        # The Furniture tab owns the launcher; this toolbar owns the existing additive
+        # multi-point capture so normal controller modes never race staircase clicks.
+        self.serializer.tools.begin_stair_capture = self.begin_stair_capture
         self.finishes = self._load_finishes()
         self._finish_by_label = {item["label"]: item for item in self.finishes}
 
@@ -85,6 +94,86 @@ class ParityToolbar:
             style="Project.TLabelframe",
         )
         author_row.pack(fill="x", pady=(8, 0))
+
+        structure_dims_row = ttk.LabelFrame(
+            self.frame,
+            text="Structure Dimensions (cm)",
+            padding=(10, 8),
+            style="Project.TLabelframe",
+        )
+        structure_dims_row.pack(fill="x", pady=(8, 0))
+        self.pillar_width_var = tk.DoubleVar(value=30.0)
+        self.pillar_depth_var = tk.DoubleVar(value=30.0)
+        self.pillar_height_var = tk.DoubleVar(value=280.0)
+        self.pillar_shape_var = tk.StringVar(value="rect")
+        self.beam_width_var = tk.DoubleVar(value=20.0)
+        self.beam_depth_var = tk.DoubleVar(value=30.0)
+        self.beam_elevation_var = tk.DoubleVar(value=0.0)
+        self.deck_thickness_var = tk.DoubleVar(value=15.0)
+        self.deck_elevation_var = tk.DoubleVar(value=0.0)
+        self.deck_type_var = tk.StringVar(value="custom")
+        self.structure_status_var = tk.StringVar(value="No structure selected")
+        for label_text, var, lo, hi, inc in (
+            ("Pillar W", self.pillar_width_var, 1, 1000, 1),
+            ("Pillar D", self.pillar_depth_var, 1, 1000, 1),
+            ("Pillar H", self.pillar_height_var, 1, 5000, 5),
+        ):
+            ttk.Label(structure_dims_row, text=label_text, style="Project.TLabel").pack(side="left", padx=(2, 0))
+            ttk.Spinbox(
+                structure_dims_row, from_=lo, to=hi, increment=inc, width=6,
+                textvariable=var,
+            ).pack(side="left", padx=(0, 6))
+        ttk.Label(structure_dims_row, text="Shape", style="Project.TLabel").pack(side="left", padx=(2, 0))
+        ttk.Combobox(
+            structure_dims_row, textvariable=self.pillar_shape_var,
+            values=("rect", "round"), state="readonly", width=6,
+        ).pack(side="left", padx=(0, 6))
+        for label_text, var, lo, hi, inc in (
+            ("Beam W", self.beam_width_var, 1, 500, 1),
+            ("Beam D", self.beam_depth_var, 1, 500, 1),
+            ("Beam Elev", self.beam_elevation_var, 0, 5000, 5),
+        ):
+            ttk.Label(structure_dims_row, text=label_text, style="Project.TLabel").pack(side="left", padx=(2, 0))
+            ttk.Spinbox(
+                structure_dims_row, from_=lo, to=hi, increment=inc, width=6,
+                textvariable=var,
+            ).pack(side="left", padx=(0, 6))
+        for label_text, var, lo, hi, inc in (
+            ("Deck T", self.deck_thickness_var, 1, 500, 1),
+            ("Deck Elev", self.deck_elevation_var, 0, 5000, 5),
+        ):
+            ttk.Label(structure_dims_row, text=label_text, style="Project.TLabel").pack(side="left", padx=(2, 0))
+            ttk.Spinbox(
+                structure_dims_row, from_=lo, to=hi, increment=inc, width=6,
+                textvariable=var,
+            ).pack(side="left", padx=(0, 6))
+        ttk.Label(structure_dims_row, text="Deck Type", style="Project.TLabel").pack(side="left", padx=(2, 0))
+        ttk.Combobox(
+            structure_dims_row, textvariable=self.deck_type_var,
+            values=("custom", "roof"), state="readonly", width=7,
+        ).pack(side="left", padx=(0, 6))
+
+        structure_edit_row = ttk.Frame(self.frame, style="Project.TFrame")
+        structure_edit_row.pack(fill="x", pady=(5, 0))
+        ttk.Label(
+            structure_edit_row, textvariable=self.structure_status_var,
+            style="Project.TLabel",
+        ).pack(side="left", padx=(2, 8))
+        self.select_structure_button = ttk.Button(
+            structure_edit_row, text="Select/Edit",
+            command=lambda: self._begin_capture("select_structure"),
+            style="Project.TButton",
+        )
+        self.select_structure_button.pack(side="left", padx=1)
+        ttk.Button(
+            structure_edit_row, text="Apply Values",
+            command=self._apply_selected_structure, style="Project.TButton",
+        ).pack(side="left", padx=1)
+        ttk.Label(
+            structure_edit_row,
+            text="Beam Elev/Deck Elev = 0 uses supporting pillar tops",
+            style="Project.TLabel",
+        ).pack(side="left", padx=(8, 0))
 
         ttk.Label(project_row, text="Floor", style="Project.TLabel").pack(side="left")
         self.floor_var = tk.StringVar()
@@ -197,14 +286,16 @@ class ParityToolbar:
             raise ValueError("finish_manifest.json: every finish needs id, label, surfaces, and swatch")
         return finishes
 
-    def _run(self, operation):
+    def _run(self, operation, *, refresh=True):
         try:
             result = operation()
         except Exception as exc:
             messagebox.showerror("VastuCraft Pro", str(exc), parent=self.frame.winfo_toplevel())
-            self.refresh()
+            if refresh:
+                self.refresh()
             return None
-        self.refresh()
+        if refresh:
+            self.refresh()
         return result
     def _selected_floor_id(self):
         return self._floor_by_label.get(self.floor_var.get(), self.state.active_floor_id)
@@ -221,6 +312,12 @@ class ParityToolbar:
             }
             self.floor_selector.configure(values=list(self._floor_by_label))
             active = next(floor for floor in floors if floor["id"] == self.state.active_floor_id)
+            if self._selected_structure:
+                kind, entity_id = self._selected_structure
+                collection = {"pillar": "pillars", "beam": "beams", "deck": "deck_slabs"}[kind]
+                if not any(item.get("id") == entity_id for item in active["geometry"].get(collection, [])):
+                    self._selected_structure = None
+                    self.structure_status_var.set("No structure selected")
             label = next(label for label, floor_id in self._floor_by_label.items() if floor_id == active["id"])
             self.floor_var.set(label)
             is_ground = float(active["elevation_cm"]) == 0
@@ -346,6 +443,25 @@ class ParityToolbar:
         if bind_id:
             self._capture_bindings.append((widget, sequence, bind_id))
 
+    def begin_stair_capture(self, width_cm=110):
+        """Start the Furniture-tab staircase path tool using Home Quest's width limits."""
+        try:
+            width = float(width_cm)
+        except (TypeError, ValueError):
+            messagebox.showerror(
+                "Staircase", "Stair width must be a number from 60 to 500 cm.",
+                parent=self.frame.winfo_toplevel(),
+            )
+            return
+        if not 60 <= width <= 500:
+            messagebox.showerror(
+                "Staircase", "Stair width must be 60–500 cm.",
+                parent=self.frame.winfo_toplevel(),
+            )
+            return
+        self._stair_width_cm = float(round(width / 10) * 10)
+        self._begin_capture("stair")
+
     def _begin_capture(self, kind):
         self._cancel_capture()
         if kind == "paint":
@@ -361,7 +477,14 @@ class ParityToolbar:
         except Exception:
             pass
         self._capture = kind
+        self.serializer.tools._parity_capture_active = True
         self._capture_points = []
+        self._capture_entity_ids = []
+        selected_kind = self._selected_structure[0] if self._selected_structure else None
+        if kind == "beam":
+            self._beam_capture_elevation = float(self.beam_elevation_var.get())
+        elif kind == "deck":
+            self._deck_capture_elevation = 0.0 if selected_kind == "deck" else float(self.deck_elevation_var.get())
         try:
             self._previous_cursor = self.canvas.cget("cursor")
             cursors = ("spraycan", "pencil", "crosshair") if kind == "paint" else ("crosshair",)
@@ -375,19 +498,29 @@ class ParityToolbar:
             self._previous_cursor = ""
         self.cancel_button.configure(state="normal")
         labels = {
-            "paint": "Paint: click", "pillar": "Pillar: click",
-            "beam": "Beam: first point", "deck": "Deck: 0 pts",
+            "paint": "Paint: click", "pillar": "Pillar: place posts",
+            "beam": "Beam: select first pillar", "deck": "Deck: select pillars",
+            "select_structure": "Select structure on canvas",
         }
-        getattr(self, f"{kind}_button").configure(text=labels[kind])
+        button = (
+            self.select_structure_button if kind == "select_structure"
+            else getattr(self, f"{kind}_button", None)
+        )
+        if button is not None:
+            button.configure(text=labels[kind])
         self._bind_capture(self.canvas, "<Button-1>", self._canvas_click)
         self._bind_capture(self.owner, "<Escape>", self._cancel_capture)
         if kind == "paint":
             self._bind_capture(self.canvas, "<Motion>", self._paint_motion)
             self._bind_capture(self.canvas, "<Leave>", self._clear_paint_hover)
+        elif kind in ("pillar", "beam", "deck", "stair"):
+            self._bind_capture(self.canvas, "<Motion>", self._structure_motion)
         if kind == "deck":
             self._bind_capture(self.canvas, "<Double-Button-1>", self._finish_deck)
             self._bind_capture(self.owner, "<Return>", self._finish_deck)
-        self.hide()
+        elif kind == "stair":
+            self._bind_capture(self.canvas, "<Double-Button-1>", self._finish_stair)
+            self._bind_capture(self.owner, "<Return>", self._finish_stair)
 
     def _cancel_capture(self, _event=None):
         active = self._capture
@@ -405,12 +538,15 @@ class ParityToolbar:
             pass
         self._paint_wall_id = None
         self._capture = None
+        self.serializer.tools._parity_capture_active = False
         self._capture_points = []
+        self._capture_entity_ids = []
         try:
             self.paint_button.configure(text="Paint")
             self.pillar_button.configure(text="Pillar")
             self.beam_button.configure(text="Beam")
             self.deck_button.configure(text="Deck")
+            self.select_structure_button.configure(text="Select/Edit")
             self.cancel_button.configure(state="disabled")
         except tk.TclError:
             pass
@@ -430,24 +566,70 @@ class ParityToolbar:
             wall_id = self._paint_wall_id
             self._cancel_capture()
             self._run(lambda: self._paint_at(point, wall_id))
-        elif kind == "pillar":
+        elif kind == "select_structure":
+            selected = self._structure_at_point(point)
             self._cancel_capture()
-            self._run(lambda: self._add_pillar(point))
-        elif kind == "beam":
-            if not self._capture_points:
-                self._capture_points.append(point)
-                self.beam_button.configure(text="Beam: end point")
-                self._preview_points()
-            elif math.hypot(point[0] - self._capture_points[0][0], point[1] - self._capture_points[0][1]) <= 1e-6:
-                messagebox.showerror("VastuCraft Pro", "Beam endpoints must be distinct", parent=self.frame.winfo_toplevel())
+            if selected is None:
+                messagebox.showinfo(
+                    "VastuCraft Pro", "Click directly on a pillar, beam, or deck.",
+                    parent=self.frame.winfo_toplevel(),
+                )
             else:
-                start = self._capture_points[0]
+                self._select_structure(*selected)
+        elif kind == "pillar":
+            aligned, _guide = self._aligned_pillar_point(point)
+            record = self._run(lambda: self._add_pillar(aligned), refresh=False)
+            if record:
+                self._select_structure("pillar", record)
+                self.canvas.tag_raise("parity_capture")
+                self.pillar_button.configure(text="Pillar: place another (Esc to finish)")
+        elif kind == "beam":
+            snapped, pillar = self._snap_to_pillar(point)
+            if pillar is None:
+                messagebox.showinfo(
+                    "Beam", "Click directly on a pillar to select it.",
+                    parent=self.frame.winfo_toplevel(),
+                )
+                return "break"
+            pillar_id = pillar["id"]
+            if not self._capture_entity_ids:
+                self._capture_points.append(snapped)
+                self._capture_entity_ids.append(pillar_id)
+                self.beam_button.configure(text="Beam: select second pillar")
+                self.structure_status_var.set(f"Beam start: {pillar_id[:18]}")
+                self._preview_points()
+            elif pillar_id == self._capture_entity_ids[0]:
+                messagebox.showerror(
+                    "Beam", "Select a different second pillar.",
+                    parent=self.frame.winfo_toplevel(),
+                )
+            else:
+                start_pillar_id = self._capture_entity_ids[0]
                 self._cancel_capture()
-                self._run(lambda: self._add_beam(start, point))
+                record = self._run(lambda: self._add_beam(start_pillar_id, pillar_id))
+                if record:
+                    self._select_structure("beam", record)
         elif kind == "deck":
-            self._append_capture_point(point)
-            self.deck_button.configure(text=f"Deck: {len(self._capture_points)} pts")
+            snapped, pillar = self._snap_to_pillar(point)
+            close_tolerance = self._pillar_snap_tolerance()
+            if len(self._capture_points) >= 3 and math.hypot(
+                snapped[0] - self._capture_points[0][0], snapped[1] - self._capture_points[0][1]
+            ) <= close_tolerance:
+                return self._finish_deck()
+            pillar_id = pillar.get("id") if pillar else None
+            if pillar_id and pillar_id in self._capture_entity_ids:
+                if self._capture_entity_ids and pillar_id == self._capture_entity_ids[-1]:
+                    return "break"
+                messagebox.showerror("VastuCraft Pro", "Each deck corner must use a different pillar", parent=self.frame.winfo_toplevel())
+                return "break"
+            self._append_capture_point(snapped)
+            self._capture_entity_ids.append(pillar_id)
+            self.deck_button.configure(text=f"Deck: {len(self._capture_points)} pillars (click first to close)")
             self._preview_points()
+        elif kind == "stair":
+            snapped = self._native_snap(point, self._capture_points)
+            if self._append_stair_point(snapped):
+                self._preview_points()
         return "break"
 
     def _append_capture_point(self, point):
@@ -456,30 +638,287 @@ class ParityToolbar:
         ) > 1e-6:
             self._capture_points.append(point)
 
+    def _append_stair_point(self, point):
+        """Append one stair point unless it is within React's 1 cm minimum segment."""
+        if self._capture_points:
+            distance_px = math.hypot(
+                point[0] - self._capture_points[-1][0],
+                point[1] - self._capture_points[-1][1],
+            )
+            if distance_px < self.serializer._structure_scale():
+                return False
+        self._capture_points.append([float(point[0]), float(point[1])])
+        return True
+
     def _preview_points(self):
-        self.canvas.delete("parity_capture")
+        self.canvas.delete("parity_capture_fixed")
+        tags = ("parity_capture", "parity_capture_fixed")
         if len(self._capture_points) > 1:
             self.canvas.create_line(
                 *(coordinate for point in self._capture_points for coordinate in point),
-                fill="#0f766e", width=2, dash=(4, 2), tags=("parity_capture",),
+                fill="#22d3ee", width=2, dash=(6, 4), tags=tags,
             )
-        for x, y in self._capture_points:
+        for index, (x, y) in enumerate(self._capture_points, start=1):
             self.canvas.create_oval(
-                x - 3, y - 3, x + 3, y + 3, fill="#0f766e", outline="",
-                tags=("parity_capture",),
+                x - 7, y - 7, x + 7, y + 7, fill="", outline="#22d3ee",
+                width=3, tags=tags,
             )
+            self.canvas.create_text(
+                x + 11, y - 11, text=str(index), fill="#e0f2fe",
+                font=("Segoe UI", 10, "bold"), tags=tags,
+            )
+
+    def _format_structure_length(self, pixels):
+        cm = abs(float(pixels)) / max(self.serializer._structure_scale(), 1e-9)
+        total_inches = cm / 2.54
+        feet = int(total_inches // 12)
+        inches = total_inches - feet * 12
+        return f"{feet}' {inches:.1f}\"" if feet else f"{inches:.1f} in"
+
+    def _pillar_guide_tolerance(self):
+        return max(3.0, 15.0 * self.serializer._structure_scale())
+
+    def _native_snap(self, point, previous=()):
+        """Reuse the editor's endpoint/grid/orthogonal snap engine before structure snapping."""
+        try:
+            helper = self.serializer.tools.guideline_helper
+            x, y, _info = helper.get_snap_point(
+                float(point[0]), float(point[1]), list(previous), snap_to_existing=True,
+            )
+            return [float(x), float(y)]
+        except Exception:
+            return [float(point[0]), float(point[1])]
+
+    def _snap_to_pillar(self, point):
+        pillars = self.state.active_floor["geometry"].get("pillars", [])
+        tolerance = self._pillar_snap_tolerance()
+        pillar = structural_joints.nearest_pillar(pillars, point, tolerance)
+        if pillar is None:
+            point = self._native_snap(point, self._capture_points)
+            pillar = structural_joints.nearest_pillar(pillars, point, tolerance)
+        if pillar is None:
+            return list(point), None
+        position = pillar.get("position", point)
+        return [float(position[0]), float(position[1])], pillar
+
+    def _aligned_pillar_point(self, point):
+        point = self._native_snap(point)
+        pillars = self.state.active_floor["geometry"].get("pillars", [])
+        guide = structural_joints.pillar_alignment_guide(
+            pillars, point, self._pillar_guide_tolerance(),
+        )
+        aligned = [float(point[0]), float(point[1])]
+        if guide["column"]:
+            aligned[0] = guide["column"]["position"][0]
+        if guide["row"]:
+            aligned[1] = guide["row"]["position"][1]
+        return aligned, guide
+
+    def _structure_motion(self, event):
+        if self._capture not in ("pillar", "beam", "deck", "stair"):
+            return
+        self.canvas.delete("parity_capture_hover")
+        tags = ("parity_capture", "parity_capture_hover")
+        raw = self._event_point(event)
+        if self._capture == "stair":
+            point = self._native_snap(raw, self._capture_points)
+            if self._capture_points:
+                start = self._capture_points[-1]
+                width_px = max(2, self._stair_width_cm * self.serializer._structure_scale())
+                self.canvas.create_line(
+                    *start, *point, fill="#c7d2fe", width=width_px,
+                    capstyle="projecting", tags=tags,
+                )
+                self.canvas.create_line(
+                    *start, *point, fill="#6366f1", width=2, dash=(6, 4), tags=tags,
+                )
+                midpoint = ((start[0] + point[0]) / 2, (start[1] + point[1]) / 2)
+                self.canvas.create_text(
+                    midpoint[0], midpoint[1] - 12,
+                    text=f"{self._stair_width_cm:g} cm",
+                    fill="#4f46e5", font=("Segoe UI", 10, "bold"), tags=tags,
+                )
+            return
+        if self._capture == "pillar":
+            point, guide = self._aligned_pillar_point(raw)
+            for axis, color, angle in (("column", "#22d3ee", 90), ("row", "#a855f7", 0)):
+                match = guide[axis]
+                if not match:
+                    continue
+                other = match["position"]
+                self.canvas.create_line(*other, *point, fill=color, width=2, dash=(6, 6), tags=tags)
+                midpoint = ((other[0] + point[0]) / 2, (other[1] + point[1]) / 2)
+                self.canvas.create_text(
+                    midpoint[0] + 10, midpoint[1] - 10,
+                    text=f"{self._format_structure_length(match['spacing'])} · {angle}°",
+                    fill=color, font=("Segoe UI", 10, "bold"), tags=tags,
+                )
+            scale = self.serializer._structure_scale()
+            half_w = max(4, float(self.pillar_width_var.get()) * scale / 2)
+            half_d = max(4, float(self.pillar_depth_var.get()) * scale / 2)
+            creator = self.canvas.create_oval if self.pillar_shape_var.get() == "round" else self.canvas.create_rectangle
+            creator(
+                point[0] - half_w, point[1] - half_d, point[0] + half_w, point[1] + half_d,
+                fill="", outline="#22d3ee", width=2, dash=(4, 3), tags=tags,
+            )
+            return
+
+        point, pillar = self._snap_to_pillar(raw)
+        if pillar:
+            radius = max(9.0, max(
+                float(pillar.get("width_cm", 30)), float(pillar.get("depth_cm", 30)),
+            ) * self.serializer._structure_scale() / 2 + 4)
+            self.canvas.create_oval(
+                point[0] - radius, point[1] - radius, point[0] + radius, point[1] + radius,
+                fill="", outline="#22d3ee", width=3, tags=tags,
+            )
+        if self._capture_points:
+            start = self._capture_points[-1]
+            self.canvas.create_line(*start, *point, fill="#22d3ee", width=3, dash=(6, 4), tags=tags)
+            dx, dy = point[0] - start[0], point[1] - start[1]
+            angle = math.degrees(math.atan2(dy, dx)) % 180
+            self.canvas.create_text(
+                (start[0] + point[0]) / 2, (start[1] + point[1]) / 2 - 12,
+                text=f"{self._format_structure_length(math.hypot(dx, dy))} · {angle:.1f}°",
+                fill="#22d3ee", font=("Segoe UI", 10, "bold"), tags=tags,
+            )
+
+    def _structure_at_point(self, point):
+        geometry = self.state.active_floor["geometry"]
+        collections = {"pillar": "pillars", "beam": "beams", "deck": "deck_slabs"}
+        items = self.canvas.find_overlapping(point[0] - 7, point[1] - 7, point[0] + 7, point[1] + 7)
+        for item in reversed(items):
+            tags = set(self.canvas.gettags(item))
+            if "parity_floor_underlay" in tags:
+                continue
+            kind = next((name for name in collections if f"parity_{name}" in tags), None)
+            entity_id = next((tag.split(":", 1)[1] for tag in tags if tag.startswith("entity:")), None)
+            if kind and entity_id:
+                entity = next(
+                    (value for value in geometry.get(collections[kind], []) if value.get("id") == entity_id),
+                    None,
+                )
+                if entity:
+                    return kind, entity
+        return None
+
+    def _select_structure(self, kind, entity):
+        self._selected_structure = (kind, entity["id"])
+        if kind == "pillar":
+            self.pillar_width_var.set(float(entity.get("width_cm", 30)))
+            self.pillar_depth_var.set(float(entity.get("depth_cm", 30)))
+            self.pillar_height_var.set(float(entity.get("height_cm", 280)))
+            self.pillar_shape_var.set(str(entity.get("shape", "rect")))
+        elif kind == "beam":
+            self.beam_width_var.set(float(entity.get("width_cm", 20)))
+            self.beam_depth_var.set(float(entity.get("depth_cm", 30)))
+            self.beam_elevation_var.set(float(entity.get("elevation_cm", 0)))
+        else:
+            self.deck_thickness_var.set(float(entity.get("thickness_cm", 15)))
+            self.deck_elevation_var.set(float(entity.get("elevation_cm", 0)))
+            self.deck_type_var.set(str(entity.get("type", "custom")))
+        detail = f" · elevation {float(entity.get('elevation_cm', 0)):g} cm" if kind == "beam" else ""
+        self.structure_status_var.set(f"Selected {kind}: {entity['id'][:18]}{detail}")
+
+    def _apply_selected_structure(self):
+        if not self._selected_structure:
+            messagebox.showinfo("VastuCraft Pro", "Select a structure first", parent=self.frame.winfo_toplevel())
+            return
+        kind, entity_id = self._selected_structure
+        collection = {"pillar": "pillars", "beam": "beams", "deck": "deck_slabs"}[kind]
+
+        def mutation(geometry):
+            entity = next((item for item in geometry.get(collection, []) if item.get("id") == entity_id), None)
+            if entity is None:
+                raise ValueError("The selected structure is no longer on this floor")
+            if kind == "pillar":
+                entity.update({
+                    "width_cm": max(1.0, float(self.pillar_width_var.get())),
+                    "depth_cm": max(1.0, float(self.pillar_depth_var.get())),
+                    "height_cm": max(1.0, float(self.pillar_height_var.get())),
+                    "shape": str(self.pillar_shape_var.get() or "rect"),
+                })
+            elif kind == "beam":
+                post_ids = set(entity.get("post_ids", []))
+                supports = [
+                    pillar for pillar in geometry.get("pillars", [])
+                    if pillar.get("id") in post_ids
+                ]
+                entity.update({
+                    "width_cm": max(1.0, float(self.beam_width_var.get())),
+                    "depth_cm": max(1.0, float(self.beam_depth_var.get())),
+                    "elevation_cm": self._resolved_beam_elevation(
+                        self.beam_elevation_var.get(), supports,
+                    ),
+                })
+            else:
+                entity.update({
+                    "thickness_cm": max(1.0, float(self.deck_thickness_var.get())),
+                    "elevation_cm": max(0.0, float(self.deck_elevation_var.get())),
+                    "type": str(self.deck_type_var.get() or "custom"),
+                })
+            return entity
+
+        entity = self._run(lambda: self.serializer.commit_active_geometry(mutation, redraw_structures=True))
+        if entity:
+            self._select_structure(kind, entity)
+
     def _finish_deck(self, event=None):
         if self._capture != "deck":
             return None
-        if event is not None and getattr(event, "widget", None) is self.canvas:
-            self._append_capture_point(self._event_point(event))
         points = [list(point) for point in self._capture_points]
         if len(points) < 3:
-            messagebox.showerror("VastuCraft Pro", "Deck needs at least three points", parent=self.frame.winfo_toplevel())
+            messagebox.showerror("VastuCraft Pro", "Deck needs at least three pillar corners", parent=self.frame.winfo_toplevel())
             return "break"
         self._cancel_capture()
-        self._run(lambda: self._add_deck(points))
+        record = self._run(lambda: self._add_deck(points))
+        if record:
+            self._select_structure("deck", record)
         return "break"
+
+    def _finish_stair(self, event=None):
+        if self._capture != "stair":
+            return None
+        points = [list(point) for point in self._capture_points]
+        if len(points) < 2:
+            messagebox.showerror(
+                "Staircase", "Draw at least two points before finishing the staircase.",
+                parent=self.frame.winfo_toplevel(),
+            )
+            return "break"
+        active = self.state.active_floor
+        upper = min(
+            (
+                floor for floor in self.state.floors
+                if float(floor["elevation_cm"]) > float(active["elevation_cm"])
+            ),
+            key=lambda floor: float(floor["elevation_cm"]),
+            default=None,
+        )
+        if upper is None:
+            self._cancel_capture()
+            messagebox.showerror(
+                "Staircase", "Add a second floor first — a staircase needs two floors to connect.",
+                parent=self.frame.winfo_toplevel(),
+            )
+            return "break"
+        width_cm = self._stair_width_cm
+        self._cancel_capture()
+        self._run(lambda: self._add_stair(points, width_cm, active["id"], upper["id"]))
+        return "break"
+
+    def _add_stair(self, points, width_cm, lower_floor_id, upper_floor_id):
+        record = {
+            "id": self._fresh_id("stair"),
+            "lower_floor_id": str(lower_floor_id),
+            "upper_floor_id": str(upper_floor_id),
+            "path_points": [[float(point[0]), float(point[1])] for point in points],
+            "width_cm": float(width_cm),
+        }
+        return self.serializer.commit_active_geometry(
+            lambda geometry: geometry.setdefault("stairs", []).append(record) or record,
+            redraw_structures=True,
+        )
 
     def _fresh_id(self, prefix):
         document = self.state.snapshot()
@@ -497,35 +936,154 @@ class ParityToolbar:
     def _add_pillar(self, point):
         record = {
             "id": self._fresh_id("pillar"), "position": point,
-            "width_cm": 30.0, "depth_cm": 30.0, "height_cm": 280.0,
-            "elevation_cm": 0.0, "shape": "rect", "material_id": "default-wall",
+            "width_cm": max(1.0, float(self.pillar_width_var.get())),
+            "depth_cm": max(1.0, float(self.pillar_depth_var.get())),
+            "height_cm": max(1.0, float(self.pillar_height_var.get())),
+            "elevation_cm": 0.0,
+            "shape": str(self.pillar_shape_var.get() or "rect"),
+            "material_id": "default-wall",
         }
         return self.serializer.commit_active_geometry(
             lambda geometry: geometry.setdefault("pillars", []).append(record) or record,
             redraw_structures=True,
         )
 
-    def _add_beam(self, start, end):
-        record = {
-            "id": self._fresh_id("beam"), "start": start, "end": end,
-            "width_cm": 20.0, "depth_cm": 30.0, "elevation_cm": 250.0,
-            "material_id": "default-wall",
-        }
-        return self.serializer.commit_active_geometry(
-            lambda geometry: geometry.setdefault("beams", []).append(record) or record,
-            redraw_structures=True,
+    @staticmethod
+    def _resolved_beam_elevation(requested, pillars):
+        requested = max(0.0, float(requested))
+        if requested > 0:
+            return requested
+        support_top = max(
+            (
+                float(pillar.get("height_cm", 0)) + float(pillar.get("elevation_cm", 0))
+                for pillar in pillars
+            ),
+            default=280.0,
         )
+        return max(280.0, support_top)
+
+    def _add_beam(self, start_pillar_id, end_pillar_id):
+        pillars = self.state.active_floor["geometry"].get("pillars", [])
+        pillars_by_id = {pillar.get("id"): pillar for pillar in pillars}
+        start_pillar = pillars_by_id.get(start_pillar_id)
+        end_pillar = pillars_by_id.get(end_pillar_id)
+        if start_pillar is None or end_pillar is None:
+            raise ValueError("A selected pillar is no longer on this floor")
+        start = start_pillar.get("position")
+        end = end_pillar.get("position")
+        if not isinstance(start, (list, tuple)) or len(start) != 2 or not isinstance(end, (list, tuple)) or len(end) != 2:
+            raise ValueError("Selected pillars need valid positions")
+        start = [float(start[0]), float(start[1])]
+        end = [float(end[0]), float(end[1])]
+
+        scale = self.serializer._structure_scale()
+        start_fp = structural_joints.footprint_of(start_pillar)
+        end_fp = structural_joints.footprint_of(end_pillar)
+        for footprint in (start_fp, end_fp):
+            footprint.width *= scale
+            footprint.depth *= scale
+        adj_start, adj_end = structural_joints.extend_beam_ends_to_pillars(
+            start, end, start_fp, end_fp,
+        )
+        requested_elevation = getattr(self, "_beam_capture_elevation", self.beam_elevation_var.get())
+        record = {
+            "id": self._fresh_id("beam"),
+            "start": list(adj_start), "end": list(adj_end),
+            "width_cm": max(1.0, float(self.beam_width_var.get())),
+            "depth_cm": max(1.0, float(self.beam_depth_var.get())),
+            "elevation_cm": self._resolved_beam_elevation(
+                requested_elevation, (start_pillar, end_pillar),
+            ),
+            "material_id": "default-wall",
+            "post_ids": [start_pillar_id, end_pillar_id],
+        }
+        beam_id = record["id"]
+
+        def mutation(geometry):
+            geometry.setdefault("beams", []).append(record)
+            for pillar_id in (start_pillar_id, end_pillar_id):
+                linked = next(
+                    (pillar for pillar in geometry.get("pillars", []) if pillar.get("id") == pillar_id),
+                    None,
+                )
+                if linked is not None:
+                    beam_ids = linked.setdefault("beam_ids", [])
+                    if beam_id not in beam_ids:
+                        beam_ids.append(beam_id)
+            return record
+
+        return self.serializer.commit_active_geometry(mutation, redraw_structures=True)
 
     def _add_deck(self, points):
+        """Create a deck/roof from ordered pillar picks, seated on their outer faces."""
+        pillars = self.state.active_floor["geometry"].get("pillars", [])
+        tolerance = self._pillar_snap_tolerance()
+        snapped, supports = [], []
+        for point in points:
+            pillar = structural_joints.nearest_pillar(pillars, point, tolerance)
+            if pillar is not None:
+                position = pillar.get("position")
+                snapped.append([float(position[0]), float(position[1])])
+                supports.append(pillar)
+            else:
+                snapped.append(list(point))
+                supports.append(None)
+
+        scale = self.serializer._structure_scale()
+        footprints = []
+        for pillar in supports:
+            if pillar is None:
+                footprints.append(None)
+                continue
+            footprint = structural_joints.footprint_of(pillar)
+            footprint.width *= scale
+            footprint.depth *= scale
+            footprints.append(footprint)
+        adjusted = [
+            list(point) for point in structural_joints.expand_deck_to_pillars(
+                [tuple(point) for point in snapped], footprints,
+            )
+        ]
+
+        requested_elevation = float(getattr(self, "_deck_capture_elevation", self.deck_elevation_var.get()))
+        support_top = max(
+            (
+                float(pillar.get("height_cm", 0)) + float(pillar.get("elevation_cm", 0))
+                for pillar in supports if pillar is not None
+            ),
+            default=0.0,
+        )
+        post_ids = list(dict.fromkeys(
+            pillar["id"] for pillar in supports if pillar is not None
+        ))
         record = {
-            "id": self._fresh_id("deck"), "polygon": points,
-            "thickness_cm": 15.0, "elevation_cm": 0.0,
-            "type": "custom", "material_id": "default-floor",
+            "id": self._fresh_id("deck"), "polygon": adjusted,
+            "thickness_cm": max(1.0, float(self.deck_thickness_var.get())),
+            "elevation_cm": requested_elevation if requested_elevation > 0 else support_top,
+            "type": str(self.deck_type_var.get() or "custom"),
+            "material_id": "default-floor", "post_ids": post_ids,
         }
         return self.serializer.commit_active_geometry(
             lambda geometry: geometry.setdefault("deck_slabs", []).append(record) or record,
             redraw_structures=True,
         )
+
+    def _pillar_snap_tolerance(self) -> float:
+        """Pixels-of-tolerance to snap a click to a pillar center.
+
+        Defaults to a generous radius (so the user does not have to click the
+        exact center) but grows with the pillar footprint so larger posts are
+        easier to snap to. Mirrors the React Home Quest placement tolerance.
+        """
+        try:
+            scale = self.serializer._structure_scale()
+        except Exception:
+            scale = 1.0
+        pillar_px = max(
+            float(self.pillar_width_var.get()),
+            float(self.pillar_depth_var.get()),
+        ) * scale
+        return max(24.0, pillar_px / 2 + 24.0)
 
     @staticmethod
     def _segment_distance(point, start, end):
