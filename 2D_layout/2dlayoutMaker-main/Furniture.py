@@ -197,31 +197,31 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 import os
 
+from app_paths import get_asset_root
 # Import furniture sizes from FurnitureHelper
 from FurnitureHelper import STANDARD_FURNITURE_SIZES
 
+
+def _image_key(value: str) -> str:
+    stem = os.path.splitext(os.path.basename(value or ""))[0]
+    return "".join(character for character in stem.casefold() if character.isalnum())
+
+
 def find_image_path(name: str) -> str | None:
-    """
-    Find the path for the furniture image in a case‑insensitive, cross‑platform way.
-
-    We scan the Images folder and match the filename (without extension) ignoring case,
-    so items like "wardrobe" will correctly find "Wardrobe.png" on macOS/Linux too.
-    """
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    images_dir = os.path.join(base_dir, "Images")
-
-    if not os.path.isdir(images_dir):
-        return None
-
-    target = (name or "").strip().lower()
+    """Resolve old and new furniture names from the centralized asset directory."""
+    furniture_dir = os.path.join(get_asset_root(), "furniture-2d")
+    target = _image_key(name)
     if not target:
         return None
 
-    for filename in os.listdir(images_dir):
-        stem, ext = os.path.splitext(filename)
-        if ext.lower() in (".png", ".jpeg", ".jpg") and stem.lower() == target:
-            return os.path.join(images_dir, filename)
-
+    # Editor originals are preferred so consolidation does not change 2D appearance.
+    for directory in (os.path.join(furniture_dir, "editor"), furniture_dir):
+        if not os.path.isdir(directory):
+            continue
+        for filename in os.listdir(directory):
+            stem, ext = os.path.splitext(filename)
+            if ext.casefold() in (".png", ".jpeg", ".jpg") and _image_key(stem) == target:
+                return os.path.join(directory, filename)
     return None
 
 def remove_padding(image):

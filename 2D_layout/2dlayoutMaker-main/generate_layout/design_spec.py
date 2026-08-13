@@ -31,10 +31,12 @@ SPEC_VERSION = "1.0"
 # DesignSpec zones are the four Vastu quadrants the engine already reasons about. Kept
 # separate from the native compass set on purpose: this is intent, not geometry.
 ZONES = {"NW", "NE", "SW", "SE"}
+#Python set containing every room-to-room relationship the design specification accepts:
 RELATIONSHIP_KINDS = {
     "direct_door", "adjacent", "near", "separate",
     "open_plan", "access_through_public", "attached_to",
 }
+#priority tells the layout engine how strictly it must follow a room requirement or relationship.
 PRIORITIES = {"hard", "preferred"}
 
 # Bounds at the trust boundary: untrusted model/user input can never explode the spec.
@@ -66,7 +68,7 @@ _TYPE_KEYWORDS: tuple[tuple[str, str], ...] = (
 
 
 def classify_room(name: str) -> str:
-    """Map a display name to a stable semantic type. Defaults to ``room``."""
+    """Return a standard room type based on words in the room name."""
     lowered = str(name or "").lower()
     for keyword, room_type in _TYPE_KEYWORDS:
         if keyword in lowered:
@@ -75,11 +77,13 @@ def classify_room(name: str) -> str:
 
 
 def _slug(value: str) -> str:
+    """Turn text into a simple lowercase ID using letters, numbers, and underscores."""
     slug = re.sub(r"[^a-z0-9]+", "_", str(value or "").lower()).strip("_")
     return slug or "room"
 
 
 def _clamp_int(value: Any, default: int, lo: int, hi: int) -> int:
+    """Return a whole number kept between ``lo`` and ``hi``, or the default if invalid."""
     try:
         return max(lo, min(hi, int(round(float(value)))))
     except (TypeError, ValueError):
@@ -87,12 +91,14 @@ def _clamp_int(value: Any, default: int, lo: int, hi: int) -> int:
 
 
 def _clamp_str(value: Any, max_len: int, default: str = "") -> str:
+    """Trim text and limit its length, or return the default when it is not text."""
     if not isinstance(value, str):
         return default
     return value.strip()[:max_len]
 
 
 def _optional_float(value: Any) -> float | None:
+    """Return a valid positive decimal number, or ``None`` when the value is unusable."""
     if value is None:
         return None
     try:
@@ -103,29 +109,19 @@ def _optional_float(value: Any) -> float | None:
 
 
 def _as_list(value: Any) -> list:
-    """Advisory metadata may arrive in odd shapes; a non-list is treated as empty."""
+    """Return the value when it is a list; otherwise return an empty list."""
     return value if isinstance(value, list) else []
 
 
 def _as_str_list(value: Any) -> list[str]:
-    """Coerce to a list of non-empty strings, tolerating a bare string.
-
-    The model sometimes returns a single-valued field as a string ("open_living_core")
-    instead of a list. Iterating that string would split it into characters, so wrap a bare
-    string before filtering; anything else non-list becomes empty.
-    """
+    """Return the non-empty text items as a list, including a single text value."""
     if isinstance(value, str):
         value = [value]
     return [item for item in _as_list(value) if isinstance(item, str) and item.strip()]
 
 
 def _coerce_furniture_requirements(value: Any) -> list[dict[str, Any]]:
-    """Normalize furniture hints to a list of dicts without ever failing the spec.
-
-    The model sometimes returns an object keyed by room (``{"room_x": ["bed"]}``) instead of
-    an array. Coerce that shape; drop anything else. This field only hints a later furniture
-    stage, so tolerant parsing here never weakens the structural contract.
-    """
+    """Convert furniture hints into a safe list and ignore unusable entries."""
     if isinstance(value, dict):
         value = [{"room_id": key, "items": items} for key, items in value.items()]
     return [item for item in _as_list(value) if isinstance(item, dict)][:MAX_LIST]
@@ -169,6 +165,8 @@ class Relationship:
 
 @dataclass
 class DesignSpec:
+    """Store all validated information needed to create one floor plan."""
+
     version: str = SPEC_VERSION
     project_name: str = "AI Layout"
     plot: dict[str, Any] = field(default_factory=dict)
@@ -181,13 +179,15 @@ class DesignSpec:
     traceability: list[dict[str, str]] = field(default_factory=list)
 
     def room_by_id(self, room_id: str) -> Room | None:
+        """Find a room by its ID, or return ``None`` when it does not exist."""
         return next((r for r in self.rooms if r.id == room_id), None)
 
     def rooms_of_type(self, room_type: str) -> list[Room]:
+        """Return every room with the requested type, such as ``bedroom``."""
         return [r for r in self.rooms if r.type == room_type]
 
     def summary(self) -> str:
-        """One-line human interpretation for the activity feed / result card."""
+        """Return a short sentence describing the plot size and its rooms."""
         parts = []
         for room in self.rooms:
             zone = f"@{room.zone}" if room.zone else ""
@@ -200,7 +200,7 @@ class DesignSpec:
 
 
 def _unique_id(base: str, taken: set[str]) -> str:
-    """Stable, collision-free ID so duplicate display names get distinct references."""
+    """Create a room ID that is not already in ``taken`` and record it as used."""
     candidate = f"room_{base}"
     if candidate not in taken:
         taken.add(candidate)
@@ -214,7 +214,7 @@ def _unique_id(base: str, taken: set[str]) -> str:
 
 
 def make_room(name: str, taken: set[str], **overrides: Any) -> Room:
-    """Build a normalized Room with a stable unique ID from a display name."""
+    """Create a clean ``Room`` from its name and any supplied room settings."""
     name = _clamp_str(name, MAX_NAME_LEN, "Room") or "Room"
     requested_id = _slug(overrides.get("id") or name)
     room = Room(
@@ -247,10 +247,11 @@ def make_room(name: str, taken: set[str], **overrides: Any) -> Room:
 
 
 def from_dict(raw: dict[str, Any]) -> DesignSpec:
-    """Parse an untrusted direct DesignSpec object without silently dropping requirements.
+    """Convert user or AI dictionary data into a validated DesignSpec.
 
-    Structural limits are checked before normalization. Missing IDs are generated
-    deterministically; relationship references must use the supplied/generated room IDs.
+    Invalid or oversized room and relationship data raises an error instead of being
+    ignored. If a room has no ID, one is created from its name. Relationships must refer
+    to room IDs.
     """
     if not isinstance(raw, dict):
         raise ValueError("design spec must be an object")
@@ -312,6 +313,7 @@ def from_dict(raw: dict[str, Any]) -> DesignSpec:
     aliases: dict[str, set[str]] = {}
 
     def add_alias(alias: Any, room_id: str) -> None:
+        """Connect another usable room name or ID to the room's final ID."""
         key = _slug(alias)
         if not key:
             return
@@ -342,6 +344,7 @@ def from_dict(raw: dict[str, Any]) -> DesignSpec:
         spec.rooms.append(room)
 
     def resolve_endpoint(value: Any, relationship_index: int, side: str) -> str:
+        """Find the final room ID used by one end of a relationship."""
         key = _slug(value)
         matches = aliases.get(key, set())
         if not matches:
@@ -401,6 +404,7 @@ _BRIEF_ROOM_TERMS: dict[str, tuple[str, ...]] = {
 
 
 def _brief_count(brief: str, room_type: str) -> int | None:
+    """Read a room count from text, such as three bedrooms or 3 BHK."""
     terms = _BRIEF_ROOM_TERMS.get(room_type, (room_type,))
     number = rf"(\d+|{'|'.join(_NUMBER_WORDS)})"
     for term in terms:
@@ -424,15 +428,7 @@ _NEGATION_CUES = (
 
 
 def _positive_clauses(text: str) -> str:
-    """Return only the non-negated clauses of a lowercased brief.
-
-    Room-request detection uses substring matching, so an exclusion list such as
-    "do not add: dining, foyer, office, garage" would otherwise be misread as a positive
-    request for every listed room. Splitting on sentence/line/semicolon boundaries and
-    dropping any clause containing a negation cue removes that whole span. Under-detecting a
-    request is safe (the model plus explicit alignment still create rooms); falsely requiring
-    an excluded room is not, because it blocks otherwise valid plans.
-    """
+    """Remove sentences that say something should not be included."""
     return " ".join(
         clause for clause in re.split(r"[.\n;:]", text)
         if not any(cue in clause for cue in _NEGATION_CUES)
@@ -446,19 +442,13 @@ _PLOT_CUES = ("plot", "lot", "site", "parcel", "land")
 
 
 def _extract_plot_dimensions(text: str) -> tuple[int, int] | None:
-    """Return the plot (width, depth) in feet, robust against room-size collisions.
-
-    A brief lists many ``NxM ft`` pairs (plot AND every room). Taking the first match makes
-    the plot latch onto a room size (e.g. a 6x7 puja room) — the exact failure observed. So
-    we collect all pairs and prefer one whose surrounding text names the plot (plot/lot/site);
-    if none is labelled, we fall back to the largest-area pair, since a plot is always bigger
-    than any single room. Returns ``None`` when the brief states no dimensions.
-    """
+    """Find the plot width and depth in text, or return ``None`` if they are missing."""
     matches = list(_DIMENSION_RE.finditer(text))
     if not matches:
         return None
 
     def dims(match: re.Match) -> tuple[int, int]:
+        """Convert one matched width-and-depth pair into whole numbers."""
         return int(round(float(match.group(1)))), int(round(float(match.group(2))))
 
     labelled = [
@@ -471,10 +461,9 @@ def _extract_plot_dimensions(text: str) -> tuple[int, int] | None:
 
 
 def align_with_brief(spec: DesignSpec, brief: str, *, initial: bool) -> tuple[list[str], list[str]]:
-    """Make explicit prose authoritative and remove only model-invented initial spaces.
+    """Update a design spec to match clear instructions in the user's written request.
 
-    Returns ``(notes, errors)``. Initial extraction may prune unrequested optional rooms;
-    refinement preserves existing rooms unless the latest request gives an explicit count.
+    Returns notes about automatic changes and errors that still need to be fixed.
     """
     text = str(brief or "").lower()
     # Room requests are detected only in non-negated clauses so an exclusion list cannot be
@@ -525,6 +514,7 @@ def align_with_brief(spec: DesignSpec, brief: str, *, initial: bool) -> tuple[li
         spec.rooms = kept
 
         def trim(room_type: str, maximum: int | None) -> None:
+            """Keep no more than ``maximum`` rooms of this type."""
             if maximum is None:
                 return
             matches = [room for room in spec.rooms if room.type == room_type]
@@ -614,17 +604,13 @@ def align_with_brief(spec: DesignSpec, brief: str, *, initial: bool) -> tuple[li
 
 
 def to_dict(spec: DesignSpec) -> dict[str, Any]:
-    """Return a bounded JSON-serializable representation for model refinement/UI state."""
+    """Convert a ``DesignSpec`` into a dictionary that can be saved as JSON."""
     from dataclasses import asdict
     return asdict(spec)
 
 
 def from_program(program: dict[str, Any]) -> DesignSpec:
-    """Compile a stage-1 room program into a canonical spec. Deterministic and total.
-
-    The program is already structured intent (rooms, zones, windows, required doors), so
-    this is a faithful structural mapping, not a re-interpretation of the user's prose.
-    """
+    """Convert the older room-program format into the standard ``DesignSpec`` format."""
     if not isinstance(program, dict):
         program = {}
     taken: set[str] = set()
@@ -669,6 +655,7 @@ def from_program(program: dict[str, Any]) -> DesignSpec:
 
 
 def _unique_id_rel(a: str, b: str, taken: set[str]) -> str:
+    """Create an unused ID for a relationship between two rooms."""
     base = f"rel_{a}__{b}"
     if base not in taken:
         taken.add(base)
@@ -682,7 +669,7 @@ def _unique_id_rel(a: str, b: str, taken: set[str]) -> str:
 
 
 def validate_spec(spec: DesignSpec) -> list[str]:
-    """Return a list of hard problems; empty means the spec is internally consistent."""
+    """Check a design spec and return a list of problems; an empty list means it is valid."""
     errors: list[str] = []
     if spec.version != SPEC_VERSION:
         errors.append(f'version must be "{SPEC_VERSION}"')
@@ -756,9 +743,9 @@ def validate_spec(spec: DesignSpec) -> list[str]:
 # the UI can show what actually changed instead of silently mutating intent.
 
 def apply_operations(spec: DesignSpec, operations: list[dict[str, Any]]) -> tuple[DesignSpec, list[dict[str, Any]]]:
-    """Apply bounded operations to a COPY of ``spec``; return (new_spec, results).
+    """Apply requested changes to a copy of the spec and report what happened.
 
-    Locked room IDs and locked constraints are never removed or overwritten.
+    The original spec is not changed, and locked rooms or rules stay protected.
     """
     working = copy.deepcopy(spec)
     taken = {r.id for r in working.rooms}
@@ -779,10 +766,12 @@ def apply_operations(spec: DesignSpec, operations: list[dict[str, Any]]) -> tupl
 
 
 def _locked(working: DesignSpec, room_id: str) -> bool:
+    """Return whether a room is protected from removal."""
     return room_id in working.locked_constraints
 
 
 def _apply_one(working: DesignSpec, op: dict[str, Any], taken: set[str], rel_taken: set[str]) -> tuple[str, str]:
+    """Apply one requested change and return its status with a short explanation."""
     kind = op.get("op")
 
     if kind == "add_room":
@@ -885,6 +874,7 @@ def _apply_one(working: DesignSpec, op: dict[str, Any], taken: set[str], rel_tak
 
 
 def _resolve_room(working: DesignSpec, op: dict[str, Any]) -> Room | None:
+    """Find the room named in an operation by ID first, then by its display name."""
     if op.get("id"):
         room = working.room_by_id(str(op["id"]))
         if room is not None:

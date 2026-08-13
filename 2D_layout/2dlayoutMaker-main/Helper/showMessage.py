@@ -4,6 +4,9 @@ import tkinter as tk
 from tkinter import messagebox
 import sys
 import platform
+import os
+
+from app_paths import get_asset_root
 
 # Try to import ttkbootstrap, fall back to standard ttk if not available
 try:
@@ -895,10 +898,9 @@ def show_message(message_type, title, message, errorCode = "",
         
         # Use cross-platform icon path if none provided
         if icon_path is None:
-            import os
             icon_paths = [
-                os.path.join("assets", "Images", "welcome_image.ico"),
-                os.path.join("Assets", "Images", "welcome_image.ico"),
+                os.path.join(get_asset_root(), "branding", "icon.ico"),
+                os.path.join(get_asset_root(), "branding", "welcome_image.png"),
                 "welcome_image.ico",
                 "icon.ico"
             ]

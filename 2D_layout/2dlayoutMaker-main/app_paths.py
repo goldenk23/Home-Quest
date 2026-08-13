@@ -3,6 +3,22 @@ import sys
 from dataclasses import dataclass
 
 
+def get_asset_root() -> str:
+    """Return the centralized, read-only application asset directory."""
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    bases = [
+        getattr(sys, "_MEIPASS", ""),
+        os.environ.get("VASTUAPP_HOME", ""),
+        os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else "",
+        app_dir,
+    ]
+    for base in bases:
+        candidate = os.path.join(base, "assets") if base else ""
+        if candidate and os.path.isdir(candidate):
+            return candidate
+    return os.path.join(app_dir, "assets")
+
+
 @dataclass(frozen=True)
 class AppPathManager:
     """

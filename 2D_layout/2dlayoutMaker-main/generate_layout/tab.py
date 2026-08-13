@@ -67,6 +67,8 @@ _PHASE_PRESENTATION = {
 }
 _DEFAULT_PRESENTATION = ("◌", "Working", "#2563EB")
 
+from layout_schema import new_project
+
 from .service import GenerateLayoutService
 from . import design_spec
 from .ai_client import (
@@ -924,6 +926,21 @@ class GenerateLayoutTab:
     def _on_ai_reset(self) -> None:
         if self._ai_busy:
             return
+
+        # "New design" is a project boundary, not only a new AI conversation. Loading a fresh
+        # native project clears every parked floor and notifies the long-lived 3D viewer before
+        # another generated document can reuse entity IDs from the previous design.
+        serializer = getattr(self._actions, "serializer", None)
+        if serializer is None or not hasattr(serializer, "load_document"):
+            show_message("error", "AI Layout Generator", "The layout serializer is unavailable; cannot start a new design.")
+            return
+        try:
+            if not serializer.load_document(new_project(), confirm=True):
+                return
+        except Exception as exc:  # noqa: BLE001 - preserve the current project if reset fails
+            show_message("error", "AI Layout Generator", f"Could not start a new design: {exc}")
+            return
+
         self._ai_generation_id += 1  # invalidate any late result from a prior generation
         self._ai_spec = None
         self._ai_messages = []

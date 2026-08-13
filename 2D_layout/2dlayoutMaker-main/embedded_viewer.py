@@ -1,4 +1,4 @@
-"""Persistent WebView2 host for the in-app Home Quest 3D preview."""
+"""Persistent WebView2 host for the packaged in-app 3D preview."""
 
 from __future__ import annotations
 
@@ -14,10 +14,55 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import unquote, urlsplit
+
+from app_paths import get_asset_root
 
 
 class _ReadOnlyStaticHandler(SimpleHTTPRequestHandler):
-    """Serve packaged viewer assets without exposing a writable endpoint."""
+    """Serve the viewer bundle plus centralized assets through legacy URLs."""
+
+    _PREFIX_ALIASES = (
+        ("/furniture-2d/", "furniture-2d"),
+        ("/models/", "models-3d"),
+        ("/flooring/", "flooring"),
+        ("/walls/", "materials/walls"),
+        ("/textures/grass/", "materials/grass"),
+        ("/textures/asphalt_02/", "materials/asphalt"),
+        ("/brand/", "branding"),
+    )
+    _FILE_ALIASES = {
+        "/favicon.svg": "branding/favicon.svg",
+        "/icons.svg": "branding/icons.svg",
+    }
+
+    def __init__(self, *args: Any, asset_directory: str, **kwargs: Any) -> None:
+        self._asset_directory = Path(asset_directory).resolve()
+        super().__init__(*args, **kwargs)
+
+    def _asset_path(self, request_path: str) -> Path | None:
+        url_path = unquote(urlsplit(request_path).path)
+        relative = self._FILE_ALIASES.get(url_path)
+        root = self._asset_directory
+        if relative is None:
+            for prefix, directory in self._PREFIX_ALIASES:
+                if url_path.startswith(prefix):
+                    root = (self._asset_directory / directory).resolve()
+                    relative = url_path[len(prefix):]
+                    break
+        if relative is None:
+            return None
+
+        candidate = (root / relative).resolve()
+        try:
+            candidate.relative_to(root)
+        except ValueError:
+            return self._asset_directory / "__invalid_asset_path__"
+        return candidate
+
+    def translate_path(self, path: str) -> str:
+        asset_path = self._asset_path(path)
+        return os.fspath(asset_path) if asset_path is not None else super().translate_path(path)
 
     def log_message(self, _format: str, *_args: Any) -> None:
         return
@@ -42,14 +87,13 @@ def _find_viewer_dist() -> Path:
     candidates = [
         Path(getattr(sys, "_MEIPASS", app_dir)) / "dist",
         app_dir / "viewer_dist",
-        app_dir.parents[1] / "dist",
     ]
     for candidate in candidates:
         if (candidate / "index.html").is_file():
             return candidate
     raise FileNotFoundError(
-        "Home Quest 3D build assets were not found. Run 'npm run build' in the "
-        "Home Quest folder, or package dist as viewer_dist beside the Python editor."
+        "Packaged 3D viewer assets were not found. Restore viewer_dist beside "
+        "the Python editor."
     )
 
 
@@ -134,7 +178,16 @@ class EmbeddedViewerRuntime:
             return f"http://{host}:{port}/?embedded=1"
 
         dist = _find_viewer_dist()
-        handler = partial(_ReadOnlyStaticHandler, directory=os.fspath(dist))
+        assets = Path(get_asset_root())
+        if not assets.is_dir():
+            raise FileNotFoundError(
+                "Centralized application assets were not found beside the Python editor."
+            )
+        handler = partial(
+            _ReadOnlyStaticHandler,
+            directory=os.fspath(dist),
+            asset_directory=os.fspath(assets),
+        )
         server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
         server.daemon_threads = True
         thread = threading.Thread(target=server.serve_forever, name="viewer-assets", daemon=True)

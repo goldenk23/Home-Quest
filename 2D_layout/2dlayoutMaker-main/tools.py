@@ -20,6 +20,7 @@ except Exception:
     pass
 
 from PIL import Image, ImageDraw, ImageFont, ImageTk, ImageGrab
+from app_paths import get_asset_root
 from Furniture import Furniture, find_image_path
 
 # Wall openings drawn as architectural symbols directly on a hand-drawn wall line.
@@ -6877,8 +6878,7 @@ class CanvasTools:
             return
         self.flooring_remove_mode = False
 
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        flooring_dir = os.path.join(base_dir, "flooring")
+        flooring_dir = os.path.join(get_asset_root(), "flooring")
 
         # Preferred names (supporting multiple extensions)
         preferred = {

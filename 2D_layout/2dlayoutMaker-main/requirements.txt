@@ -15,7 +15,7 @@ ortools==9.11.4210   # CP-SAT constraint_solver planner (hard multi-room floor p
 # --- Recommended (nicer dialogs on Windows; falls back to plain ttk if missing) ---
 ttkbootstrap
 
-# --- Embedded Home Quest 3D viewer (Windows WebView2 child control) ---
+# --- Packaged embedded 3D viewer (Windows WebView2 child control) ---
 # Keep these exact: embedded_viewer.py carries the pinned pair's one-field EdgeChrome shim.
 tkwebview2==3.5.0
 pywebview==5.4

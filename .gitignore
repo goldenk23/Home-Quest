@@ -1,52 +1,25 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Visual test artifacts
-tests/visual/test-results/
-playwright-report/
-storybook-static/
-
 # Local secrets
 .env
 .env.*
 !.env.example
 
-# Python local/generated artifacts
+# Python environments and generated files
 .venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+*.log
+
+# OS/editor files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
 
 # Explicit live Vertex smoke harness (local credentials/billing)
 2D_layout/2dlayoutMaker-main/_ai_smoke_tmp.py
 
-# Local source bundle exports
+# Local source exports and session notes
 2D_layout/*source-only-*.base64.txt
-
-# Local AI session transcripts (large, not source)
 session-ses_*.md
-
-# Local scratch / bug-prompt notes
 WHITE_BOX_BUG_PROMPT.md

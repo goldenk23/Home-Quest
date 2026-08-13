@@ -1,2 +1,0 @@
-cd "c:\Users\golde\Desktop\Projects\Home Quest\2D_layout\2dlayoutMaker-main"
-.\.venv\Scripts\python.exe app.pyw

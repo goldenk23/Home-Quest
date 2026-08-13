@@ -12,7 +12,7 @@ import tkinter as tk
 import yaml
 from tkinter import filedialog, messagebox
 
-from app_paths import AppPathManager
+from app_paths import AppPathManager, get_asset_root
 from Helper.showMessage import show_message
 from layout_schema import empty_geometry, validate_document
 from project_state import ProjectState
@@ -110,12 +110,14 @@ class LayoutSerializer:
         self.auto_save_enabled = True
         self.current_layout_file = None
 
-        # Use the file’s folder as the anchor for bundled assets (images etc.)
+        # Search centralized editor/viewer assets when loading portable or legacy layouts.
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        asset_root = get_asset_root()
         self.asset_dirs = [
-            os.path.join(self.base_dir, "Images"),
-            os.path.join(self.base_dir, "flooring"),
-            self.base_dir,  # last resort
+            os.path.join(asset_root, "furniture-2d", "editor"),
+            os.path.join(asset_root, "furniture-2d"),
+            os.path.join(asset_root, "flooring"),
+            asset_root,
         ]
         self._missing_asset_logged = set()
 
@@ -898,10 +900,9 @@ class LayoutSerializer:
         flooring_type = flooring_info.get("flooring_type", "wood")
 
         # If the stored path cannot be resolved (moved project, different OS),
-        # fall back to the standard flooring directory used at runtime.
+        # fall back to the centralized flooring directory.
         if not flooring_path:
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            flooring_dir = os.path.join(base_dir, "flooring")
+            flooring_dir = os.path.join(get_asset_root(), "flooring")
             for ext in ("png", "jpeg", "jpg"):
                 alt_path = os.path.join(flooring_dir, f"{flooring_type}.{ext}")
                 if os.path.exists(alt_path):
@@ -978,8 +979,7 @@ class LayoutSerializer:
         flooring_path = self._resolve_asset_path(flooring_path_raw)
         flooring_type = flooring_info.get("flooring_type", "wood")
         if not flooring_path:
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            flooring_dir = os.path.join(base_dir, "flooring")
+            flooring_dir = os.path.join(get_asset_root(), "flooring")
             for ext in ("png", "jpeg", "jpg"):
                 alt_path = os.path.join(flooring_dir, f"{flooring_type}.{ext}")
                 if os.path.exists(alt_path):
@@ -1101,22 +1101,17 @@ class LayoutSerializer:
         from Furniture import find_image_path
         image_path = None
         stored = furniture_data.get("image_path")
-        # Method 1: Try the stored full path (absent in engine/AI-authored native furniture).
+        # Keep existing absolute paths valid, then resolve old names in the central catalog.
         if stored and os.path.exists(stored):
             image_path = stored
-        # Method 2: Try using the image name with find_image_path function
-        elif furniture_data.get("image_name"):
-            image_path = find_image_path(furniture_data["image_name"])
-        # Method 3: Try using the filename in local Images directory
-        elif furniture_data.get("image_filename"):
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            local_path = os.path.join(base_dir, "Images", furniture_data["image_filename"])
-            if os.path.exists(local_path):
-                image_path = local_path
-        # Method 4: Extract a name from a stored (but unresolved) path and search
-        elif stored:
-            original_name = os.path.splitext(os.path.basename(stored))[0]
-            image_path = find_image_path(original_name)
+        else:
+            candidates = (
+                furniture_data.get("image_name"),
+                furniture_data.get("image_filename"),
+                os.path.basename(stored) if stored else None,
+            )
+            image_path = next((path for name in candidates if name
+                               and (path := find_image_path(name))), None)
 
         if not image_path:
             missing = furniture_data.get("image_name") or furniture_data.get("image_filename") or stored
@@ -3184,8 +3179,7 @@ class LayoutSerializer:
 
                     # Fallback to a default if file missing (keeps demo robust)
                     if not os.path.isfile(path):
-                        base = os.path.join(os.path.dirname(__file__), "Images")
-                        fallback = os.path.join(base, "tile.jpg")
+                        fallback = os.path.join(get_asset_root(), "flooring", "tile.jpg")
                         if os.path.isfile(fallback):
                             path = fallback
 

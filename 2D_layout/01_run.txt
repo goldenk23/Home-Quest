@@ -1,2 +1,3 @@
-Set-Location "C:\Users\golde\Desktop\Projects\Home Quest"; powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\run-home-quest.ps1"
+Run from any directory:
 
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\golde\Desktop\Projects\Home Quest\2D_layout\run-2d-editor.ps1"

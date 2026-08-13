@@ -99,7 +99,7 @@ Prefer rectangle rooms. Do not output oval, rectangle, arc, freehand, helper-han
 
 `double_bed`, `circular_bed`, `bed_with_side_table`, `single_bed`, `sofa`, `Sofa_Set_with_Centre_Table`, `sofa_set_with_centre_table`, `single_sofa`, `Chair`, `chair`, `coffee_table`, `dining_table_4_seat`, `dining_table_6_seat`, `dining_table_8_seat`, `Table_Chair_Set`, `table_chair_set`, `Study_Table_Chair`, `study_table_chair`, `desk`, `wardrobe`, `Wardrobe`, `Standing_Cabinet`, `standing_cabinet`, `tv`, `TV`, `fridge`, `Fridge`, `stove`, `sink`, `kitchen_platform`, `kitchen_platform_2`, `kitchen_platform_3`, `kitchen_platform_4`, `Toilet`, `toilet`, `Bath Tub`, `bathtub`, `Bath_Tub`, `shower`, `Wash_Basin`, `Wash_basin`, `wash_basin`, `singlehand_door`, `doublehand_door`.
 
-Furniture records require `id`, `image_name`, `x`, and `y`; normally include `image_path:"Images/<asset>.png"`, `image_filename`, `scale`, and `angle`. Keep assets inside their intended rooms and preserve clear circulation.
+Furniture records require `id`, `image_name`, `x`, and `y`; normally include `image_path:"assets/furniture-2d/editor/<asset>.png"`, `image_filename`, `scale`, and `angle`. Keep assets inside their intended rooms and preserve clear circulation.
 
 Flooring `flooring_type` must be one of `wood`, `Wood`, `marble`, `Marble`, `tile`, `Tile`, `garden`, `grass`, `Garden`. If `has_flooring` is false, omit type/path. Never substitute an unknown asset.
 

@@ -1,0 +1,2 @@
+# Sealed compiled 3D viewer; preserve bytes and exclude generated whitespace from checks.
+2D_layout/2dlayoutMaker-main/viewer_dist/** -text -whitespace linguist-generated=true

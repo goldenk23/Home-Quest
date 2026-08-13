@@ -4,6 +4,8 @@ import sys
 import tkinter as tk
 from tkinter import PhotoImage
 
+from app_paths import get_asset_root
+
 # Stable AppUserModelID for Windows taskbar grouping / icon
 # NOTE: Icon image for the taskbar still comes from the EXE's resources,
 # but having a fixed ID avoids random grouping and improves pinning behavior.
@@ -54,12 +56,10 @@ def set_window_icon(root, icon_path=None):
         exe_dir = ""
     meipass = getattr(sys, "_MEIPASS", "") if hasattr(sys, "_MEIPASS") else ""
 
-    # Project root (dev) based on this file location:
-    # .../MiniAutocad/2dlayoutMaker/Helper/set_window_icon.py
-    # -> .../MiniAutocad/2dlayoutMaker
+    # Project root (dev) is the parent of Helper.
     try:
         here = os.path.dirname(os.path.abspath(__file__))
-        dev_project_root = os.path.normpath(os.path.join(here, os.pardir, os.pardir))
+        dev_project_root = os.path.normpath(os.path.join(here, os.pardir))
     except Exception:
         dev_project_root = ""
 
@@ -67,7 +67,9 @@ def set_window_icon(root, icon_path=None):
         if not base:
             return []
         return [
-            # Prefer ICO on Windows (titlebar icon) when available
+            # Centralized layout first; old locations remain fallback-compatible.
+            os.path.join(base, "assets", "branding", "icon.ico"),
+            os.path.join(base, "assets", "branding", "welcome_image.png"),
             os.path.join(base, "assets", "icon.ico"),
             os.path.join(base, "Assets", "icon.ico"),
             os.path.join(base, "assets", "welcome_image.png"),
@@ -78,19 +80,21 @@ def set_window_icon(root, icon_path=None):
         ]
 
     # Build search list. On Windows, check ICO first to avoid the default Tk "leaf" icon.
+    branding_dir = os.path.join(get_asset_root(), "branding")
+    central_paths = [
+        os.path.join(branding_dir, "icon.ico"),
+        os.path.join(branding_dir, "welcome_image.png"),
+    ]
     if icon_path is None:
         if sys.platform == "win32":
-            default_paths = [
-                os.path.join("assets", "icon.ico"),
-                os.path.join("Assets", "icon.ico"),
-                os.path.join("assets", "welcome_image.png"),
-                os.path.join("Assets", "welcome_image.png"),
+            default_paths = central_paths + [
+                os.path.join("assets", "branding", "icon.ico"),
+                os.path.join("assets", "branding", "welcome_image.png"),
                 os.path.join("..", "welcome_image.png"),
             ]
         else:
-            default_paths = [
-                os.path.join("assets", "welcome_image.png"),
-                os.path.join("Assets", "welcome_image.png"),
+            default_paths = list(reversed(central_paths)) + [
+                os.path.join("assets", "branding", "welcome_image.png"),
                 os.path.join("..", "welcome_image.png"),
             ]
         default_paths = default_paths + _candidates(dev_project_root) + _candidates(env_home) + _candidates(exe_dir) + _candidates(meipass)
@@ -99,17 +103,15 @@ def set_window_icon(root, icon_path=None):
         default_paths = [icon_path]
         if sys.platform == "win32":
             default_paths += [
-                os.path.join("assets", "Images", "welcome_image.ico"),
-                os.path.join("Assets", "Images", "welcome_image.ico"),
+                os.path.join(branding_dir, "icon.ico"),
+                os.path.join(branding_dir, "welcome_image.png"),
                 "welcome_image.ico",
                 "icon.ico",
-                os.path.join("assets", "Images", "welcome_image.png"),
-                os.path.join("Assets", "Images", "welcome_image.png"),
                 "welcome_image.png",
             ]
         else:
             default_paths += [
-                os.path.join("assets", "Images", "welcome_image.png"),
+                os.path.join(branding_dir, "welcome_image.png"),
                 "welcome_image.png",
                 "icon.ico",
             ]
